@@ -1,0 +1,32 @@
+.header {
+    width: 100vw;
+    height: 100vh;
+    background-image: url('../../public/djimg.jpg');
+    background-position: bottom;
+    background-size: cover;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.header-content {
+    color: whitesmoke;
+    text-align: center;
+}
+.header-content {
+    font-size: 4vmin;
+}
+.header-content img {
+    display: flex;
+    max-width: 80vw;
+    width: 400px;
+    -webkit-filter: grayscale(10%) brightness(0);
+    filter: grayscale(10%) brightness(0);
+    opacity: 0.8;
+}
+.line {
+    width: 150px;
+    height: 4px;
+    background: #fc036b;
+    margin: 10px auto;
+    border-radius: 5px;
+}
