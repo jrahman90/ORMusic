@@ -1,0 +1,88 @@
+.celebrate-with-us {
+    width: 100vw;
+    height: 50vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    background-image: linear-gradient(to bottom right, #a71634, #333f94);
+}
+.celebrate-with-us h1 {
+    font-family:'Times New Roman', Times, serif;
+    color: white;
+    font-weight: 900;
+}
+.celebrate-with-us h2 {
+    font-family:'Times New Roman', Times, serif;
+    color: white;
+    font-size: 3.5vmin;
+    text-align: center;
+    max-width: 90vw;
+}
+.header {
+    width: 100vw;
+    height: 50vh;
+    background-image: url('../../../public/djimg.jpg');
+    background-position: bottom;
+    background-size: cover;
+    background-repeat: repeat-y;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.phone a:link{
+    text-decoration: none;
+}
+.phone {
+    color:white;
+    opacity: .7;
+    text-align: right;
+}
+.phone:hover {
+    color:red;
+}
+.header-content {
+    color: whitesmoke;
+    text-align: center;
+    margin-bottom: 100px;
+}
+.header-content h2 {
+    font-family:'Times New Roman', Times, serif;
+    font-size: 4.5vmin;
+    font-weight: bolder;
+    opacity: .8;
+    font-style: oblique;
+    text-shadow:1px 1px 10px #fff, 1px 1px 10px #ccc;
+}
+.header-content img {
+    display: flex;
+    max-width: 80vw;
+    width: 400px;
+    filter: brightness(0) invert(1) ;
+    opacity: 0.6;
+}
+.line {
+    width: 150px;
+    height: 4px;
+    background: #fc036b;
+    margin: 10px auto;
+    border-radius: 5px;
+}
+.our-services {
+    width: 100vw;
+    height: 50vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    background-image: linear-gradient(to bottom right, #cdc1c4, #8087b7);
+}
+.our-services h1 {
+    font-family:'Times New Roman', Times, serif;
+    color: white;
+    font-weight: 900;
+    margin-bottom: 50px;
+}
+.pictures {
+    max-width: 80vw;
+}
