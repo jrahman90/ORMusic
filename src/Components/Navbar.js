@@ -11,7 +11,7 @@ export default function navbar() {
     <div>
       <Navbar bg="primary" expand="lg">
         <Container>
-          <Navbar.Brand href="#home">
+          <Navbar.Brand href="/">
             <img
               src="ormusiclogo.png"
               alt=""

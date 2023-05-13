@@ -13,9 +13,8 @@ export default function Home() {
               <BsPhoneVibrateFill />
             </a>
           </h1> */}
+          <img className="mb-3" src="ormusiclogo.png" alt="" />
           <h2>Your Event Specialists</h2>
-          <div className="line"></div>
-          <img src="ormusiclogo.png" alt="" />
         </div>
       </div>
       <div className="line"></div>
