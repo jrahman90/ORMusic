@@ -1,13 +1,16 @@
 import React from "react";
 import "./App.css";
+import "./Components/Css/components.css";
+import "bootstrap/dist/css/bootstrap.min.css";
 import Navbar from "./Components/Navbar";
-import { Routes, Router, Route } from "react-router-dom";
+import { Routes, Route } from "react-router-dom";
 import Home from "./Components/Home";
 import ContactUs from "./Components/ContactUs";
 import Djmc from "./Components/Djmc";
 import Downloads from "./Components/Downloads";
 import MusicVideos from "./Components/MusicVideos";
-import Photobooth from "./Components/Photobooth";
+import Music from "./Components/Music";
+import Footer from "./Components/Footer";
 
 function App() {
   return (
@@ -19,8 +22,12 @@ function App() {
         <Route path="/DJMC" element={<Djmc />} />
         <Route path="/Downloads" element={<Downloads />} />
         <Route path="/MusicVideos" element={<MusicVideos />} />
-        <Route path="/Photobooth" element={<Photobooth />} />
+        <Route path="/Music" element={<Music />} />
       </Routes>
+      <div>
+        <div className="line"></div>
+        <Footer />
+      </div>
     </div>
   );
 }

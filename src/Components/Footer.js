@@ -5,7 +5,7 @@ export default function Footer() {
   return (
     <div>
       <h3 align="center" vertical-align="bottom">
-        copyright
+        © 2023 OR Music
       </h3>
     </div>
   );

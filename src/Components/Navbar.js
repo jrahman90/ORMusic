@@ -40,8 +40,8 @@ export default function navbar() {
                   Downloads
                 </NavDropdown.Item>
                 <NavDropdown.Divider />
-                <NavDropdown.Item as={Link} to="/Photobooth">
-                  Photobooth
+                <NavDropdown.Item as={Link} to="/Music">
+                  Music
                 </NavDropdown.Item>
               </NavDropdown>
             </Nav>
