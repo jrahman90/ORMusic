@@ -30,14 +30,8 @@
     align-items: center;
     justify-content: center;
 }
-.homePage {
-    background-image: url('../../../public/ormusiclogo.png');
-    background-size: 2%;
-    background-position-x: center;
-    background-position-y: center;
-    /* background-repeat: no-repeat; */
-    background-position: absolute;
-}
+.homePage {}
+
 .phone a:link{
     text-decoration: none;
 }

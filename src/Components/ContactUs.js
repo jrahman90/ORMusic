@@ -11,23 +11,26 @@ export default function ContactUs() {
 
   const sendEmail = (e) => {
     e.preventDefault();
-
-    emailjs
-      .sendForm(
-        "service_pimfhg7",
-        "template_98bu8bi",
-        form.current,
-        "sV1cKQAbOd4PLkl38"
-      )
-      .then(
-        (result) => {
-          console.log(result.text);
-          setShow(true);
-        },
-        (error) => {
-          console.log(error.text);
-        }
-      );
+    try {
+      emailjs
+        .sendForm(
+          "service_pimfhg7",
+          "template_98bu8bi",
+          form.current,
+          "sV1cKQAbOd4PLkl38"
+        )
+        .then(
+          (result) => {
+            console.log(result.text);
+            setShow(true);
+          },
+          (error) => {
+            console.log(error.text);
+          }
+        );
+    } catch (error) {
+      console.log(error);
+    }
   };
 
   return (

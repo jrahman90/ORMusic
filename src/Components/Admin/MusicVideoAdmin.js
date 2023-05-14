@@ -1,11 +1,17 @@
 import React, { useEffect, useState } from "react";
 import { Button, Container, Form } from "react-bootstrap";
 import db from "../../api/firestore/firestore";
-import { collection, onSnapshot, addDoc } from "firebase/firestore";
+import {
+  collection,
+  onSnapshot,
+  addDoc,
+  deleteDoc,
+  doc,
+} from "firebase/firestore";
 
 function musicVideo(src, title, id) {
   return (
-    <div class="ratio ratio-16x9 mb-3" key={id}>
+    <div class="ratio ratio-16x9 mb-1">
       <iframe src={src} title={title} allowFullScreen></iframe>
     </div>
   );
@@ -15,27 +21,34 @@ export default function MusicVideoAdmin() {
   const [videos, setVideos] = useState([]);
   const [VideoSrc, setVideoSrc] = useState("");
   const [VideoTitle, setVideoTitle] = useState("");
-  console.log(VideoSrc, VideoTitle);
+
   //post to db
   const addVideo = async (e) => {
     e.preventDefault();
-    // const docRef = doc(db, "videos", "alkfdja");
-    const payload = {
-      src: VideoSrc,
-      title: VideoTitle,
-    };
-    // console.log("payload:", payload);
-    // await setDoc(docRef, payload);
-    // console.log("added to db!");
+    try {
+      const payload = {
+        src: VideoSrc,
+        title: VideoTitle,
+      };
 
-    const collectionRef = collection(db, "videos");
-    addDoc(collectionRef, payload);
-    setVideoSrc("");
-    setVideoTitle("");
+      const collectionRef = collection(db, "videos");
+      addDoc(collectionRef, payload);
+      setVideoSrc("");
+      setVideoTitle("");
+    } catch (error) {
+      console.log(error);
+    }
   };
 
   //delete from db
-
+  const handleDelete = async (id) => {
+    try {
+      const docRef = doc(db, "videos", id);
+      await deleteDoc(docRef);
+    } catch (error) {
+      console.log(error);
+    }
+  };
   //get videos from db
   useEffect(
     () =>
@@ -67,7 +80,20 @@ export default function MusicVideoAdmin() {
           Add New Video
         </Button>
       </Form>
-      {videos.map((video) => musicVideo(video.src, video.title, video.id))};
+      {videos.map((video) => (
+        <ul
+          align="center"
+          key={video.id}
+          style={{
+            padding: 0,
+            listStyleType: "none",
+          }}
+        >
+          <li>{musicVideo(video.src, video.title, video.id)}</li>
+          <Button onClick={() => handleDelete(video.id)}>Delete</Button>
+          <div className="line"></div>
+        </ul>
+      ))}
     </Container>
   );
 }
