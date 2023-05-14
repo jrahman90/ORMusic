@@ -5,7 +5,7 @@ import Celebrate from "./HomeComponents/Intro";
 
 export default function Home() {
   return (
-    <>
+    <div className="homePage">
       <div className="header">
         <div className="header-content">
           {/* <h1 className="phone">
@@ -26,6 +26,6 @@ export default function Home() {
         <h1>Our Services</h1>
         <Pictures />
       </div>
-    </>
+    </div>
   );
 }

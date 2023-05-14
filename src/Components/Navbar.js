@@ -36,13 +36,13 @@ export default function navbar() {
                 <NavDropdown.Item as={Link} to="/MusicVideos">
                   Music Videos
                 </NavDropdown.Item>
-                <NavDropdown.Item as={Link} to="/Downloads">
+                {/* <NavDropdown.Item as={Link} to="/Downloads">
                   Downloads
                 </NavDropdown.Item>
-                <NavDropdown.Divider />
-                <NavDropdown.Item as={Link} to="/Music">
+                <NavDropdown.Divider /> */}
+                {/* <NavDropdown.Item as={Link} to="/Music">
                   Music
-                </NavDropdown.Item>
+                </NavDropdown.Item> */}
               </NavDropdown>
             </Nav>
           </Navbar.Collapse>
