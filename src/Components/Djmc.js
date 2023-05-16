@@ -2,16 +2,28 @@ import React from "react";
 import { Container } from "react-bootstrap";
 import Row from "react-bootstrap/Row";
 import Col from "react-bootstrap/Col";
+import './Css/components.css'
 
 export default function Djmc() {
   return (
-    <Container>
+    <Container className="djmc-container">
       <Row className="mb-3 mt-3">Meet The Team</Row>
       <Row>
-        <Col>
-          <img src="ormusiclogo.png" width={400} />
+        <Col className="mb-2">
+          <img src="dj1.jpg" width={400} />
         </Col>
-        <Col>2 of 2</Col>
+        <Col className="mb-2">
+          <img src="dj600.png" width={400} />
+        </Col>
+        <Col className="mb-2">
+          <img src="djbooth.jpg" width={400} />
+        </Col>
+        <Col className="mb-2">
+          <img src="djbooth2.jpg" width={400} />
+        </Col>
+        <Col className="mb-2">
+          <img src="djbooth3.jpg" width={400} />
+        </Col>
       </Row>
     </Container>
   );
