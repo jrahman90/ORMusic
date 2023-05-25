@@ -32,6 +32,10 @@
 }
 .homePage {}
 
+.loading{
+    background:transparent url('../../../public/loading\ gif.gif') center center no-repeat;
+}
+
 .phone a:link{
     text-decoration: none;
 }
