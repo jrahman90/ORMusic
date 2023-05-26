@@ -2,10 +2,11 @@ import React, { useEffect, useState } from "react";
 import { Container } from "react-bootstrap";
 import db from "../api/firestore/firestore";
 import { collection, onSnapshot } from "firebase/firestore";
+import Alert from 'react-bootstrap/Alert'
 
-function musicVideo(src, title, id) {
+function musicVideo(src, title) {
   return (
-    <div class="ratio ratio-16x9 mb-3">
+    <div className="ratio ratio-16x9 mb-3">
       <iframe src={src} title={title} allowFullScreen></iframe>
     </div>
   );
@@ -24,7 +25,7 @@ export default function MusicVideos() {
 
   return (
     <Container style={{ padding: 10 }}>
-      {videos
+      {videos ? videos
         .map((video) => (
           <ul
             align="center"
@@ -34,11 +35,11 @@ export default function MusicVideos() {
               listStyleType: "none",
             }}
           >
-            <li>{musicVideo(video.src, video.title, video.id)}</li>
+            <li>{musicVideo(video.src, video.title)}</li>
             <div className="line"></div>
           </ul>
-        ))
-        .reverse()}
+        )).reverse(): <Alert variant={'danger'} >NO VIDEOS AVAILABLE AT THIS TIME. PLEASE COME BACK LATER</Alert >
+        }
     </Container>
   );
 }

@@ -9,7 +9,7 @@ export default function Djmc() {
   
   return (
     <Container className="djmc-container">
-      <Row style={{justifyContent:'center'}} className="mb-3 mt-3" >Meet The Team</Row>
+      <Row style={{justifyContent:'center'}} className="my-3" >Meet The Team</Row>
        <Row >
         <Col className="mb-2" xs={6} md={4}>
           <Image  src="dj1.jpg" rounded fluid/>

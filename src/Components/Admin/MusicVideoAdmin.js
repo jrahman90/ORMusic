@@ -9,9 +9,9 @@ import {
   doc,
 } from "firebase/firestore";
 
-function musicVideo(src, title, id) {
+function musicVideo(src, title) {
   return (
-    <div class="ratio ratio-16x9 mb-1">
+    <div className="ratio ratio-16x9 mb-1">
       <iframe src={src} title={title} allowFullScreen></iframe>
     </div>
   );
@@ -89,7 +89,7 @@ export default function MusicVideoAdmin() {
             listStyleType: "none",
           }}
         >
-          <li>{musicVideo(video.src, video.title, video.id)}</li>
+          <li>{musicVideo(video.src, video.title)}</li>
           <Button onClick={() => handleDelete(video.id)}>Delete</Button>
           <div className="line"></div>
         </ul>
