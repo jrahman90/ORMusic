@@ -19,6 +19,9 @@
     text-align: center;
     max-width: 90vw;
 }
+.djmc-images {
+    min-width: 360px;
+}
 .header {
     width: 100vw;
     height: 50vh;
