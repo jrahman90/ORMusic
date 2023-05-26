@@ -25,13 +25,13 @@ export default function Home() {
         <h1>Our Services</h1>
         <Row style={{justifyContent:'center'}}>
           <Col className="mx-2" xs={5} md={3} style={{alignSelf:'center'}}>
-            <Image src="dj1.jpg" thumbnail fluid/>
+            <Image src="dj1.jpg" rounded fluid/>
           </Col>
           <Col className="mx-2" xs={5} md={3} style={{alignSelf:'center'}}>
-            <Image src="stages/IMG_4719.jpeg" thumbnail fluid/>
+            <Image src="stages/IMG_4719.jpeg" rounded fluid/>
           </Col>
           <Col className="mx-2" xs={5} md={3} style={{alignSelf:'center'}}>
-            <Image src="photography.avif" thumbnail fluid/>
+            <Image src="photography.avif" rounded fluid/>
           </Col>
         </Row>
       </div>
