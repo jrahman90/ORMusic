@@ -1,11 +1,9 @@
 import React from "react";
 import "./Css/components.css";
-import Pictures from "./SubElements/Pictures";
 import Celebrate from "./HomeComponents/Intro";
 import Row from "react-bootstrap/Row";
 import Col from "react-bootstrap/Col";
-import Carousel from 'react-bootstrap/Carousel';
-import Image from 'react-bootstrap/Image'
+import Image from "react-bootstrap/Image";
 
 export default function Home() {
   return (
@@ -23,15 +21,15 @@ export default function Home() {
       <div className="line"></div>
       <div className="our-services">
         <h1>Our Services</h1>
-        <Row style={{justifyContent:'center'}}>
-          <Col className="mx-2" xs={5} md={3} style={{alignSelf:'center'}}>
-            <Image src="dj1.jpg" rounded fluid/>
+        <Row style={{ justifyContent: "center" }}>
+          <Col className="mx-2" xs={5} md={3} style={{ alignSelf: "center" }}>
+            <Image src="dj1.jpg" rounded fluid />
           </Col>
-          <Col className="mx-2" xs={5} md={3} style={{alignSelf:'center'}}>
-            <Image src="stages/IMG_4719.jpeg" rounded fluid/>
+          <Col className="mx-2" xs={5} md={3} style={{ alignSelf: "center" }}>
+            <Image src="stages/IMG_4719.jpeg" rounded fluid />
           </Col>
-          <Col className="mx-2" xs={5} md={3} style={{alignSelf:'center'}}>
-            <Image src="photography.avif" rounded fluid/>
+          <Col className="mx-2" xs={5} md={3} style={{ alignSelf: "center" }}>
+            <Image src="photography.avif" rounded fluid />
           </Col>
         </Row>
       </div>

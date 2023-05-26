@@ -19,8 +19,11 @@
     text-align: center;
     max-width: 90vw;
 }
-.djmc-images {
-    min-width: 360px;
+.djmc-container {
+    background-image: url('../../../public/djimg.jpg');
+    background-position: bottom;
+    background-size: cover;
+    background-repeat: repeat-y;
 }
 .header {
     width: 100vw;
@@ -33,22 +36,14 @@
     align-items: center;
     justify-content: center;
 }
-.homePage {}
-
-.loading{
-    background:transparent url('../../../public/loading\ gif.gif') center center no-repeat;
-}
-
-.phone a:link{
-    text-decoration: none;
-}
-.phone {
-    color:white;
-    opacity: .7;
-    text-align: right;
-}
-.phone:hover {
-    color:red;
+.header-text {
+    font-family:'Times New Roman', Times, serif;
+    font-size: 4.5vmin;
+    font-weight: bolder;
+    color: white;
+    opacity: .8;
+    font-style: oblique;
+    text-shadow:1px 1px 10px #fff, 1px 1px 10px #ccc;
 }
 .header-content {
     color: whitesmoke;
@@ -70,12 +65,17 @@
     filter: brightness(0) invert(1) ;
     opacity: 0.6;
 }
+.image-border {border: 1px solid #949191;
+}
 .line {
     width: 150px;
     height: 4px;
     background: #fc036b;
     margin: 10px auto;
     border-radius: 5px;
+}
+.loading{
+    background:transparent url('../../../public/loading\ gif.gif') center center no-repeat;
 }
 .our-services {
     width: 100vw;
