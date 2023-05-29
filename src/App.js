@@ -13,6 +13,7 @@ import Music from "./Components/Music";
 import Footer from "./Components/Footer";
 import MusicVideoAdmin from "./Components/Admin/MusicVideoAdmin";
 import DjmcAdmin from "./Components/Admin/DjmcAdmin";
+import Login from "./Components/Login";
 
 function App() {
   return (
@@ -27,6 +28,7 @@ function App() {
         <Route path="/Music" element={<Music />} />
         <Route path="/opurahman/admin" element={<MusicVideoAdmin />} />
         <Route path="/djmcadmin/admin" element={<DjmcAdmin />} />
+        <Route path='/login' element={<Login/>}/>
       </Routes>
       <div>
         <div className="line"></div>

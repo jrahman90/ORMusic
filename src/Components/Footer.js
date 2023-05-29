@@ -1,6 +1,7 @@
 import React from "react";
 import "./Css/components.css";
-import { Container } from "react-bootstrap";
+import { Container, Nav } from "react-bootstrap";
+import { Link } from "react-router-dom";
 
 export default function Footer() {
   return (
@@ -18,6 +19,9 @@ export default function Footer() {
         <a href="https://www.tiktok.com/@officialopu" target="_blank" rel="noreferrer">
         <img alt="" src="tiktok.png"/>
         </a>
+      <Nav className="me-auto justify-content-center">
+        <Nav.Link as={Link} to='/login'>Login</Nav.Link>
+      </Nav>
       <h3 align="center" vertical-align="bottom" style={{fontFamily: 'sans serif, arial or verdana'}}>
         © 2023 OR Music
       </h3>

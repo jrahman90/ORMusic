@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Container, Row, Col, Form, Button, Image } from 'react-bootstrap';
+import { Container, Row, Col, Form, Button, Image, Modal } from 'react-bootstrap';
 import  db  from '../../api/firestore/firestore'; 
 import { storage } from '../../api/firestore/firestore';
-import { collection, addDoc, getDocs, deleteDoc, doc } from 'firebase/firestore';
+import { collection, addDoc, getDocs, deleteDoc, doc, updateDoc } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { v4 } from 'uuid';
 
@@ -12,6 +12,10 @@ const DjmcAdmin = () => {
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [image, setImage] = useState(null);
+  const [editingUser, setEditingUser] = useState(null);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [userToDelete, setUserToDelete] = useState(null);
+
 
   useEffect(() => {
     // Fetch users from Firestore
@@ -53,17 +57,72 @@ const DjmcAdmin = () => {
     setUsers((prevUsers) => [...prevUsers, { id: '', ...newUser }]);
   };
 
-  const handleDeleteUser = async (userId) => {
+  //Delete a User
+
+  const handleDeleteUser = (user) => {
+    setUserToDelete(user);
+    setShowDeleteModal(true);
+  };
+
+  const handleConfirmDelete = async () => {
     // Delete user from Firestore
-    await deleteDoc(doc(db, 'users', userId));
+    await deleteDoc(doc(db, 'users', userToDelete.id));
 
     // Update the users state by removing the deleted user
-    setUsers((prevUsers) => prevUsers.filter((user) => user.id !== userId));
+    setUsers((prevUsers) => prevUsers.filter((user) => user.id !== userToDelete.id));
+
+    // Close the modal and reset userToDelete
+    setShowDeleteModal(false);
+    setUserToDelete(null);
+  };
+
+  const handleCloseDeleteModal = () => {
+    setShowDeleteModal(false);
+    setUserToDelete(null);
+  };
+
+  //Edit User
+  const handleEditUser = (user) => {
+    setEditingUser(user);
+    setName(user.name);
+    setDescription(user.description);
+    // You may also need to handle the image editing if necessary
+  };
+
+  const handleCancelEdit = () => {
+    setEditingUser(null);
+    setName('');
+    setDescription('');
+    // Reset any other necessary fields
+  };
+
+  const handleUpdateUser = async (e) => {
+    e.preventDefault();
+
+    // Update user data in Firestore
+    await updateDoc(doc(db, 'users', editingUser.id), {
+      name,
+      description,
+    });
+
+    // Update the user in the users state
+    setUsers((prevUsers) =>
+      prevUsers.map((user) =>
+        user.id === editingUser.id ? { ...user, name, description } : user
+      )
+    );
+
+    // Clear edit mode and form fields
+    setEditingUser(null);
+    setName('');
+    setDescription('');
+    // Reset any other necessary fields
   };
 
   return (
     <Container className='
     my-3'>
+      <h1 className='heading-text'>Meet The Team!</h1>
       <Row>
         {users.map((user, index) => (
             <Row key={user.id} className={index % 2 === 0 ? 'flex-row' : 'flex-row-reverse'}>
@@ -72,9 +131,23 @@ const DjmcAdmin = () => {
             </Col>
             <Col sm={12} md={6} className="d-flex align-items-center justify-content-center" style={{textAlign:'center'}}>
               <div>
-                <h2>{user.name}</h2>
-                <p>{user.description}</p>
-                <Button variant="danger" onClick={() => handleDeleteUser(user.id)}>
+                <h2 className='heading-subtext'>{user.name}</h2>
+                <p className='paragraph-text'>{user.description}</p>
+                {editingUser && editingUser.id === user.id ? (
+                  <>
+                    <Button variant="primary" onClick={handleUpdateUser}>
+                      Update
+                    </Button>
+                    <Button variant="secondary" onClick={handleCancelEdit}>
+                      Cancel
+                    </Button>
+                  </>
+                ) : (
+                  <Button variant="info" onClick={() => handleEditUser(user)}>
+                    Edit
+                  </Button>
+                )}
+                <Button variant="danger" onClick={() => handleDeleteUser(user)}>
                   Delete
                 </Button>
               </div>
@@ -108,6 +181,23 @@ const DjmcAdmin = () => {
           Add User
         </Button>
       </Form>
+      {/* Confirmation Modal */}
+      <Modal show={showDeleteModal} onHide={handleCloseDeleteModal}>
+        <Modal.Header closeButton>
+          <Modal.Title>Confirm Delete</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          Are you sure you want to delete the user?
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={handleCloseDeleteModal}>
+            Cancel
+          </Button>
+          <Button variant="danger" onClick={handleConfirmDelete}>
+            Delete
+          </Button>
+        </Modal.Footer>
+      </Modal>
     </Container>
   );
 };

@@ -20,8 +20,8 @@ const DjmcAdmin = () => {
   }, []);
 
   return (
-    <Container className='
-    my-3'>
+    <Container className='my-3'>
+      <h1 className='heading-text'>Meet The Team!</h1>
       <Row>
         {users.map((user, index) => (
             <Row key={user.id} className={index % 2 === 0 ? 'flex-row' : 'flex-row-reverse'}>
@@ -30,8 +30,8 @@ const DjmcAdmin = () => {
             </Col>
             <Col sm={12} md={6} className="d-flex align-items-center justify-content-center" style={{textAlign:'center'}}>
               <div>
-                <h2 >{user.name}</h2>
-                <p>{user.description}</p>
+                <h2 className='heading-subtext'>{user.name}</h2>
+                <p className='paragraph-text'>{user.description}</p>
               </div>
             </Col>
           </Row>
