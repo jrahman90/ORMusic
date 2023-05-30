@@ -93,9 +93,6 @@
     margin: 10px auto;
     border-radius: 5px;
 }
-.loading{
-    background:transparent url('../../../public/loading\ gif.gif') center center no-repeat;
-}
 .our-services {
     width: 100vw;
     height: 50vh;
