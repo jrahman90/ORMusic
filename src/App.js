@@ -1,4 +1,4 @@
-import React from "react";
+import React, {useContext} from "react";
 import "bootstrap/dist/css/bootstrap.min.css";
 import "./App.css";
 import "./Components/Css/components.css";
@@ -13,22 +13,22 @@ import Music from "./Components/Music";
 import Footer from "./Components/Footer";
 import MusicVideoAdmin from "./Components/Admin/MusicVideoAdmin";
 import DjmcAdmin from "./Components/Admin/DjmcAdmin";
-import Login from "./Components/Login";
+
+import { AuthContext } from "./api/firestore/AuthContext";
 
 function App() {
+
+  const {isLoggedIn} = useContext(AuthContext)
   return (
     <div>
       <Navbar />
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/contact" element={<ContactUs />} />
-        <Route path="/DJMC" element={<Djmc />} />
+        <Route path="/DJMC" element={isLoggedIn ? <DjmcAdmin /> : <Djmc />} />
         <Route path="/Downloads" element={<Downloads />} />
-        <Route path="/MusicVideos" element={<MusicVideos />} />
+        <Route path="/MusicVideos" element={isLoggedIn?<MusicVideoAdmin/>:<MusicVideos />} />
         <Route path="/Music" element={<Music />} />
-        <Route path="/opurahman/admin" element={<MusicVideoAdmin />} />
-        <Route path="/djmcadmin/admin" element={<DjmcAdmin />} />
-        <Route path='/login' element={<Login/>}/>
       </Routes>
       <div>
         <div className="line"></div>
