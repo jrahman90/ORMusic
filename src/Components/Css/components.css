@@ -6,8 +6,24 @@
     justify-content: center;
     flex-direction: column;
     background-image: linear-gradient(to bottom right, #a71634, #333f94);
+    font-size: larger;
+    /* 
+    flex-direction: row-reverse;
+    flex-wrap: wrap;
+    align-content: stretch;
+    justify-content: space-evenly; */
 }
-.celebrate-with-us h1 {
+@media (max-width:750px) {
+    .celebrate-with-us {
+        height: 70vh;
+    }
+}
+@media (max-width:576px) {
+    .celebrate-with-us {
+        font-size:small;
+    }
+}
+/* .celebrate-with-us h1 {
     font-family:'Times New Roman', Times, serif;
     color: white;
     font-weight: 900;
@@ -18,6 +34,11 @@
     font-size: 3.5vmin;
     text-align: center;
     max-width: 90vw;
+} */
+.paragraphs {
+    font-family:'Times New Roman', Times, serif;
+    color: white;
+    text-align: center;
 }
 .djmc-container {
     background-image: url('../../../public/djimg.jpg');
@@ -50,20 +71,32 @@
     text-align: center;
     margin-bottom: 100px;
 }
-.header-content h2 {
+.home-card{
+    display: flex;
+    align-content: center;
+    justify-content: center;
+    flex-wrap: nowrap;
+    align-items: center;
+    flex-direction: column;
+}
+.home-logo {
+    display: flex;
+    max-width: 80vw;
+    width: 400px;
+    filter: brightness(0) invert(1) ;
+    opacity: 0.6;
+}
+.home-text {
     font-family:'Times New Roman', Times, serif;
     font-size: 4.5vmin;
     font-weight: bolder;
     opacity: .8;
     font-style: oblique;
     text-shadow:1px 1px 10px #fff, 1px 1px 10px #ccc;
-}
-.header-content img {
-    display: flex;
-    max-width: 80vw;
-    width: 400px;
-    filter: brightness(0) invert(1) ;
-    opacity: 0.6;
+
+    color: whitesmoke;
+    text-align: center;
+    margin-bottom: 100px;
 }
 .image-border {border: 1px solid #949191;
 }
