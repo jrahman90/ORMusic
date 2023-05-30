@@ -60,6 +60,7 @@ const DjmcAdmin = () => {
   //Delete a User
 
   const handleDeleteUser = (user) => {
+    console.log('user',user)
     setUserToDelete(user);
     setShowDeleteModal(true);
   };
@@ -67,7 +68,6 @@ const DjmcAdmin = () => {
   const handleConfirmDelete = async () => {
     // Delete user from Firestore
     await deleteDoc(doc(db, 'users', userToDelete.id));
-
     // Update the users state by removing the deleted user
     setUsers((prevUsers) => prevUsers.filter((user) => user.id !== userToDelete.id));
 

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Button, Container, Form } from "react-bootstrap";
+import { Button, Container, Form, Modal } from "react-bootstrap";
 import db from "../../api/firestore/firestore";
 import {
   collection,
@@ -21,6 +21,8 @@ export default function MusicVideoAdmin() {
   const [videos, setVideos] = useState([]);
   const [VideoSrc, setVideoSrc] = useState("");
   const [VideoTitle, setVideoTitle] = useState("");
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [videoToDelete, setVideoToDelete] = useState(null);
 
   //post to db
   const addVideo = async (e) => {
@@ -40,23 +42,47 @@ export default function MusicVideoAdmin() {
     }
   };
 
-  //delete from db
-  const handleDelete = async (id) => {
-    try {
-      const docRef = doc(db, "videos", id);
-      await deleteDoc(docRef);
-    } catch (error) {
-      console.log(error);
-    }
+  //delete video
+  const handleDelete = (video) => {
+    setVideoToDelete(video);
+    setShowDeleteModal(true);
   };
+  
+  const handleConfirmDelete = async () => {
+    // Delete video from Firestore
+    try {
+      await deleteDoc(doc(db, 'videos', videoToDelete.id));
+      
+    } catch (error) {
+      console.log(error)
+    }
+
+    // Update the videos state by removing the deleted video
+    setVideos((prevVideos) => prevVideos.filter((video) => video.id !== videoToDelete.id));
+
+    // Close the modal and reset videoToDelete
+    setShowDeleteModal(false);
+    setVideoToDelete(null);
+  };
+
+  const handleCloseDeleteModal = () => {
+    setShowDeleteModal(false);
+    setVideoToDelete(null);
+  };
+  // const handleDelete = async (id) => {
+  //   try {
+  //     const docRef = doc(db, "videos", id);
+  //     await deleteDoc(docRef);
+  //   } catch (error) {
+  //     console.log(error);
+  //   }
+  // };
   //get videos from db
   useEffect(
     () =>
       onSnapshot(collection(db, "videos"), (snapshot) =>
         setVideos(snapshot.docs.map((doc) => ({ ...doc.data(), id: doc.id })))
-      ),
-    []
-  );
+      ), []);
   return (
     <Container style={{ padding: 10 }}>
       <Form className="mb-3 mt-3" onSubmit={addVideo} style={{ padding: 10 }}>
@@ -90,10 +116,27 @@ export default function MusicVideoAdmin() {
           }}
         >
           <li>{musicVideo(video.src, video.title)}</li>
-          <Button onClick={() => handleDelete(video.id)}>Delete</Button>
+          <Button onClick={() => handleDelete(video)}>Delete</Button>
           <div className="line"></div>
         </ul>
       ))}
+      {/* confirmation modal */}
+      <Modal show={showDeleteModal} onHide={handleCloseDeleteModal}>
+        <Modal.Header closeButton>
+          <Modal.Title>Confirm Delete</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          Are you sure you want to delete this video?
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={handleCloseDeleteModal}>
+            Cancel
+          </Button>
+          <Button variant="danger" onClick={handleConfirmDelete}>
+            Delete
+          </Button>
+        </Modal.Footer>
+      </Modal>
     </Container>
   );
 }

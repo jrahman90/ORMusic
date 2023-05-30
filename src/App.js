@@ -23,12 +23,12 @@ function App() {
     <div>
       <Navbar />
       <Routes>
-        <Route path="/" element={<Home />} />
-        <Route path="/contact" element={<ContactUs />} />
-        <Route path="/DJMC" element={isLoggedIn ? <DjmcAdmin /> : <Djmc />} />
-        <Route path="/Downloads" element={<Downloads />} />
-        <Route path="/MusicVideos" element={isLoggedIn?<MusicVideoAdmin/>:<MusicVideos />} />
-        <Route path="/Music" element={<Music />} />
+        <Route exact path="/" element={<Home />} />
+        <Route exact path="/contact" element={<ContactUs />} />
+        <Route exact path="/DJMC" element={isLoggedIn ? <DjmcAdmin /> : <Djmc />} />
+        <Route exact path="/Downloads" element={<Downloads />} />
+        <Route exact path="/MusicVideos" element={isLoggedIn?<MusicVideoAdmin/>:<MusicVideos />} />
+        <Route exact path="/Music" element={<Music />} />
       </Routes>
       <div>
         <div className="line"></div>

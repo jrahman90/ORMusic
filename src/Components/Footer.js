@@ -1,4 +1,4 @@
-import React, {useState, useContext} from "react";
+import React, {useState, useContext, useEffect} from "react";
 import "./Css/components.css";
 import { Container, Modal, Button, Form, Alert } from "react-bootstrap";
 import { getAuth, signInWithEmailAndPassword, signOut } from 'firebase/auth';
@@ -18,6 +18,14 @@ export default function Footer() {
   const handleClose = () => {setShow(false); setShowError(false)}
   const handleShow = () => setShow(true);
 
+  useEffect(() => {
+    const storedAuthStatus = localStorage.getItem('isLoggedIn');
+    if(storedAuthStatus) {
+      setIsLoggedIn(JSON.parse(storedAuthStatus))
+    }
+    // eslint-disable-next-line
+  }, [])
+  
   const handleLogin = async (e) => {
     e.preventDefault();
 
@@ -25,10 +33,10 @@ export default function Footer() {
       const auth = getAuth();
       await signInWithEmailAndPassword(auth, email, password);
       // Successful login
-      console.log(auth.currentUser)
       setShow(false);
       setShowError(false)
       setIsLoggedIn(true); // Update login state
+      localStorage.setItem('isLoggedIn', JSON.stringify(true))
       navigate('/'); // Redirect to the home page
 
     } catch (error) {
@@ -42,6 +50,7 @@ export default function Footer() {
     try {
       const auth = getAuth();
       await signOut(auth);
+      localStorage.removeItem('isLoggedIn')
       // Successful logout
       navigate('/')
       setIsLoggedIn(false); // Update login state
