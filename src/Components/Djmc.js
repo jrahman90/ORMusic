@@ -25,7 +25,7 @@ const DjmcAdmin = () => {
       <Row>
         {users.map((user, index) => (
             <Row key={user.id} className={index % 2 === 0 ? 'flex-row' : 'flex-row-reverse'}>
-            <Col sm={12} md={6} className="d-flex align-items-center">
+            <Col sm={12} md={6} className="d-flex align-items-center" style={{justifyContent:'center'}}>
               <Image src={user.imageUrl} roundedCircle fluid />
             </Col>
             <Col sm={12} md={6} className="d-flex align-items-center justify-content-center" style={{textAlign:'center'}}>
