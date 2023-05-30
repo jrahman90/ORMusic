@@ -1,6 +1,6 @@
 import React, {useState, useContext} from "react";
 import "./Css/components.css";
-import { Container, Modal, Button, Form  } from "react-bootstrap";
+import { Container, Modal, Button, Form, Alert } from "react-bootstrap";
 import { getAuth, signInWithEmailAndPassword, signOut } from 'firebase/auth';
 import { useNavigate } from 'react-router-dom';
 import { AuthContext } from "../api/firestore/AuthContext";
@@ -9,11 +9,13 @@ export default function Footer() {
   const [show, setShow] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [passwordAlert, setPasswordAlert] = useState('')
+  const [showError, setShowError] = useState(false)
 
   const navigate = useNavigate();
   const {setIsLoggedIn, isLoggedIn} = useContext(AuthContext)
 
-  const handleClose = () => setShow(false);
+  const handleClose = () => {setShow(false); setShowError(false)}
   const handleShow = () => setShow(true);
 
   const handleLogin = async (e) => {
@@ -25,12 +27,14 @@ export default function Footer() {
       // Successful login
       console.log(auth.currentUser)
       setShow(false);
+      setShowError(false)
       setIsLoggedIn(true); // Update login state
       navigate('/'); // Redirect to the home page
 
     } catch (error) {
-      console.log(error);
-      // Handle login error here
+      setPasswordAlert(error.message)
+      console.log(passwordAlert)
+      setShowError(true)
     }
   };
 
@@ -81,7 +85,7 @@ export default function Footer() {
           <Modal.Title>Login</Modal.Title>
         </Modal.Header>
         <Modal.Body>
-          <Form onSubmit={handleLogin}>
+          <Form className="pe-3" onSubmit={handleLogin}>
             <Form.Group controlId="formBasicEmail">
               <Form.Label>Email address</Form.Label>
               <Form.Control
@@ -101,8 +105,8 @@ export default function Footer() {
                 onChange={(e) => setPassword(e.target.value)}
               />
             </Form.Group>
-
-            <Button variant="primary" type="submit">
+            {showError?<Alert className="mt-3" variant={'danger'}>{passwordAlert}</Alert>:''}
+            <Button className="my-3" variant="primary" type="submit">
               Login
             </Button>
           </Form>
