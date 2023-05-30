@@ -1,33 +1,44 @@
-import React from "react";
-import { Container } from "react-bootstrap";
-import Row from "react-bootstrap/Row";
-import Col from "react-bootstrap/Col";
-import Image from "react-bootstrap/Image";
-import "./Css/components.css";
+import React, { useState, useEffect } from 'react';
+import { Container, Row, Col, Image } from 'react-bootstrap';
+import  db  from '../api/firestore/firestore'; 
+import { collection,  getDocs } from 'firebase/firestore';
 
-export default function Djmc() {
+
+const DjmcAdmin = () => {
+  const [users, setUsers] = useState([]);
+
+  useEffect(() => {
+    // Fetch users from Firestore
+    const fetchUsers = async () => {
+      const usersCollection = collection(db, 'users');
+      const usersSnapshot = await getDocs(usersCollection);
+      const usersData = usersSnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+      setUsers(usersData);
+    };
+
+    fetchUsers();
+  }, []);
+
   return (
-    <Container className="djmc-container">
-      <Row style={{ justifyContent: "center" }} className="my-3 header-text">
-        Meet The Team
-      </Row>
+    <Container className='my-3'>
+      <h1 className='heading-text'>Meet The Team!</h1>
       <Row>
-        <Col className="mb-2 " xs={15} md={4}>
-          <Image className="image-border" src="dj1.jpg" rounded fluid />
-        </Col>
-        <Col className="mb-2 " xs={15} md={4}>
-          <Image className="image-border" src="dj600.png" rounded fluid />
-        </Col>
-        <Col className="mb-2 " xs={15} md={4}>
-          <Image className="image-border" src="djbooth.jpg" rounded fluid />
-        </Col>
-        <Col className="mb-2 " xs={15} md={4}>
-          <Image className="image-border" src="djbooth2.jpg" rounded fluid />
-        </Col>
-        <Col className="mb-2 " xs={15} md={4}>
-          <Image className="image-border" src="djbooth3.jpg" rounded fluid />
-        </Col>
+        {users.map((user, index) => (
+            <Row key={user.id} className={index % 2 === 0 ? 'flex-row' : 'flex-row-reverse'}>
+            <Col sm={12} md={6} className="d-flex align-items-center" style={{justifyContent:'center'}}>
+              <Image src={user.imageUrl} roundedCircle fluid />
+            </Col>
+            <Col sm={12} md={6} className="d-flex align-items-center justify-content-center" style={{textAlign:'center'}}>
+              <div>
+                <h2 className='heading-subtext'>{user.name}</h2>
+                <p className='paragraph-text'>{user.description}</p>
+              </div>
+            </Col>
+          </Row>
+        ))}
       </Row>
     </Container>
   );
-}
+};
+
+export default DjmcAdmin;

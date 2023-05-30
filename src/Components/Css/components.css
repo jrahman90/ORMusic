@@ -46,6 +46,25 @@
     background-size: cover;
     background-repeat: repeat-y;
 }
+.heading-text {
+    font-family:'Times New Roman', Times, serif;
+    font-size: 4.5vmin;
+    font-weight: bolder;
+    opacity: .8;
+    font-style: oblique;
+    text-shadow:1px 1px 10px #fff, 1px 1px 10px #ccc;
+    text-align: center;
+    text-decoration: underline;
+    text-decoration-thickness: 1px;
+}
+.heading-subtext {
+    font-family:'Times New Roman', Times, serif;
+    font-size: 4.5vmin;
+    font-weight: bold;
+    opacity: .8;
+    font-style: oblique;
+    text-shadow:1px 1px 10px #fff, 1px 1px 10px #ccc;
+}
 .header {
     width: 100vw;
     height: 50vh;
@@ -107,9 +126,6 @@
     margin: 10px auto;
     border-radius: 5px;
 }
-.loading{
-    background:transparent url('../../../public/loading\ gif.gif') center center no-repeat;
-}
 .our-services {
     width: 100vw;
     height: 50vh;
@@ -125,6 +141,15 @@
     font-weight: 900;
     margin-bottom: 50px;
 }
+.paragraph-text {
+    font-family:'Times New Roman', Times, serif;
+    /* font-size: 4.5vmin; */
+    font-weight:lighter;
+    opacity: .8;
+    font-style: oblique;
+    text-shadow:1px 1px 10px #fff, 1px 1px 10px #ccc;
+}
 .pictures {
     max-width: 80vw;
 }
+

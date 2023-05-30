@@ -1,4 +1,4 @@
-import React from "react";
+import React, {useContext} from "react";
 import "bootstrap/dist/css/bootstrap.min.css";
 import "./App.css";
 import "./Components/Css/components.css";
@@ -12,19 +12,23 @@ import MusicVideos from "./Components/MusicVideos";
 import Music from "./Components/Music";
 import Footer from "./Components/Footer";
 import MusicVideoAdmin from "./Components/Admin/MusicVideoAdmin";
+import DjmcAdmin from "./Components/Admin/DjmcAdmin";
+
+import { AuthContext } from "./api/firestore/AuthContext";
 
 function App() {
+
+  const {isLoggedIn} = useContext(AuthContext)
   return (
     <div>
       <Navbar />
       <Routes>
-        <Route path="/" element={<Home />} />
-        <Route path="/contact" element={<ContactUs />} />
-        <Route path="/DJMC" element={<Djmc />} />
-        <Route path="/Downloads" element={<Downloads />} />
-        <Route path="/MusicVideos" element={<MusicVideos />} />
-        <Route path="/Music" element={<Music />} />
-        <Route path="/opurahman/admin" element={<MusicVideoAdmin />} />
+        <Route exact path="/" element={<Home />} />
+        <Route exact path="/contact" element={<ContactUs />} />
+        <Route exact path="/DJMC" element={isLoggedIn ? <DjmcAdmin /> : <Djmc />} />
+        <Route exact path="/Downloads" element={<Downloads />} />
+        <Route exact path="/MusicVideos" element={isLoggedIn?<MusicVideoAdmin/>:<MusicVideos />} />
+        <Route exact path="/Music" element={<Music />} />
       </Routes>
       <div>
         <div className="line"></div>
