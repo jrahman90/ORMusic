@@ -69,15 +69,7 @@ export default function MusicVideoAdmin() {
     setShowDeleteModal(false);
     setVideoToDelete(null);
   };
-  // const handleDelete = async (id) => {
-  //   try {
-  //     const docRef = doc(db, "videos", id);
-  //     await deleteDoc(docRef);
-  //   } catch (error) {
-  //     console.log(error);
-  //   }
-  // };
-  //get videos from db
+  
   useEffect(
     () =>
       onSnapshot(collection(db, "videos"), (snapshot) =>
