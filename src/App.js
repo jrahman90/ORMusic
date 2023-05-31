@@ -15,6 +15,7 @@ import MusicVideoAdmin from "./Components/Admin/MusicVideoAdmin";
 import DjmcAdmin from "./Components/Admin/DjmcAdmin";
 
 import { AuthContext } from "./api/firestore/AuthContext";
+import PageNotFound from "./Components/404";
 
 function App() {
 
@@ -29,6 +30,7 @@ function App() {
         <Route exact path="/Downloads" element={<Downloads />} />
         <Route exact path="/MusicVideos" element={isLoggedIn?<MusicVideoAdmin/>:<MusicVideos />} />
         <Route exact path="/Music" element={<Music />} />
+        <Route path="/*" element={<PageNotFound/>}/>
       </Routes>
       <div>
         <div className="line"></div>
