@@ -1,40 +1,11 @@
 import React from "react";
 import "./Css/components.css";
-import Celebrate from "./HomeComponents/Intro";
-import Row from "react-bootstrap/Row";
-import Col from "react-bootstrap/Col";
-import Image from "react-bootstrap/Image";
 import Card from "react-bootstrap/Card";
-import { Container } from "react-bootstrap";
+import Pictures from "./SubElements/Pictures";
 
 export default function Home() {
   return (
     <div>
-      {/* <div className="header">
-        <div className="header-content">
-          <img className="mb-3" src="ormusiclogo.png" alt="" />
-          <h2>Your Event Specialists</h2>
-        </div>
-      </div>
-      <div className="line"></div>
-      <div className="celebrate-with-us">
-        <Celebrate />
-      </div>
-      <div className="line"></div>
-      <div className="our-services">
-        <h1>Our Services</h1>
-        <Row style={{ justifyContent: "center" }}>
-          <Col className="mx-2" xs={5} md={3} style={{ alignSelf: "center" }}>
-            <Image src="dj1.jpg" rounded fluid />
-          </Col>
-          <Col className="mx-2" xs={5} md={3} style={{ alignSelf: "center" }}>
-            <Image src="stages/IMG_4719.jpeg" rounded fluid />
-          </Col>
-          <Col className="mx-2" xs={5} md={3} style={{ alignSelf: "center" }}>
-            <Image src="photography.avif" rounded fluid />
-          </Col>
-        </Row>
-      </div> */}
       <Card className="bg-dark text-white header mt-3">
         <Card.ImgOverlay className="home-card">
           <Card.Title>
@@ -62,14 +33,10 @@ export default function Home() {
           </Card.Text>
         </Card.ImgOverlay>
       </Card>
-      <Card className="bg-dark text-white">
-        <Card.ImgOverlay className="celebrate-with-us">
-          <Card.Title>Card title</Card.Title>
-          <Card.Text>
-            This is a wider card with supporting text below as a natural lead-in
-            to additional content. This content is a little bit longer.
-          </Card.Text>
-          <Card.Text>Last updated 3 mins ago</Card.Text>
+      <Card className="bg-dark mt-3 our-services text-white">
+        <Card.ImgOverlay className="our-services">
+        <Card.Title className="header-text mb-3">Our Services</Card.Title>
+          <Pictures />
         </Card.ImgOverlay>
       </Card>
     </div>

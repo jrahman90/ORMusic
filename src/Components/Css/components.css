@@ -7,34 +7,7 @@
     flex-direction: column;
     background-image: linear-gradient(to bottom right, #a71634, #333f94);
     font-size: larger;
-    /* 
-    flex-direction: row-reverse;
-    flex-wrap: wrap;
-    align-content: stretch;
-    justify-content: space-evenly; */
 }
-@media (max-width:750px) {
-    .celebrate-with-us {
-        height: 70vh;
-    }
-}
-@media (max-width:576px) {
-    .celebrate-with-us {
-        font-size:small;
-    }
-}
-/* .celebrate-with-us h1 {
-    font-family:'Times New Roman', Times, serif;
-    color: white;
-    font-weight: 900;
-}
-.celebrate-with-us h2 {
-    font-family:'Times New Roman', Times, serif;
-    color: white;
-    font-size: 3.5vmin;
-    text-align: center;
-    max-width: 90vw;
-} */
 .paragraphs {
     font-family:'Times New Roman', Times, serif;
     color: white;
@@ -91,6 +64,10 @@
     margin-bottom: 100px;
 }
 .home-card{
+    background-image: url('../../../public/djimg.jpg');
+    background-size: cover;
+    background-position: bottom;
+    background-repeat: repeat-y;
     display: flex;
     align-content: center;
     justify-content: center;
@@ -112,7 +89,6 @@
     opacity: .8;
     font-style: oblique;
     text-shadow:1px 1px 10px #fff, 1px 1px 10px #ccc;
-
     color: whitesmoke;
     text-align: center;
     margin-bottom: 100px;
@@ -128,12 +104,12 @@
 }
 .our-services {
     width: 100vw;
-    height: 50vh;
+    height: 60vh;
     display: flex;
     align-items: center;
     justify-content: center;
     flex-direction: column;
-    background-image: linear-gradient(to bottom right, #cdc1c4, #8087b7);
+    background-image: linear-gradient(to top left , #a71634, #333f94);
 }
 .our-services h1 {
     font-family:'Times New Roman', Times, serif;
@@ -153,3 +129,18 @@
     max-width: 80vw;
 }
 
+@media (max-width:750px) {
+    .celebrate-with-us {
+        height: 70vh;
+    }
+}
+@media (max-width:576px) {
+    .celebrate-with-us {
+        font-size:small;
+    }
+    .our-services{
+        height: 40vh;
+    }
+}
+@media (max-width: 1080px){
+}
