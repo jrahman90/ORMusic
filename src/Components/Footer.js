@@ -4,6 +4,7 @@ import { Container, Modal, Button, Form, Alert } from "react-bootstrap";
 import { getAuth, signInWithEmailAndPassword, signOut } from 'firebase/auth';
 import { useNavigate } from 'react-router-dom';
 import { AuthContext } from "../api/firestore/AuthContext";
+import SignupModal from "./SignupModal";
 
 export default function Footer() {
   const [show, setShow] = useState(false);
@@ -11,6 +12,7 @@ export default function Footer() {
   const [password, setPassword] = useState('');
   const [passwordAlert, setPasswordAlert] = useState('')
   const [showError, setShowError] = useState(false)
+  const [showSignupModal, setShowSignupModal] = useState(false);
 
   const navigate = useNavigate();
   const {setIsLoggedIn, isLoggedIn} = useContext(AuthContext)
@@ -59,7 +61,15 @@ export default function Footer() {
       // Handle logout error here
     }
   };
-
+  
+  const handleShowSignupModal = () => {
+    setShowSignupModal(true);
+    setShow(false)
+  };
+  
+  const handleHideSignupModal = () => {
+    setShowSignupModal(false);
+  };
 
   return (
     <div>
@@ -118,6 +128,9 @@ export default function Footer() {
             <Button className="my-3" variant="primary" type="submit">
               Login
             </Button>
+            <Button className="m-3" variant="outline-primary" onClick={handleShowSignupModal}>Signup</Button>
+
+      <SignupModal show={showSignupModal} onHide={handleHideSignupModal} />
           </Form>
         </Modal.Body>
       </Modal>
