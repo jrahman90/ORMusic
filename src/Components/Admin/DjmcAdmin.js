@@ -8,25 +8,25 @@ import { v4 } from 'uuid';
 
 
 const DjmcAdmin = () => {
-  const [users, setUsers] = useState([]);
+  const [artists, setArtists] = useState([]);
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [image, setImage] = useState(null);
-  const [editingUser, setEditingUser] = useState(null);
+  const [editingartist, setEditingartist] = useState(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [userToDelete, setUserToDelete] = useState(null);
+  const [artistToDelete, setArtistsToDelete] = useState(null);
 
 
   useEffect(() => {
-    // Fetch users from Firestore
-    const fetchUsers = async () => {
-      const usersCollection = collection(db, 'users');
-      const usersSnapshot = await getDocs(usersCollection);
-      const usersData = usersSnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
-      setUsers(usersData);
+    // Fetch artists from Firestore
+    const fetchartists = async () => {
+      const artistsCollection = collection(db, 'artists');
+      const artistsSnapshot = await getDocs(artistsCollection);
+      const artistsData = artistsSnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+      setArtists(artistsData);
     };
 
-    fetchUsers();
+    fetchartists();
   }, []);
 
   const handleImageChange = (e) => {
@@ -34,7 +34,7 @@ const DjmcAdmin = () => {
     setImage(file);
   };
 
-  const handleAddUser = async (e) => {
+  const handleAddartist = async (e) => {
     e.preventDefault();
 
     // Upload image to Firebase Storage
@@ -44,76 +44,76 @@ const DjmcAdmin = () => {
     // Get the image URL from Firebase Storage
     const imageUrl = await getDownloadURL(storageRef);
 
-    // Add user data to Firestore
-    const newUser = { name, description, imageUrl };
-    await addDoc(collection(db, 'users'), newUser);
+    // Add artist data to Firestore
+    const newartist = { name, description, imageUrl };
+    await addDoc(collection(db, 'artists'), newartist);
 
     // Clear form fields
     setName('');
     setDescription('');
     setImage(null);
 
-    // Update the users state with the new user
-    setUsers((prevUsers) => [...prevUsers, { id: '', ...newUser }]);
+    // Update the artists state with the new artist
+    setArtists((prevartists) => [...prevartists, { id: '', ...newartist }]);
   };
 
-  //Delete a User
+  //Delete a artist
 
-  const handleDeleteUser = (user) => {
-    console.log('user',user)
-    setUserToDelete(user);
+  const handleDeleteartist = (artist) => {
+    setArtistsToDelete(artist);
     setShowDeleteModal(true);
+    console.log('artist',artist)
   };
-
+  
   const handleConfirmDelete = async () => {
-    // Delete user from Firestore
-    await deleteDoc(doc(db, 'users', userToDelete.id));
-    // Update the users state by removing the deleted user
-    setUsers((prevUsers) => prevUsers.filter((user) => user.id !== userToDelete.id));
+    // Delete artist from Firestore
+    await deleteDoc(doc(db, 'artists', artistToDelete.id));
+    // Update the artists state by removing the deleted artist
+    setArtists((prevartists) => prevartists.filter((artist) => artist.id !== artistToDelete.id));
 
-    // Close the modal and reset userToDelete
+    // Close the modal and reset artistToDelete
     setShowDeleteModal(false);
-    setUserToDelete(null);
+    setArtistsToDelete(null);
   };
 
   const handleCloseDeleteModal = () => {
     setShowDeleteModal(false);
-    setUserToDelete(null);
+    setArtistsToDelete(null);
   };
 
-  //Edit User
-  const handleEditUser = (user) => {
-    setEditingUser(user);
-    setName(user.name);
-    setDescription(user.description);
+  //Edit artist
+  const handleEditartist = (artist) => {
+    setEditingartist(artist);
+    setName(artist.name);
+    setDescription(artist.description);
     // You may also need to handle the image editing if necessary
   };
 
   const handleCancelEdit = () => {
-    setEditingUser(null);
+    setEditingartist(null);
     setName('');
     setDescription('');
     // Reset any other necessary fields
   };
 
-  const handleUpdateUser = async (e) => {
+  const handleUpdateartist = async (e) => {
     e.preventDefault();
 
-    // Update user data in Firestore
-    await updateDoc(doc(db, 'users', editingUser.id), {
+    // Update artist data in Firestore
+    await updateDoc(doc(db, 'artists', editingartist.id), {
       name,
       description,
     });
 
-    // Update the user in the users state
-    setUsers((prevUsers) =>
-      prevUsers.map((user) =>
-        user.id === editingUser.id ? { ...user, name, description } : user
+    // Update the artist in the artists state
+    setArtists((prevartists) =>
+      prevartists.map((artist) =>
+        artist.id === editingartist.id ? { ...artist, name, description } : artist
       )
     );
 
     // Clear edit mode and form fields
-    setEditingUser(null);
+    setEditingartist(null);
     setName('');
     setDescription('');
     // Reset any other necessary fields
@@ -124,18 +124,18 @@ const DjmcAdmin = () => {
     my-3'>
       <h1 className='heading-text'>Meet The Team!</h1>
       <Row>
-        {users.map((user, index) => (
-            <Row key={user.id} className={index % 2 === 0 ? 'flex-row' : 'flex-row-reverse'}>
+        {artists.map((artist, index) => (
+            <Row key={artist.id} className={index % 2 === 0 ? 'flex-row' : 'flex-row-reverse'}>
             <Col sm={12} md={6} className="d-flex align-items-center">
-              <Image src={user.imageUrl} roundedCircle fluid />
+              <Image src={artist.imageUrl} roundedCircle fluid />
             </Col>
             <Col sm={12} md={6} className="d-flex align-items-center justify-content-center" style={{textAlign:'center'}}>
               <div>
-                <h2 className='heading-subtext'>{user.name}</h2>
-                <p className='paragraph-text'>{user.description}</p>
-                {editingUser && editingUser.id === user.id ? (
+                <h2 className='heading-subtext'>{artist.name}</h2>
+                <p className='paragraph-text'>{artist.description}</p>
+                {editingartist && editingartist.id === artist.id ? (
                   <>
-                    <Button variant="primary" onClick={handleUpdateUser}>
+                    <Button variant="primary" onClick={handleUpdateartist}>
                       Update
                     </Button>
                     <Button variant="secondary" onClick={handleCancelEdit}>
@@ -143,11 +143,11 @@ const DjmcAdmin = () => {
                     </Button>
                   </>
                 ) : (
-                  <Button variant="info" onClick={() => handleEditUser(user)}>
+                  <Button variant="info" onClick={() => handleEditartist(artist)}>
                     Edit
                   </Button>
                 )}
-                <Button variant="danger" onClick={() => handleDeleteUser(user)}>
+                <Button variant="danger" onClick={() => handleDeleteartist(artist)}>
                   Delete
                 </Button>
               </div>
@@ -156,7 +156,7 @@ const DjmcAdmin = () => {
         ))}
       </Row>
 
-      <Form onSubmit={handleAddUser} className='pe-3 pb-3 pt-3'>
+      <Form onSubmit={handleAddartist} className='pe-3 pb-3 pt-3'>
         <Form.Group className="mb-3">
           <Form.Label>Name</Form.Label>
           <Form.Control type="text" value={name} onChange={(e) => setName(e.target.value)} />
@@ -178,7 +178,7 @@ const DjmcAdmin = () => {
         </Form.Group>
 
         <Button variant="primary" type="submit">
-          Add User
+          Add artist
         </Button>
       </Form>
       {/* Confirmation Modal */}
@@ -187,7 +187,7 @@ const DjmcAdmin = () => {
           <Modal.Title>Confirm Delete</Modal.Title>
         </Modal.Header>
         <Modal.Body>
-          Are you sure you want to delete the user?
+          Are you sure you want to delete the artist?
         </Modal.Body>
         <Modal.Footer>
           <Button variant="secondary" onClick={handleCloseDeleteModal}>
