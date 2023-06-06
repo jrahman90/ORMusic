@@ -130,10 +130,10 @@ export default function Footer() {
             </Button>
             <Button className="m-3" variant="outline-primary" onClick={handleShowSignupModal}>Signup</Button>
 
-      <SignupModal show={showSignupModal} onHide={handleHideSignupModal} />
           </Form>
         </Modal.Body>
       </Modal>
+      <SignupModal show={showSignupModal} onHide={handleHideSignupModal} />
     </div>
   );
 }
