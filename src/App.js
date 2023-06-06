@@ -1,4 +1,4 @@
-import React, {useContext} from "react";
+import React, { useState} from "react";
 import "bootstrap/dist/css/bootstrap.min.css";
 import "./App.css";
 import "./Components/Css/components.css";
@@ -13,22 +13,27 @@ import Music from "./Components/Music";
 import Footer from "./Components/Footer";
 import MusicVideoAdmin from "./Components/Admin/MusicVideoAdmin";
 import DjmcAdmin from "./Components/Admin/DjmcAdmin";
-
-import { AuthContext } from "./api/firestore/AuthContext";
 import PageNotFound from "./Components/404";
+import { UserDataComponent } from "./api/fetchUserData";
+
 
 function App() {
+  const [isAdmin, setIsAdmin] = useState(null)
+  const userData = UserDataComponent()
+  if (userData) {
+    setIsAdmin(userData.isAdmin)
+    console.log(userData.isAdmin)
+  }
 
-  const {isLoggedIn} = useContext(AuthContext)
   return (
     <div>
       <Navbar />
       <Routes>
         <Route exact path="/" element={<Home />} />
         <Route exact path="/contact" element={<ContactUs />} />
-        <Route exact path="/DJMC" element={isLoggedIn ? <DjmcAdmin /> : <Djmc />} />
+        <Route exact path="/DJMC" element={isAdmin ? <DjmcAdmin /> : <Djmc />} />
         <Route exact path="/Downloads" element={<Downloads />} />
-        <Route exact path="/MusicVideos" element={isLoggedIn?<MusicVideoAdmin/>:<MusicVideos />} />
+        <Route exact path="/MusicVideos" element={isAdmin?<MusicVideoAdmin/>:<MusicVideos />} />
         <Route exact path="/Music" element={<Music />} />
         <Route path="/*" element={<PageNotFound/>}/>
       </Routes>
