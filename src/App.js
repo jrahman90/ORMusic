@@ -1,4 +1,4 @@
-import React, {useContext} from "react";
+import React, { useState} from "react";
 import "bootstrap/dist/css/bootstrap.min.css";
 import "./App.css";
 import "./Components/Css/components.css";
@@ -13,22 +13,52 @@ import Music from "./Components/Music";
 import Footer from "./Components/Footer";
 import MusicVideoAdmin from "./Components/Admin/MusicVideoAdmin";
 import DjmcAdmin from "./Components/Admin/DjmcAdmin";
-
-import { AuthContext } from "./api/firestore/AuthContext";
 import PageNotFound from "./Components/404";
+import { getAuth, onAuthStateChanged } from "@firebase/auth";
+import { getDoc, doc } from "@firebase/firestore";
+import firestore from "./api/firestore/firestore";
+
 
 function App() {
+  const [isAdmin, setIsAdmin] = useState(null)
+  const [userData, setUserData] = useState(null)
+  const auth = getAuth()
+  const db = firestore
 
-  const {isLoggedIn} = useContext(AuthContext)
+  onAuthStateChanged(auth, async (user) => {
+    if (user) {
+      // User is signed in, see docs for a list of available properties
+      // https://firebase.google.com/docs/reference/js/auth.user
+      const uid = user.uid;
+      const docRef = doc(db, "users", uid);
+      try {
+        const docSnap = await getDoc(docRef);
+        if(docSnap.exists()) {
+            setUserData(docSnap.data());
+            setIsAdmin(userData?.isAdmin)
+        } else {
+            console.log("Document does not exist")
+        }
+    
+    } catch(error) {
+        console.log(error)
+    }
+      // ...
+    } else {
+      // User is signed out
+      // ...
+    }
+  });
+
   return (
     <div>
       <Navbar />
       <Routes>
         <Route exact path="/" element={<Home />} />
         <Route exact path="/contact" element={<ContactUs />} />
-        <Route exact path="/DJMC" element={isLoggedIn ? <DjmcAdmin /> : <Djmc />} />
+        <Route exact path="/DJMC" element={isAdmin ? <DjmcAdmin /> : <Djmc />} />
         <Route exact path="/Downloads" element={<Downloads />} />
-        <Route exact path="/MusicVideos" element={isLoggedIn?<MusicVideoAdmin/>:<MusicVideos />} />
+        <Route exact path="/MusicVideos" element={isAdmin?<MusicVideoAdmin/>:<MusicVideos />} />
         <Route exact path="/Music" element={<Music />} />
         <Route path="/*" element={<PageNotFound/>}/>
       </Routes>
