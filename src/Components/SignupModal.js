@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Modal, Button, Form, Alert } from 'react-bootstrap';
-import { getAuth, createUserWithEmailAndPassword } from 'firebase/auth';
+import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword } from 'firebase/auth';
 import { getFirestore, setDoc, doc } from 'firebase/firestore';
 
 const SignupModal = ({ show, onHide }) => {
@@ -34,7 +34,10 @@ const SignupModal = ({ show, onHide }) => {
         email,
         phoneNumber: phoneNumber || '',
         isAdmin: false,
-      });
+      }).then(
+
+        signInWithEmailAndPassword(auth, email, password)
+      )
 
       // Clear form fields
       setName('');

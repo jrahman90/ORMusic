@@ -29,10 +29,10 @@ export default function navbar() {
               <Nav.Link as={Link} to="/contact">
                 Contact Us
               </Nav.Link>
-              <NavDropdown title="Media" id="basic-nav-dropdown">
-                <NavDropdown.Item as={Link} to="/DJMC">
+                <Nav.Link as={Link} to="/DJMC">
                   DJ/MC
-                </NavDropdown.Item>
+                </Nav.Link>
+              <NavDropdown title="Media" id="basic-nav-dropdown">
                 <NavDropdown.Item as={Link} to="/MusicVideos">
                   Music Videos
                 </NavDropdown.Item>
