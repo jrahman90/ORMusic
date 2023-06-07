@@ -2,7 +2,6 @@ import React, {useState, useContext, useEffect} from "react";
 import "./Css/components.css";
 import { Container, Modal, Button, Form, Alert } from "react-bootstrap";
 import { getAuth, signInWithEmailAndPassword, signOut } from 'firebase/auth';
-import { useNavigate } from 'react-router-dom';
 import { AuthContext } from "../api/firestore/AuthContext";
 import SignupModal from "./SignupModal";
 
@@ -14,7 +13,6 @@ export default function Footer() {
   const [showError, setShowError] = useState(false)
   const [showSignupModal, setShowSignupModal] = useState(false);
 
-  const navigate = useNavigate();
   const {setIsLoggedIn, isLoggedIn} = useContext(AuthContext)
 
   const handleClose = () => {setShow(false); setShowError(false)}
@@ -39,7 +37,7 @@ export default function Footer() {
       setShowError(false)
       setIsLoggedIn(true); // Update login state
       localStorage.setItem('isLoggedIn', JSON.stringify(true))
-      navigate('/'); // Redirect to the home page
+      window.location.reload();
 
     } catch (error) {
       setPasswordAlert(error.message)
@@ -54,8 +52,7 @@ export default function Footer() {
       await signOut(auth);
       localStorage.removeItem('isLoggedIn')
       // Successful logout
-      navigate('/')
-      setIsLoggedIn(false); // Update login state
+      window.location.reload(); // Update login state
     } catch (error) {
       console.log(error);
       // Handle logout error here
