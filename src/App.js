@@ -14,16 +14,41 @@ import Footer from "./Components/Footer";
 import MusicVideoAdmin from "./Components/Admin/MusicVideoAdmin";
 import DjmcAdmin from "./Components/Admin/DjmcAdmin";
 import PageNotFound from "./Components/404";
-import { UserDataComponent } from "./api/fetchUserData";
+import { getAuth, onAuthStateChanged } from "@firebase/auth";
+import { getDoc, doc } from "@firebase/firestore";
+import firestore from "./api/firestore/firestore";
 
 
 function App() {
   const [isAdmin, setIsAdmin] = useState(null)
-  const userData = UserDataComponent()
-  if (userData) {
-    setIsAdmin(userData.isAdmin)
-    console.log(userData.isAdmin)
-  }
+  const [userData, setUserData] = useState(null)
+  const auth = getAuth()
+  const db = firestore
+
+  onAuthStateChanged(auth, async (user) => {
+    if (user) {
+      // User is signed in, see docs for a list of available properties
+      // https://firebase.google.com/docs/reference/js/auth.user
+      const uid = user.uid;
+      const docRef = doc(db, "users", uid);
+      try {
+        const docSnap = await getDoc(docRef);
+        if(docSnap.exists()) {
+            setUserData(docSnap.data());
+            setIsAdmin(userData?.isAdmin)
+        } else {
+            console.log("Document does not exist")
+        }
+    
+    } catch(error) {
+        console.log(error)
+    }
+      // ...
+    } else {
+      // User is signed out
+      // ...
+    }
+  });
 
   return (
     <div>
