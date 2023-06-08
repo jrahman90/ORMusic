@@ -2,8 +2,8 @@ import React, {useState, useContext, useEffect} from "react";
 import "./Css/components.css";
 import { Container, Modal, Button, Form, Alert } from "react-bootstrap";
 import { getAuth, signInWithEmailAndPassword, signOut } from 'firebase/auth';
-import { useNavigate } from 'react-router-dom';
 import { AuthContext } from "../api/firestore/AuthContext";
+import SignupModal from "./SignupModal";
 
 export default function Footer() {
   const [show, setShow] = useState(false);
@@ -11,8 +11,8 @@ export default function Footer() {
   const [password, setPassword] = useState('');
   const [passwordAlert, setPasswordAlert] = useState('')
   const [showError, setShowError] = useState(false)
+  const [showSignupModal, setShowSignupModal] = useState(false);
 
-  const navigate = useNavigate();
   const {setIsLoggedIn, isLoggedIn} = useContext(AuthContext)
 
   const handleClose = () => {setShow(false); setShowError(false)}
@@ -37,7 +37,7 @@ export default function Footer() {
       setShowError(false)
       setIsLoggedIn(true); // Update login state
       localStorage.setItem('isLoggedIn', JSON.stringify(true))
-      navigate('/'); // Redirect to the home page
+      window.location.reload();
 
     } catch (error) {
       setPasswordAlert(error.message)
@@ -52,14 +52,21 @@ export default function Footer() {
       await signOut(auth);
       localStorage.removeItem('isLoggedIn')
       // Successful logout
-      navigate('/')
-      setIsLoggedIn(false); // Update login state
+      window.location.reload(); // Update login state
     } catch (error) {
       console.log(error);
       // Handle logout error here
     }
   };
-
+  
+  const handleShowSignupModal = () => {
+    setShowSignupModal(true);
+    setShow(false)
+  };
+  
+  const handleHideSignupModal = () => {
+    setShowSignupModal(false);
+  };
 
   return (
     <div>
@@ -118,9 +125,12 @@ export default function Footer() {
             <Button className="my-3" variant="primary" type="submit">
               Login
             </Button>
+            <Button className="m-3" variant="outline-primary" onClick={handleShowSignupModal}>Signup</Button>
+
           </Form>
         </Modal.Body>
       </Modal>
+      <SignupModal show={showSignupModal} onHide={handleHideSignupModal} />
     </div>
   );
 }

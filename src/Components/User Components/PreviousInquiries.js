@@ -36,7 +36,7 @@ const PreviousInquiries = () => {
     };
 
     fetchInquiries();
-  }, [auth]);
+  }, [auth.currentUser]);
 
   return (
     <div>
@@ -55,9 +55,9 @@ const PreviousInquiries = () => {
           <tbody>
             {inquiries.map((inquiry, index) => (
               <tr key={index}>
-                <td>{inquiry.items.map((item) => item.name).join(', ')}</td>
-                <td>{inquiry.items.map((item) => item.quantity).join(', ')}</td>
-                <td>{inquiry.timestamp.toDate().toLocaleString()}</td>
+                <td>{inquiry.items.map((item) => <td>{item.name}</td>)}</td>
+                {/* <td>{inquiry.items.map((item) => item.quantity).join(', ')}</td> */}
+                {/* <td>{inquiry.timestamp.toDate().toLocaleString()}</td> */}
               </tr>
             ))}
           </tbody>

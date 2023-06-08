@@ -5,33 +5,33 @@ import { collection,  getDocs } from 'firebase/firestore';
 
 
 const DjmcAdmin = () => {
-  const [users, setUsers] = useState([]);
+  const [artists, setartists] = useState([]);
 
   useEffect(() => {
-    // Fetch users from Firestore
-    const fetchUsers = async () => {
-      const usersCollection = collection(db, 'users');
-      const usersSnapshot = await getDocs(usersCollection);
-      const usersData = usersSnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
-      setUsers(usersData);
+    // Fetch artists from Firestore
+    const fetchartists = async () => {
+      const artistsCollection = collection(db, 'artists');
+      const artistsSnapshot = await getDocs(artistsCollection);
+      const artistsData = artistsSnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+      setartists(artistsData);
     };
 
-    fetchUsers();
+    fetchartists();
   }, []);
 
   return (
     <Container className='my-3'>
       <h1 className='heading-text'>Meet The Team!</h1>
       <Row>
-        {users.map((user, index) => (
-            <Row key={user.id} className={index % 2 === 0 ? 'flex-row' : 'flex-row-reverse'}>
+        {artists.map((artist, index) => (
+            <Row key={artist.id} className={index % 2 === 0 ? 'flex-row' : 'flex-row-reverse'}>
             <Col sm={12} md={6} className="d-flex align-items-center" style={{justifyContent:'center'}}>
-              <Image src={user.imageUrl} roundedCircle fluid />
+              <Image src={artist.imageUrl} roundedCircle fluid />
             </Col>
             <Col sm={12} md={6} className="d-flex align-items-center justify-content-center" style={{textAlign:'center'}}>
               <div>
-                <h2 className='heading-subtext'>{user.name}</h2>
-                <p className='paragraph-text'>{user.description}</p>
+                <h2 className='heading-subtext'>{artist.name}</h2>
+                <p className='paragraph-text'>{artist.description}</p>
               </div>
             </Col>
           </Row>

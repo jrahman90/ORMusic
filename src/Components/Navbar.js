@@ -30,11 +30,11 @@ function NavBar() {
               <Nav.Link as={Link} to="/contact">
                 Contact Us
               </Nav.Link>
+                <Nav.Link as={Link} to="/DJMC">
+                  DJ/MC
+                </Nav.Link>
                 <Nav.Link as={Link} to='/RentalItems'>Rental Items</Nav.Link>
               <NavDropdown title="Media" id="basic-nav-dropdown">
-                <NavDropdown.Item as={Link} to="/DJMC">
-                  DJ/MC
-                </NavDropdown.Item>
                 <NavDropdown.Item as={Link} to="/MusicVideos">
                   Music Videos
                 </NavDropdown.Item>
