@@ -27,8 +27,6 @@ function App() {
   useEffect(() => {
   onAuthStateChanged(auth, async (user) => {
     if (user) {
-      // User is signed in, see docs for a list of available properties
-      // https://firebase.google.com/docs/reference/js/auth.user
       const uid = user.uid;
       const docRef = doc(db, "users", uid);const docSnap = await getDoc(docRef);
         if(docSnap.exists()) {
@@ -40,9 +38,9 @@ function App() {
       } else {
         console.log('User is not logged in.')
       }
+    })
     // eslint-disable-next-line
   }, [])
-})
 
   return (
     <div>
