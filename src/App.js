@@ -23,13 +23,11 @@ import RentalsAdmin from "./Components/Admin/RentalsAdmin";
 import Rentals from "./Components/User Components/Rentals";
 
 function App() {
-  const [isAdmin, setIsAdmin] = useState(null)
   const [userData, setUserData] = useState(null)
   const [cartItems, setCartItems] = useState([]);
   const auth = getAuth()
   const db = firestore
 
-  console.log('userData= ', userData)
   useEffect(() => {
     onAuthStateChanged(auth, async (user) => {
       if (user) {
@@ -39,20 +37,18 @@ function App() {
           const docSnap = await getDoc(docRef);
           if(docSnap.exists()) {
               setUserData(docSnap.data());
-              setIsAdmin(userData?.isAdmin)
           } else {
               console.log("Document does not exist")
           }
         } catch(error) {
           console.log(error)
         }
-        // ...
       } else {
-        // User is signed out
-        // ...
+        console.log('User is not logged in.')
       }
     });
-  }, [onAuthStateChanged])
+    // eslint-disable-next-line
+  }, [])
   
   const addToCart = (item) => {
     const existingItemIndex = cartItems.findIndex((cartItem) => cartItem.id === item.id);
