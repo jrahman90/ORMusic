@@ -1,4 +1,4 @@
-import React, { useState} from "react";
+import React, { useState, useEffect} from "react";
 import "bootstrap/dist/css/bootstrap.min.css";
 import "./App.css";
 import "./Components/Css/components.css";
@@ -29,29 +29,31 @@ function App() {
   const auth = getAuth()
   const db = firestore
 
-  onAuthStateChanged(auth, async (user) => {
-    if (user) {
-      // User is signed in, see docs for a list of available properties
-      // https://firebase.google.com/docs/reference/js/auth.user
-      const uid = user.uid;
-      const docRef = doc(db, "users", uid);
-      try {
-        const docSnap = await getDoc(docRef);
-        if(docSnap.exists()) {
-            setUserData(docSnap.data());
-            setIsAdmin(userData?.isAdmin)
-        } else {
-            console.log("Document does not exist")
+  console.log('userData= ', userData)
+  useEffect(() => {
+    onAuthStateChanged(auth, async (user) => {
+      if (user) {
+        const uid = user.uid;
+        const docRef = doc(db, "users", uid);
+        try {
+          const docSnap = await getDoc(docRef);
+          if(docSnap.exists()) {
+              setUserData(docSnap.data());
+              setIsAdmin(userData?.isAdmin)
+          } else {
+              console.log("Document does not exist")
+          }
+        } catch(error) {
+          console.log(error)
         }
-      } catch(error) {
-        console.log(error)
+        // ...
+      } else {
+        // User is signed out
+        // ...
       }
-      // ...
-    } else {
-      // User is signed out
-      // ...
-    }
-  });
+    });
+  }, [onAuthStateChanged])
+  
   const addToCart = (item) => {
     const existingItemIndex = cartItems.findIndex((cartItem) => cartItem.id === item.id);
 
@@ -73,13 +75,13 @@ function App() {
       <Routes>
         <Route exact path="/" element={<Home />} />
         <Route exact path="/contact" element={<ContactUs />} />
-        <Route exact path="/DJMC" element={isAdmin ? <DjmcAdmin /> : <Djmc />} />
+        <Route exact path="/DJMC" element={userData?.isAdmin ? <DjmcAdmin /> : <Djmc />} />
         <Route exact path="/Downloads" element={<Downloads />} />
-        <Route exact path="/MusicVideos" element={isAdmin?<MusicVideoAdmin/>:<MusicVideos />} />
+        <Route exact path="/MusicVideos" element={userData?.isAdmin?<MusicVideoAdmin/>:<MusicVideos />} />
         <Route exact path="/Music" element={<Music />} />
         <Route exact path="/Cart" element={<Cart items={cartItems} setItems={setCartItems}/>}/>
         {/* <Route exact path='/RentalItems' element={isLoggedIn?<RentalsAdmin/>:<Rentals addToCart={addToCart}/>}/> */}
-        <Route exact path='/RentalItems' element={isAdmin?<RentalsAdmin/>:<Rentals addToCart={addToCart} />}/>
+        <Route exact path='/RentalItems' element={userData?.isAdmin?<RentalsAdmin/>:<Rentals addToCart={addToCart} />}/>
         <Route path="/*" element={<PageNotFound/>}/>
 
       </Routes>
