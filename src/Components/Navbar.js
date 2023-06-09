@@ -6,8 +6,7 @@ import NavDropdown from "react-bootstrap/NavDropdown";
 import "./Css/components.css";
 import { Link } from "react-router-dom";
 
-function NavBar() {
-
+export default function navbar() {
   return (
     <div>
       <Navbar bg="primary" expand="lg">
@@ -33,7 +32,6 @@ function NavBar() {
                 <Nav.Link as={Link} to="/DJMC">
                   DJ/MC
                 </Nav.Link>
-                <Nav.Link as={Link} to='/RentalItems'>Rental Items</Nav.Link>
               <NavDropdown title="Media" id="basic-nav-dropdown">
                 <NavDropdown.Item as={Link} to="/MusicVideos">
                   Music Videos
@@ -41,13 +39,11 @@ function NavBar() {
                 {/* <NavDropdown.Item as={Link} to="/Downloads">
                   Downloads
                 </NavDropdown.Item>
-              */}
-                {/* <NavDropdown.Divider />  */}
+                <NavDropdown.Divider /> */}
+                {/* <NavDropdown.Item as={Link} to="/Music">
+                  Music
+                </NavDropdown.Item> */}
               </NavDropdown>
-
-                <Nav.Link as={Link} to="/Cart">
-                  Cart
-                </Nav.Link>
             </Nav>
           </Navbar.Collapse>
         </Container>
@@ -55,5 +51,3 @@ function NavBar() {
     </div>
   );
 }
-
-export default NavBar
