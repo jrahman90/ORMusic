@@ -18,13 +18,8 @@ import { getAuth, onAuthStateChanged } from "@firebase/auth";
 import { getDoc, doc } from "@firebase/firestore";
 import firestore from "./api/firestore/firestore";
 
-import Cart from "./Components/User Components/Cart";
-import RentalsAdmin from "./Components/Admin/RentalsAdmin";
-import Rentals from "./Components/User Components/Rentals";
-
 function App() {
   const [userData, setUserData] = useState(null)
-  const [cartItems, setCartItems] = useState([]);
   const auth = getAuth()
   const db = firestore
 
@@ -49,21 +44,6 @@ function App() {
     });
     // eslint-disable-next-line
   }, [])
-  
-  const addToCart = (item) => {
-    const existingItemIndex = cartItems.findIndex((cartItem) => cartItem.id === item.id);
-
-    if (existingItemIndex !== -1) {
-      const updatedCartItems = [...cartItems];
-      updatedCartItems[existingItemIndex] = {
-        ...updatedCartItems[existingItemIndex],
-        quantity: updatedCartItems[existingItemIndex].quantity + 1,
-      };
-      setCartItems(updatedCartItems);
-    } else {
-      setCartItems([...cartItems, { ...item, quantity: 1 }]);
-    }
-  };
 
   return (
     <div>
@@ -75,9 +55,9 @@ function App() {
         <Route exact path="/Downloads" element={<Downloads />} />
         <Route exact path="/MusicVideos" element={userData?.isAdmin?<MusicVideoAdmin/>:<MusicVideos />} />
         <Route exact path="/Music" element={<Music />} />
-        <Route exact path="/Cart" element={<Cart items={cartItems} setItems={setCartItems}/>}/>
+        {/* <Route exact path="/Cart" element={<Cart items={cartItems} setItems={setCartItems}/>}/> */}
         {/* <Route exact path='/RentalItems' element={isLoggedIn?<RentalsAdmin/>:<Rentals addToCart={addToCart}/>}/> */}
-        <Route exact path='/RentalItems' element={userData?.isAdmin?<RentalsAdmin/>:<Rentals addToCart={addToCart} />}/>
+        {/* <Route exact path='/RentalItems' element={userData?.isAdmin?<RentalsAdmin/>:<Rentals addToCart={addToCart} />}/> */}
         <Route path="/*" element={<PageNotFound/>}/>
 
       </Routes>
