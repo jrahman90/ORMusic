@@ -44,9 +44,9 @@ function App() {
       } else {
         console.log('User is not logged in.')
       }
+    })
     // eslint-disable-next-line
-    }, [])
-  })
+  }, [])
 
   const addToCart = (item) => {
     console.log('inside addToCart')
