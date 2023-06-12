@@ -25,7 +25,7 @@ export default function MusicVideos() {
 
   return (
     <Container style={{ padding: 10 }}>
-      {videos ? videos
+      {videos ? videos.sort((a,b) => a.DateId > b.DateId ? 1 : -1)
         .map((video) => (
           <ul
             align="center"

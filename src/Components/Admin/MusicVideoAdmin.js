@@ -8,6 +8,7 @@ import {
   deleteDoc,
   doc,
 } from "firebase/firestore";
+import { dateId } from "../../hooks/functions";
 
 function musicVideo(src, title) {
   return (
@@ -31,6 +32,7 @@ export default function MusicVideoAdmin() {
       const payload = {
         src: VideoSrc,
         title: VideoTitle,
+        DateId: dateId()
       };
 
       const collectionRef = collection(db, "videos");
@@ -98,7 +100,8 @@ export default function MusicVideoAdmin() {
           Add New Video
         </Button>
       </Form>
-      {videos.map((video) => (
+      {videos && videos.sort((a,b) => a.DateId < b.DateId ? 1 : -1)
+      .map((video) => (
         <ul
           align="center"
           key={video.id}
