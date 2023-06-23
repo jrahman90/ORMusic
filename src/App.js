@@ -28,10 +28,11 @@ function App() {
   onAuthStateChanged(auth, async (user) => {
     if (user) {
       const uid = user.uid;
-      const docRef = doc(db, "users", uid);const docSnap = await getDoc(docRef);
+      const docRef = doc(db, "users", uid);
+      const docSnap = await getDoc(docRef);
         if(docSnap.exists()) {
-            setUserData(docSnap.data());
-            setIsAdmin(userData?.isAdmin)
+            setUserData(docSnap.data())
+            setIsAdmin(docSnap.data()?.isAdmin)
         } else {
             console.log("Document does not exist")
         }
