@@ -16,7 +16,7 @@ import Modal from "react-bootstrap/Modal";
 const Cart = ({ items, setItems }) => {
   const [show, setShow] = useState(false);
   const [successMessage, setSuccessMessage] = useState(false);
-  const [eventDetatils, setEventDetails] = useState("");
+  const [eventDetails, setEventDetails] = useState("");
 
   const handleClose = () => setShow(false);
   const handleShow = () => setShow(true);
@@ -60,7 +60,7 @@ const Cart = ({ items, setItems }) => {
         items: items,
         userId: user.uid,
         timestamp: serverTimestamp(),
-        eventDetatils,
+        eventDetails,
         status: "Processing",
       });
 
@@ -96,6 +96,13 @@ const Cart = ({ items, setItems }) => {
             Additionally, please specify the most convenient time for us to
             reach out to you regarding your inquiry.
           </Form.Text>
+          {eventDetails.length < 20 ? (
+            <Alert style={{ marginTop: "1rem" }} variant="danger">
+              Not enough details to submit an inquiry. Minimum 20 characters.
+            </Alert>
+          ) : (
+            ""
+          )}
         </Form>
       ) : (
         ""
@@ -133,10 +140,17 @@ const Cart = ({ items, setItems }) => {
       <Button
         variant="primary"
         onClick={handleInquiry}
-        disabled={items.length === 0}
+        disabled={items.length === 0 || eventDetails.length < 20}
       >
         Send Inquiry
       </Button>
+      {items.length === 0 ? (
+        <Alert style={{ marginTop: "1rem" }} variant="danger">
+          Add something to the cart to send an inquiry.
+        </Alert>
+      ) : (
+        ""
+      )}
       {successMessage ? (
         <Alert style={{ marginTop: "1rem" }} variant="success">
           Your request was sent successfully! Someone from our team will reach
