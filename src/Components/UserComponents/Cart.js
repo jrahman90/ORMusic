@@ -6,20 +6,29 @@ import {
   Container,
   Form,
   InputGroup,
+  Col,
 } from "react-bootstrap";
+import PhoneInput from "react-phone-number-input";
 import { collection, addDoc, serverTimestamp } from "firebase/firestore";
 import { getAuth } from "firebase/auth";
 import db from "../../api/firestore/firestore"; // Assuming you have initialized the Firebase app and obtained the 'db' and 'auth' instances
 import PreviousInquiries from "./PreviousInquiries";
 import Modal from "react-bootstrap/Modal";
 
+import "react-phone-number-input/style.css";
+
 const Cart = ({ items, setItems }) => {
   const [show, setShow] = useState(false);
   const [successMessage, setSuccessMessage] = useState(false);
   const [eventDetails, setEventDetails] = useState("");
+  const [phoneNumber, setPhoneNumber] = useState("");
 
   const handleClose = () => setShow(false);
   const handleShow = () => setShow(true);
+
+  const handlePhoneChange = (value) => {
+    setPhoneNumber(value);
+  };
 
   const handleQuantityToggle = (item, increment) => {
     const updatedItems = items.map((cartItem) => {
@@ -61,6 +70,8 @@ const Cart = ({ items, setItems }) => {
         userId: user.uid,
         timestamp: serverTimestamp(),
         eventDetails,
+        phoneNumber,
+        email: user.email,
         status: "Processing",
       });
 
@@ -103,6 +114,15 @@ const Cart = ({ items, setItems }) => {
           ) : (
             ""
           )}
+          <Form.Group as={Col} controlId="formPhone">
+            <Form.Label>Phone Number</Form.Label>
+            <PhoneInput
+              placeholder="Enter phone number"
+              value={phoneNumber}
+              onChange={handlePhoneChange}
+              defaultCountry="US" // Set the default country
+            />
+          </Form.Group>
         </Form>
       ) : (
         ""
