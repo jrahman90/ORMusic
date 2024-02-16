@@ -53,13 +53,26 @@ const PreviousInquiries = () => {
               <th>Item</th>
               <th>Quantity</th>
               <th>Date</th>
+              <th>Status</th>
             </tr>
           </thead>
           <tbody>
             {inquiries.map((inquiry, index) => (
               <tr key={index}>
-                <td>{inquiry.items.map((item) => item.name).join(", ")}</td>
-                <td>{inquiry.items.map((item) => item.quantity).join(", ")}</td>
+                <td>
+                  {inquiry.items.map((item) => (
+                    <ul>
+                      <li>{item.name}</li>
+                    </ul>
+                  ))}
+                </td>
+                <td>
+                  {inquiry.items.map((item) => (
+                    <ul>
+                      <li>{item.quantity}</li>
+                    </ul>
+                  ))}
+                </td>
                 <td>{inquiry.timestamp.toDate().toLocaleString()}</td>
               </tr>
             ))}

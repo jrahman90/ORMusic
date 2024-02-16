@@ -1,5 +1,12 @@
 import React, { useState } from "react";
-import { Button, Card, Container } from "react-bootstrap";
+import {
+  Alert,
+  Button,
+  Card,
+  Container,
+  Form,
+  InputGroup,
+} from "react-bootstrap";
 import { collection, addDoc, serverTimestamp } from "firebase/firestore";
 import { getAuth } from "firebase/auth";
 import db from "../../api/firestore/firestore"; // Assuming you have initialized the Firebase app and obtained the 'db' and 'auth' instances
@@ -8,6 +15,7 @@ import Modal from "react-bootstrap/Modal";
 
 const Cart = ({ items, setItems }) => {
   const [show, setShow] = useState(false);
+  const [successMessage, setSuccessMessage] = useState(false);
 
   const handleClose = () => setShow(false);
   const handleShow = () => setShow(true);
@@ -56,7 +64,10 @@ const Cart = ({ items, setItems }) => {
       // Clear the cart items
       setItems([]);
 
-      console.log("Inquiry sent successfully");
+      setSuccessMessage(true);
+      setTimeout(() => {
+        setSuccessMessage(false);
+      }, 3000);
     } catch (error) {
       console.error("Error sending inquiry:", error);
     }
@@ -65,6 +76,17 @@ const Cart = ({ items, setItems }) => {
   return (
     <Container>
       <h2>Cart</h2>
+      <Form style={{ marginBottom: "1rem" }}>
+        <InputGroup>
+          <InputGroup.Text>Event Details</InputGroup.Text>
+          <Form.Control as="textarea" aria-label="With textarea" />
+        </InputGroup>
+        <Form.Text id="passwordHelpBlock" muted>
+          Provide details on the type of event, venue, date and time.
+          Additionally, please specify the most convenient time for us to reach
+          out to you regarding your inquiry.
+        </Form.Text>
+      </Form>
       {items.length === 0 ? (
         <p>No items in cart</p>
       ) : (
@@ -102,6 +124,14 @@ const Cart = ({ items, setItems }) => {
       >
         Send Inquiry
       </Button>
+      {successMessage ? (
+        <Alert style={{ marginTop: "1rem" }} variant="success">
+          Your request was sent successfully! Someone from our team will reach
+          out to you soon.
+        </Alert>
+      ) : (
+        ""
+      )}
       {<PreviousInquiries />}
       <Modal
         show={show}
@@ -110,9 +140,9 @@ const Cart = ({ items, setItems }) => {
         keyboard={false}
       >
         <Modal.Header closeButton>
-          <Modal.Title>oops... </Modal.Title>
+          <Modal.Title>uh oh ... </Modal.Title>
         </Modal.Header>
-        <Modal.Body>Please Sign In to to send an Inquiry.</Modal.Body>
+        <Modal.Body>Please sign in to submit an inquiry.</Modal.Body>
         <Modal.Footer>
           <Button variant="secondary" onClick={handleClose}>
             Close
