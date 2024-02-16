@@ -1,11 +1,17 @@
-import React from "react";
+import React, { useState } from "react";
 import { Button, Card, Container } from "react-bootstrap";
 import { collection, addDoc, serverTimestamp } from "firebase/firestore";
 import { getAuth } from "firebase/auth";
 import db from "../../api/firestore/firestore"; // Assuming you have initialized the Firebase app and obtained the 'db' and 'auth' instances
 import PreviousInquiries from "./PreviousInquiries";
+import Modal from "react-bootstrap/Modal";
 
 const Cart = ({ items, setItems }) => {
+  const [show, setShow] = useState(false);
+
+  const handleClose = () => setShow(false);
+  const handleShow = () => setShow(true);
+
   const handleQuantityToggle = (item, increment) => {
     const updatedItems = items.map((cartItem) => {
       if (cartItem.id === item.id) {
@@ -33,7 +39,7 @@ const Cart = ({ items, setItems }) => {
       const user = auth.currentUser;
 
       if (!user) {
-        console.log("User not logged in");
+        handleShow();
         return;
       }
 
@@ -97,6 +103,22 @@ const Cart = ({ items, setItems }) => {
         Send Inquiry
       </Button>
       {<PreviousInquiries />}
+      <Modal
+        show={show}
+        onHide={handleClose}
+        backdrop="static"
+        keyboard={false}
+      >
+        <Modal.Header closeButton>
+          <Modal.Title>oops... </Modal.Title>
+        </Modal.Header>
+        <Modal.Body>Please Sign In to to send an Inquiry.</Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={handleClose}>
+            Close
+          </Button>
+        </Modal.Footer>
+      </Modal>
     </Container>
   );
 };

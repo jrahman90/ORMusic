@@ -13,6 +13,8 @@ import Music from "./Components/Music";
 import Footer from "./Components/Footer";
 import MusicVideoAdmin from "./Components/Admin/MusicVideoAdmin";
 import Cart from "./Components/UserComponents/Cart";
+import RentalsAdmin from "./Components/Admin/RentalsAdmin";
+import Rentals from "./Components/UserComponents/Rentals";
 import DjmcAdmin from "./Components/Admin/DjmcAdmin";
 import PageNotFound from "./Components/404";
 import { getAuth, onAuthStateChanged } from "@firebase/auth";
@@ -86,7 +88,13 @@ function App() {
           path="/Cart"
           element={<Cart items={cartItems} setItems={setCartItems} />}
         />
-        {/* <Route exact path='/RentalItems' element={isLoggedIn?<RentalsAdmin/>:<Rentals addToCart={addToCart}/>}/> */}
+        <Route
+          exact
+          path="/RentalItems"
+          element={
+            isAdmin ? <RentalsAdmin /> : <Rentals addToCart={addToCart} />
+          }
+        />
         {/* <Route exact path='/RentalItems' element={userData?.isAdmin?<RentalsAdmin/>:<Rentals addToCart={addToCart} />}/> */}
         <Route path="/*" element={<PageNotFound />} />
       </Routes>
