@@ -16,6 +16,7 @@ import Modal from "react-bootstrap/Modal";
 const Cart = ({ items, setItems }) => {
   const [show, setShow] = useState(false);
   const [successMessage, setSuccessMessage] = useState(false);
+  const [eventDetatils, setEventDetails] = useState("");
 
   const handleClose = () => setShow(false);
   const handleShow = () => setShow(true);
@@ -59,6 +60,8 @@ const Cart = ({ items, setItems }) => {
         items: items,
         userId: user.uid,
         timestamp: serverTimestamp(),
+        eventDetatils,
+        status: "Processing",
       });
 
       // Clear the cart items
@@ -76,17 +79,27 @@ const Cart = ({ items, setItems }) => {
   return (
     <Container>
       <h2>Cart</h2>
-      <Form style={{ marginBottom: "1rem" }}>
-        <InputGroup>
-          <InputGroup.Text>Event Details</InputGroup.Text>
-          <Form.Control as="textarea" aria-label="With textarea" />
-        </InputGroup>
-        <Form.Text id="passwordHelpBlock" muted>
-          Provide details on the type of event, venue, date and time.
-          Additionally, please specify the most convenient time for us to reach
-          out to you regarding your inquiry.
-        </Form.Text>
-      </Form>
+      {items.length > 0 ? (
+        <Form style={{ marginBottom: "1rem" }}>
+          <InputGroup>
+            <InputGroup.Text>Event Details</InputGroup.Text>
+            <Form.Control
+              as="textarea"
+              aria-label="With textarea"
+              onChange={(e) => {
+                setEventDetails(e.target.value);
+              }}
+            />
+          </InputGroup>
+          <Form.Text id="passwordHelpBlock" muted>
+            Provide details on the type of event, venue, date and time.
+            Additionally, please specify the most convenient time for us to
+            reach out to you regarding your inquiry.
+          </Form.Text>
+        </Form>
+      ) : (
+        ""
+      )}
       {items.length === 0 ? (
         <p>No items in cart</p>
       ) : (

@@ -74,6 +74,11 @@ const PreviousInquiries = () => {
                   ))}
                 </td>
                 <td>{inquiry.timestamp.toDate().toLocaleString()}</td>
+                <td>
+                  <ul>
+                    <li>{inquiry.status ? inquiry.status : "No Status"}</li>
+                  </ul>
+                </td>
               </tr>
             ))}
           </tbody>
