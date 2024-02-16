@@ -102,6 +102,14 @@
     margin: 10px auto;
     border-radius: 5px;
 }
+.line-dotted {
+    width: 150px;
+    height: 2px;
+    background: #fc036b;
+    opacity: 10;
+    margin: 10px auto;
+    border-radius: 5px;
+}
 .our-services {
     width: 100vw;
     height: 60vh;
