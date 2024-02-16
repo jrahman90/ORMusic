@@ -33,33 +33,50 @@ export default function Inquiries() {
   }, []);
   return (
     <Container style={{ marginTop: "1rem" }}>
-      <Row xs={1} md={2} lg={3} className="g-4" align="center">
-        {inquiries.map((inquiry, idx) => (
-          <Col key={idx}>
-            <Card style={{ width: "18rem" }}>
-              <Card.Body>
-                <Card.Title>{inquiry.status}</Card.Title>
-                <Card.Subtitle className="mb-2 text-muted">
-                  {inquiry.phoneNumber}
-                </Card.Subtitle>
-                <Card.Subtitle className="mb-2 text-muted">
-                  {inquiry.email}
-                </Card.Subtitle>
-                <Card.Text>{inquiry.eventDetails}</Card.Text>
-                <div className="line"></div>
-                {inquiry.items.map((item) => (
-                  <>
-                    <Card.Text>{`${item.name} - Q: ${item.quantity}`}</Card.Text>
-                    <Card.Text>{item.description}</Card.Text>
-                    <div className="line-dotted" />
-                  </>
-                ))}
-                <Card.Text></Card.Text>
-              </Card.Body>
-            </Card>
-          </Col>
-        ))}
-      </Row>
+      {inquiries ? (
+        <Row xs={1} md={2} lg={3} className="g-4" align="center">
+          {inquiries
+            .sort((a, b) =>
+              a.timestamp.toDate().toLocaleString() <
+              b.timestamp.toDate().toLocaleString()
+                ? 1
+                : -1
+            )
+            .map((inquiry) => (
+              <Col>
+                <Card
+                  key={inquiry.timestamp.toDate().toLocaleString()}
+                  style={{ width: "18rem" }}
+                >
+                  <Card.Body>
+                    <Card.Title>{inquiry.status}</Card.Title>
+                    <Card.Subtitle className="mb-2 text-muted">
+                      {inquiry.phoneNumber}
+                    </Card.Subtitle>
+                    <Card.Subtitle className="mb-2 text-muted">
+                      {inquiry.email}
+                    </Card.Subtitle>
+                    <Card.Text>{inquiry.eventDetails}</Card.Text>
+                    <div className="line"></div>
+                    {inquiry.items.map((item) => (
+                      <>
+                        <Card.Text>{`${item.name} - Q: ${item.quantity}`}</Card.Text>
+                        <Card.Text>{item.description}</Card.Text>
+                        <div className="line-dotted" />
+                      </>
+                    ))}
+                    <Card.Text>
+                      {inquiry.timestamp.toDate().toLocaleString()}
+                    </Card.Text>
+                    <Card.Text></Card.Text>
+                  </Card.Body>
+                </Card>
+              </Col>
+            ))}
+        </Row>
+      ) : (
+        "No Inquires To Show"
+      )}
     </Container>
   );
 }
