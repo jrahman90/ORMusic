@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from "react";
-import { Button, Card, Container } from "react-bootstrap";
+import { Button, Card, Container, Alert } from "react-bootstrap";
 import { collection, getDocs } from "firebase/firestore";
 import db from "../../api/firestore/firestore";
 
 const Rentals = ({ addToCart }) => {
   const [rentals, setRentals] = useState([]);
+  const [addedToCart, setAddedToCart] = useState(false);
 
   useEffect(() => {
     // Fetch rental items from Firestore on component mount
@@ -27,10 +28,15 @@ const Rentals = ({ addToCart }) => {
 
   const handleAddToCart = (item) => {
     addToCart(item);
+    setAddedToCart(true);
+    setTimeout(() => {
+      setAddedToCart(false);
+    }, 1000);
   };
 
   return (
     <Container>
+      {addedToCart ? <Alert variant="success">Added to Cart!</Alert> : ""}
       <h2>Rentals</h2>
       {rentals.length === 0 ? (
         <p>No rental items available</p>
