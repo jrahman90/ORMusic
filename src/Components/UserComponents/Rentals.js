@@ -39,7 +39,11 @@ const Rentals = ({ addToCart }) => {
       {addedToCart ? <Alert variant="success">Added to Cart!</Alert> : ""}
       <h2>Rentals</h2>
       {rentals.length === 0 ? (
-        <p>No rental items available</p>
+        <p>
+          We are diligently curating a selection of captivating items to elevate
+          your experience. Kindly revisit us at your convenience for the latest
+          updates and additions to our collection.
+        </p>
       ) : (
         rentals.map((item) => (
           <Card key={item.id} style={{ marginBottom: "1rem" }}>
