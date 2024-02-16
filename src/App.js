@@ -12,6 +12,7 @@ import MusicVideos from "./Components/MusicVideos";
 import Music from "./Components/Music";
 import Footer from "./Components/Footer";
 import MusicVideoAdmin from "./Components/Admin/MusicVideoAdmin";
+import Cart from "./Components/UserComponents/Cart";
 import DjmcAdmin from "./Components/Admin/DjmcAdmin";
 import PageNotFound from "./Components/404";
 import { getAuth, onAuthStateChanged } from "@firebase/auth";
@@ -23,6 +24,25 @@ function App() {
   const [userData, setUserData] = useState(null);
   const auth = getAuth();
   const db = firestore;
+
+  const [cartItems, setCartItems] = useState([]);
+
+  const addToCart = (item) => {
+    const existingItemIndex = cartItems.findIndex(
+      (cartItem) => cartItem.id === item.id
+    );
+
+    if (existingItemIndex !== -1) {
+      const updatedCartItems = [...cartItems];
+      updatedCartItems[existingItemIndex] = {
+        ...updatedCartItems[existingItemIndex],
+        quantity: updatedCartItems[existingItemIndex].quantity + 1,
+      };
+      setCartItems(updatedCartItems);
+    } else {
+      setCartItems([...cartItems, { ...item, quantity: 1 }]);
+    }
+  };
 
   useEffect(() => {
     onAuthStateChanged(auth, async (user) => {
@@ -61,7 +81,11 @@ function App() {
           element={isAdmin ? <MusicVideoAdmin /> : <MusicVideos />}
         />
         <Route exact path="/Music" element={<Music />} />
-        {/* <Route exact path="/Cart" element={<Cart items={cartItems} setItems={setCartItems}/>}/> */}
+        <Route
+          exact
+          path="/Cart"
+          element={<Cart items={cartItems} setItems={setCartItems} />}
+        />
         {/* <Route exact path='/RentalItems' element={isLoggedIn?<RentalsAdmin/>:<Rentals addToCart={addToCart}/>}/> */}
         {/* <Route exact path='/RentalItems' element={userData?.isAdmin?<RentalsAdmin/>:<Rentals addToCart={addToCart} />}/> */}
         <Route path="/*" element={<PageNotFound />} />

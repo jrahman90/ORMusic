@@ -29,23 +29,25 @@ export default function navbar() {
               <Nav.Link as={Link} to="/contact">
                 Contact Us
               </Nav.Link>
-                <Nav.Link as={Link} to="/DJMC">
-                  DJ/MC
-                </Nav.Link>
-                {/* <Nav.Link as={Link} to='/RentalItems'>Rental Items</Nav.Link> */}
-                <NavDropdown title="Media" id="basic-nav-dropdown">
-                  <NavDropdown.Item as={Link} to="/MusicVideos">
-                    Music Videos
-                  </NavDropdown.Item>
-                  {/* <NavDropdown.Item as={Link} to="/Downloads">
+              <Nav.Link as={Link} to="/DJMC">
+                DJ/MC
+              </Nav.Link>
+              {/* <Nav.Link as={Link} to="/RentalItems">
+                Rental Items
+              </Nav.Link> */}
+              <NavDropdown title="Media" id="basic-nav-dropdown">
+                <NavDropdown.Item as={Link} to="/MusicVideos">
+                  Music Videos
+                </NavDropdown.Item>
+                {/* <NavDropdown.Item as={Link} to="/Downloads">
                     Downloads
                   </NavDropdown.Item>
                 */}
-                  {/* <NavDropdown.Divider />  */}
-                </NavDropdown>
-                {/* <Nav.Link as={Link} to="/Cart">
-                  Cart
-                </Nav.Link> */}
+                {/* <NavDropdown.Divider />  */}
+              </NavDropdown>
+              <Nav.Link as={Link} to="/Cart">
+                Cart
+              </Nav.Link>
             </Nav>
           </Navbar.Collapse>
         </Container>
