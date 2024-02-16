@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import "bootstrap/dist/css/bootstrap.min.css";
 import "./App.css";
 import "./Components/Css/components.css";
-import Navbar from "./Components/Navbar";
+import AppNavbar from "./Components/Navbar";
 import { Routes, Route } from "react-router-dom";
 import Home from "./Components/Home";
 import ContactUs from "./Components/ContactUs";
@@ -20,6 +20,7 @@ import PageNotFound from "./Components/404";
 import { getAuth, onAuthStateChanged } from "@firebase/auth";
 import { getDoc, doc } from "@firebase/firestore";
 import firestore from "./api/firestore/firestore";
+import Inquiries from "./Components/Admin/Inquiries";
 
 function App() {
   const [isAdmin, setIsAdmin] = useState(null);
@@ -67,21 +68,13 @@ function App() {
 
   return (
     <div>
-      <Navbar />
+      <AppNavbar />
       <Routes>
         <Route exact path="/" element={<Home />} />
         <Route exact path="/contact" element={<ContactUs />} />
-        <Route
-          exact
-          path="/DJMC"
-          element={isAdmin ? <DjmcAdmin /> : <Djmc />}
-        />
+        <Route exact path="/DJMC" element={<Djmc />} />
         <Route exact path="/Downloads" element={<Downloads />} />
-        <Route
-          exact
-          path="/MusicVideos"
-          element={isAdmin ? <MusicVideoAdmin /> : <MusicVideos />}
-        />
+        <Route exact path="/MusicVideos" element={<MusicVideos />} />
         <Route exact path="/Music" element={<Music />} />
         <Route
           exact
@@ -91,10 +84,12 @@ function App() {
         <Route
           exact
           path="/RentalItems"
-          element={
-            isAdmin ? <RentalsAdmin /> : <Rentals addToCart={addToCart} />
-          }
+          element={<Rentals addToCart={addToCart} />}
         />
+        <Route exact path="/rental-items-admin" element={<RentalsAdmin />} />
+        <Route exact path="/music-video-admin" element={<MusicVideoAdmin />} />
+        <Route exact path="/dj-mc-admin" element={<DjmcAdmin />} />
+        <Route exact path="/inquiries-admin" element={<Inquiries />} />
         {/* <Route exact path='/RentalItems' element={userData?.isAdmin?<RentalsAdmin/>:<Rentals addToCart={addToCart} />}/> */}
         <Route path="/*" element={<PageNotFound />} />
       </Routes>
