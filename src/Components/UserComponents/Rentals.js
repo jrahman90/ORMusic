@@ -50,6 +50,7 @@ const Rentals = ({ addToCart }) => {
             <Card.Body>
               <Card.Title>{item.name}</Card.Title>
               <Card.Text>{item.description}</Card.Text>
+              <Card.Text>${item.price}</Card.Text>
               <Button variant="primary" onClick={() => handleAddToCart(item)}>
                 Add to Cart
               </Button>

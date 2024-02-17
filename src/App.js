@@ -69,6 +69,7 @@ function App() {
   return (
     <div>
       <AppNavbar />
+
       <Routes>
         <Route exact path="/" element={<Home />} />
         <Route exact path="/contact" element={<ContactUs />} />
@@ -86,10 +87,30 @@ function App() {
           path="/RentalItems"
           element={<Rentals addToCart={addToCart} />}
         />
-        <Route exact path="/rental-items-admin" element={<RentalsAdmin />} />
-        <Route exact path="/music-video-admin" element={<MusicVideoAdmin />} />
-        <Route exact path="/dj-mc-admin" element={<DjmcAdmin />} />
-        <Route exact path="/inquiries-admin" element={<Inquiries />} />
+        {isAdmin ? (
+          <Route exact path="/rental-items-admin" element={<RentalsAdmin />} />
+        ) : (
+          ""
+        )}
+        {isAdmin ? (
+          <Route
+            exact
+            path="/music-video-admin"
+            element={<MusicVideoAdmin />}
+          />
+        ) : (
+          ""
+        )}
+        {isAdmin ? (
+          <Route exact path="/dj-mc-admin" element={<DjmcAdmin />} />
+        ) : (
+          ""
+        )}
+        {isAdmin ? (
+          <Route exact path="/inquiries-admin" element={<Inquiries />} />
+        ) : (
+          ""
+        )}
         {/* <Route exact path='/RentalItems' element={userData?.isAdmin?<RentalsAdmin/>:<Rentals addToCart={addToCart} />}/> */}
         <Route path="/*" element={<PageNotFound />} />
       </Routes>

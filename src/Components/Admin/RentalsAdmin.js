@@ -12,7 +12,11 @@ import db from "../../api/firestore/firestore";
 
 const RentalsAdmin = () => {
   const [rentals, setRentals] = useState([]);
-  const [newRental, setNewRental] = useState({ name: "", description: "" });
+  const [newRental, setNewRental] = useState({
+    name: "",
+    description: "",
+    price: 0,
+  });
 
   useEffect(() => {
     // Fetch rental items from Firestore on component mount
@@ -41,7 +45,7 @@ const RentalsAdmin = () => {
       const newRentalDocRef = await addDoc(rentalCollectionRef, newRental);
       const newRentalData = { id: newRentalDocRef.id, ...newRental };
       setRentals([...rentals, newRentalData]);
-      setNewRental({ name: "", description: "" });
+      setNewRental({ name: "", description: "", price: 0 });
       console.log("Rental added:", newRentalData);
     } catch (error) {
       console.error("Error adding rental:", error);
@@ -60,23 +64,23 @@ const RentalsAdmin = () => {
     }
   };
 
-  const handleEditRental = async (id, updatedRental) => {
-    try {
-      const rentalDocRef = doc(db, "rentals", id);
-      await updateDoc(rentalDocRef, updatedRental);
-      const updatedRentals = rentals.map((rental) =>
-        rental.id === id ? { ...rental, ...updatedRental } : rental
-      );
-      setRentals(updatedRentals);
-      console.log("Rental edited:", id);
-    } catch (error) {
-      console.error("Error editing rental:", error);
-    }
-  };
+  // const handleEditRental = async (id, updatedRental) => {
+  //   try {
+  //     const rentalDocRef = doc(db, "rentals", id);
+  //     await updateDoc(rentalDocRef, updatedRental);
+  //     const updatedRentals = rentals.map((rental) =>
+  //       rental.id === id ? { ...rental, ...updatedRental } : rental
+  //     );
+  //     setRentals(updatedRentals);
+  //     console.log("Rental edited:", id);
+  //   } catch (error) {
+  //     console.error("Error editing rental:", error);
+  //   }
+  // };
 
   return (
     <Container>
-      <h2>Admin Rentals</h2>
+      <h2>Rentals Admin</h2>
       <Form onSubmit={handleAddRental}>
         <Form.Group>
           <Form.Label>Name</Form.Label>
@@ -98,6 +102,16 @@ const RentalsAdmin = () => {
             }
           />
         </Form.Group>
+        <Form.Group>
+          <Form.Label>Price</Form.Label>
+          <Form.Control
+            type="text"
+            value={newRental.price}
+            onChange={(e) =>
+              setNewRental({ ...newRental, price: e.target.value })
+            }
+          />
+        </Form.Group>
         <Button variant="primary" type="submit">
           Add Rental
         </Button>
@@ -110,13 +124,14 @@ const RentalsAdmin = () => {
             <Card.Body>
               <Card.Title>{item.name}</Card.Title>
               <Card.Text>{item.description}</Card.Text>
+              <Card.Text>${item.price}</Card.Text>
               <Button
                 variant="danger"
                 onClick={() => handleDeleteRental(item.id)}
               >
                 Delete
               </Button>{" "}
-              <Button
+              {/* <Button
                 variant="secondary"
                 onClick={() =>
                   handleEditRental(item.id, {
@@ -126,7 +141,7 @@ const RentalsAdmin = () => {
                 }
               >
                 Edit
-              </Button>
+              </Button> */}
             </Card.Body>
           </Card>
         ))

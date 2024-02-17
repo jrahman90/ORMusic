@@ -62,7 +62,9 @@ const PreviousInquiries = () => {
                 <td>
                   {inquiry.items.map((item) => (
                     <ul>
-                      <li>{item.name}</li>
+                      <li>
+                        {item.name} - ${item.price}{" "}
+                      </li>
                     </ul>
                   ))}
                 </td>
