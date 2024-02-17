@@ -61,6 +61,7 @@ export default function Inquiries() {
                     {inquiry.items.map((item) => (
                       <>
                         <Card.Text>{`${item.name} - Q: ${item.quantity}`}</Card.Text>
+                        <Card.Text>{`$${item.price}`}</Card.Text>
                         <Card.Text>{item.description}</Card.Text>
                         <div className="line-dotted" />
                       </>

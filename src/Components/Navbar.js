@@ -91,7 +91,9 @@ function AppNavbar() {
               ) : (
                 ""
               )}
-              <Nav.Link as={Link} to="/Cart">
+            </Nav>
+            <Nav>
+              <Nav.Link className="cart" as={Link} to="/Cart">
                 Cart
               </Nav.Link>
             </Nav>
