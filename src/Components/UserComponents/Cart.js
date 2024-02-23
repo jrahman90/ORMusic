@@ -90,11 +90,13 @@ const Cart = ({ items, setItems }) => {
     const auth = getAuth();
     const user = auth.currentUser;
 
-    const userRef = doc(db, "users", user.uid);
-    getDoc(userRef).then((doc) => {
-      setUserData(doc.data());
-    });
-    console.log("num", userData.phoneNumber);
+    if (user) {
+      const userRef = doc(db, "users", user?.uid);
+      getDoc(userRef).then((doc) => {
+        setUserData(doc.data());
+      });
+      console.log("num", userData.phoneNumber);
+    }
   }, []);
 
   return (
