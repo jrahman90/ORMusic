@@ -85,10 +85,14 @@ function AppNavbar() {
                 Rental Items
               </Nav.Link>
               <NavDropdown title="Media" className="nav-items">
-                <NavDropdown.Item as={Link} to="/MusicVideos">
+                <NavDropdown.Item
+                  className="nav-items-dropdown"
+                  as={Link}
+                  to="/MusicVideos"
+                >
                   Music Videos
                 </NavDropdown.Item>
-                {/* <NavDropdown.Item as={Link} to="/Downloads">
+                {/* <NavDropdown.Item className="nav-items-dropdown" as={Link} to="/Downloads">
                     Downloads
                   </NavDropdown.Item>
                 */}
@@ -96,16 +100,32 @@ function AppNavbar() {
               </NavDropdown>
               {isAdmin ? (
                 <NavDropdown title="Admin" className="nav-items">
-                  <NavDropdown.Item as={Link} to="/rental-items-admin">
+                  <NavDropdown.Item
+                    className="nav-items-dropdown"
+                    as={Link}
+                    to="/rental-items-admin"
+                  >
                     Rental Items
                   </NavDropdown.Item>
-                  <NavDropdown.Item as={Link} to="/music-video-admin">
+                  <NavDropdown.Item
+                    className="nav-items-dropdown"
+                    as={Link}
+                    to="/music-video-admin"
+                  >
                     Music Videos
                   </NavDropdown.Item>
-                  <NavDropdown.Item as={Link} to="/dj-mc-admin">
+                  <NavDropdown.Item
+                    className="nav-items-dropdown"
+                    as={Link}
+                    to="/dj-mc-admin"
+                  >
                     DJ/MC
                   </NavDropdown.Item>
-                  <NavDropdown.Item as={Link} to="/inquiries-admin">
+                  <NavDropdown.Item
+                    className="nav-items-dropdown"
+                    as={Link}
+                    to="/inquiries-admin"
+                  >
                     Inquiries
                   </NavDropdown.Item>
                 </NavDropdown>

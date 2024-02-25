@@ -124,6 +124,9 @@
 .nav-items a {
     color:#ced80d;
 }
+.nav-items-dropdown{
+    background-color: #333f94;
+}
 .our-services {
     width: 100vw;
     height: 60vh;
