@@ -7,7 +7,7 @@ import { getAuth, onAuthStateChanged } from "@firebase/auth";
 import { getDoc, doc } from "@firebase/firestore";
 import "./Css/components.css";
 import { Link } from "react-router-dom";
-import { FcShop } from "react-icons/fc";
+import { PiShoppingCartBold } from "react-icons/pi";
 
 import firestore from "../api/firestore/firestore";
 import { NavLink } from "react-bootstrap";
@@ -135,13 +135,18 @@ function AppNavbar() {
             </Nav>
             <Nav variant="pills">
               <Nav.Link className="mx-3" as={Link} to="/Cart">
-                <FcShop style={{ fontSize: "200%" }} />
+                <PiShoppingCartBold style={{ fontSize: "225%" }} />
               </Nav.Link>
-              {/* {socials.map((social) => (
-                <a href={social.linkToSocial} target="_blank" rel="noreferrer">
-                  <img alt="" src={social.imageSrc} />
+              {socials.map((social, idx) => (
+                <a
+                  key={idx}
+                  href={social.linkToSocial}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  <img style={{ opacity: ".5" }} alt="" src={social.imageSrc} />
                 </a>
-              ))} */}
+              ))}
             </Nav>
           </Navbar.Collapse>
         </Container>
