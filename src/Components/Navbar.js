@@ -7,14 +7,35 @@ import { getAuth, onAuthStateChanged } from "@firebase/auth";
 import { getDoc, doc } from "@firebase/firestore";
 import "./Css/components.css";
 import { Link } from "react-router-dom";
+import { FcShop } from "react-icons/fc";
 
 import firestore from "../api/firestore/firestore";
+import { NavLink } from "react-bootstrap";
 
 function AppNavbar() {
   const [isAdmin, setIsAdmin] = useState(null);
   const [userData, setUserData] = useState(null);
   const auth = getAuth();
   const db = firestore;
+
+  const socials = [
+    {
+      linkToSocial: "https://www.facebook.com/ormusicevents",
+      imageSrc: "facebook.png",
+    },
+    {
+      linkToSocial: "https://www.instagram.com/ormusic.events/",
+      imageSrc: "instagram.png",
+    },
+    {
+      linkToSocial: "https://www.youtube.com/channel/UCdtFAaHPQxzm-jKlPgKPngQ",
+      imageSrc: "youtube.png",
+    },
+    {
+      linkToSocial: "https://www.tiktok.com/@officialopu",
+      imageSrc: "tiktok.png",
+    },
+  ];
 
   useEffect(() => {
     onAuthStateChanged(auth, async (user) => {
@@ -51,19 +72,19 @@ function AppNavbar() {
           <Navbar.Toggle aria-controls="basic-navbar-nav" />
           <Navbar.Collapse id="basic-navbar-nav">
             <Nav className="me-auto">
-              <Nav.Link as={Link} to="/">
+              <Nav.Link className="nav-items" as={Link} to="/">
                 Home
               </Nav.Link>
-              <Nav.Link as={Link} to="/contact">
+              <Nav.Link className="nav-items" as={Link} to="/contact">
                 Contact Us
               </Nav.Link>
-              <Nav.Link as={Link} to="/DJMC">
+              <Nav.Link className="nav-items" as={Link} to="/DJMC">
                 DJ/MC
               </Nav.Link>
-              <Nav.Link as={Link} to="/RentalItems">
+              <Nav.Link className="nav-items" as={Link} to="/RentalItems">
                 Rental Items
               </Nav.Link>
-              <NavDropdown title="Media" id="basic-nav-dropdown">
+              <NavDropdown title="Media" className="nav-items">
                 <NavDropdown.Item as={Link} to="/MusicVideos">
                   Music Videos
                 </NavDropdown.Item>
@@ -74,7 +95,7 @@ function AppNavbar() {
                 {/* <NavDropdown.Divider />  */}
               </NavDropdown>
               {isAdmin ? (
-                <NavDropdown title="Admin" id="basic-nav-dropdown">
+                <NavDropdown title="Admin" className="nav-items">
                   <NavDropdown.Item as={Link} to="/rental-items-admin">
                     Rental Items
                   </NavDropdown.Item>
@@ -92,10 +113,15 @@ function AppNavbar() {
                 ""
               )}
             </Nav>
-            <Nav>
-              <Nav.Link className="cart" as={Link} to="/Cart">
-                Cart
+            <Nav variant="pills">
+              <Nav.Link className="mx-3" as={Link} to="/Cart">
+                <FcShop style={{ fontSize: "200%" }} />
               </Nav.Link>
+              {/* {socials.map((social) => (
+                <a href={social.linkToSocial} target="_blank" rel="noreferrer">
+                  <img alt="" src={social.imageSrc} />
+                </a>
+              ))} */}
             </Nav>
           </Navbar.Collapse>
         </Container>

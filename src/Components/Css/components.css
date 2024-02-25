@@ -1,7 +1,9 @@
 .cart {
     color: white;
-    font-weight:bolder
+    font-weight:bolder;
+    font-size: larger;
 }
+
 .celebrate-with-us {
     width: 100vw;
     height: 50vh;
@@ -113,6 +115,14 @@
     opacity: 10;
     margin: 10px auto;
     border-radius: 5px;
+}
+.nav-items{
+    color:#fff;
+    font-size: large;
+    font-weight: bolder;
+}
+.nav-items a {
+    color:#ced80d;
 }
 .our-services {
     width: 100vw;
