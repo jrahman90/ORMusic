@@ -182,6 +182,7 @@ const Cart = ({ items, setItems }) => {
       ) : (
         ""
       )}
+      <div className="line"></div>
       {<PreviousInquiries />}
       <Modal
         show={show}
