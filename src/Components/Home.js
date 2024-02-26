@@ -6,6 +6,15 @@ import Pictures from "./SubElements/Pictures";
 export default function Home() {
   return (
     <div>
+      <p
+        className="mt-3 mx-3"
+        align="center"
+        style={{ backgroundColor: "black", color: "white" }}
+      >
+        Welcome to the updated OR Music Events website! Now, you can easily
+        create a profile by clicking on the login button in the footer and
+        conveniently send inquiries through the cart.{" "}
+      </p>
       <Card className="bg-dark text-white header mt-3">
         <Card.ImgOverlay className="home-card">
           <Card.Title>
@@ -35,7 +44,7 @@ export default function Home() {
       </Card>
       <Card className="bg-dark mt-3 our-services text-white">
         <Card.ImgOverlay className="our-services">
-        <Card.Title className="header-text mb-3">Our Services</Card.Title>
+          <Card.Title className="header-text mb-3">Our Services</Card.Title>
           <Pictures />
         </Card.ImgOverlay>
       </Card>
