@@ -10,7 +10,6 @@ import { Link } from "react-router-dom";
 import { PiShoppingCartBold } from "react-icons/pi";
 
 import firestore from "../api/firestore/firestore";
-import { NavLink } from "react-bootstrap";
 
 function AppNavbar() {
   const [isAdmin, setIsAdmin] = useState(null);
