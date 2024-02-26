@@ -34,7 +34,7 @@ export default function Inquiries() {
 
   return (
     <Container style={{ marginTop: "1rem" }}>
-      {inquiries ? (
+      {inquiries.length > 0 ? (
         <Row xs={1} md={2} lg={3} className="g-4" align="center">
           {inquiries
             .sort((a, b) =>
@@ -80,7 +80,9 @@ export default function Inquiries() {
             ))}
         </Row>
       ) : (
-        "No Inquires To Show"
+        <Row xs={1} md={2} lg={3} className="g-4" align="center">
+          <Col>No Inquires To Show.</Col>
+        </Row>
       )}
     </Container>
   );

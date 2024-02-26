@@ -37,7 +37,9 @@ const Rentals = ({ addToCart }) => {
   return (
     <Container>
       {addedToCart ? <Alert variant="success">Added to Cart!</Alert> : ""}
-      <h2>Rentals</h2>
+      <h2 className="mt-1" align="center">
+        Rentals
+      </h2>
       {rentals.length === 0 ? (
         <p>
           We are diligently curating a selection of captivating items to elevate
