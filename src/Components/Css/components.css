@@ -1,3 +1,9 @@
+.cart {
+    color: white;
+    font-weight:bolder;
+    font-size: larger;
+}
+
 .celebrate-with-us {
     width: 100vw;
     height: 50vh;
@@ -102,6 +108,25 @@
     margin: 10px auto;
     border-radius: 5px;
 }
+.line-dotted {
+    width: 150px;
+    height: 2px;
+    background: #fc036b;
+    opacity: 10;
+    margin: 10px auto;
+    border-radius: 5px;
+}
+.nav-items{
+    color:#fff;
+    font-size: large;
+    font-weight: bolder;
+}
+.nav-items a {
+    color:#ced80d;
+}
+.nav-items-dropdown{
+    background-color: #333f94;
+}
 .our-services {
     width: 100vw;
     height: 60vh;
@@ -127,6 +152,9 @@
 }
 .pictures {
     max-width: 80vw;
+}
+ul {
+    list-style-type: none;
 }
 
 @media (max-width:750px) {
