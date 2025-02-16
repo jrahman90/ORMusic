@@ -21,6 +21,7 @@ import { getAuth, onAuthStateChanged } from "@firebase/auth";
 import { getDoc, doc } from "@firebase/firestore";
 import firestore from "./api/firestore/firestore";
 import Inquiries from "./Components/Admin/Inquiries";
+import EventureTermsAndConditions from "./Components/EventureTerms";
 
 function App() {
   const [isAdmin, setIsAdmin] = useState(null);
@@ -72,6 +73,11 @@ function App() {
 
       <Routes>
         <Route exact path="/" element={<Home />} />
+        <Route
+          exact
+          path="/eventure-terms-conditions"
+          element={<EventureTermsAndConditions />}
+        />
         <Route exact path="/contact" element={<ContactUs />} />
         <Route exact path="/DJMC" element={<Djmc />} />
         <Route exact path="/Downloads" element={<Downloads />} />
