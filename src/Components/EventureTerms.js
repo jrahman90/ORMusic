@@ -1,28 +1,23 @@
 import React from "react";
-import { ScrollView, View, Text, StyleSheet } from "react-native";
-import { Card, CardContent } from "@/components/ui/card";
 
 const EventureTermsAndConditions = () => {
   return (
-    <ScrollView style={styles.container}>
-      <Card>
-        <CardContent>
-          <Text style={styles.title}>Terms and Conditions</Text>
-          <Text style={styles.date}>Effective Date: 1/1/2025</Text>
-
-          {sections.map((section, index) => (
-            <View key={index} style={styles.section}>
-              <Text style={styles.sectionTitle}>{section.title}</Text>
-              {section.content.map((paragraph, idx) => (
-                <Text key={idx} style={styles.paragraph}>
-                  {paragraph}
-                </Text>
-              ))}
-            </View>
-          ))}
-        </CardContent>
-      </Card>
-    </ScrollView>
+    <div style={styles.container}>
+      <div style={styles.card}>
+        <h1 style={styles.title}>Terms and Conditions</h1>
+        <p style={styles.date}>Effective Date: 1/1/2025</p>
+        {sections.map((section, index) => (
+          <div key={index} style={styles.section}>
+            <h2 style={styles.sectionTitle}>{section.title}</h2>
+            {section.content.map((paragraph, idx) => (
+              <p key={idx} style={styles.paragraph}>
+                {paragraph}
+              </p>
+            ))}
+          </div>
+        ))}
+      </div>
+    </div>
   );
 };
 
@@ -114,18 +109,35 @@ const sections = [
   },
 ];
 
-const styles = StyleSheet.create({
-  container: { padding: 16, backgroundColor: "#f9f9f9" },
+const styles = {
+  container: {
+    padding: "20px",
+    backgroundColor: "#f9f9f9",
+    display: "flex",
+    justifyContent: "center",
+  },
+  card: {
+    backgroundColor: "white",
+    padding: "20px",
+    borderRadius: "10px",
+    maxWidth: "800px",
+    boxShadow: "0 4px 8px rgba(0, 0, 0, 0.1)",
+  },
   title: {
-    fontSize: 22,
+    fontSize: "24px",
     fontWeight: "bold",
     textAlign: "center",
-    marginBottom: 10,
+    marginBottom: "10px",
   },
-  date: { fontSize: 14, textAlign: "center", color: "gray", marginBottom: 20 },
-  section: { marginBottom: 20 },
-  sectionTitle: { fontSize: 18, fontWeight: "bold", marginBottom: 5 },
-  paragraph: { fontSize: 14, lineHeight: 20, color: "#333" },
-});
+  date: {
+    fontSize: "14px",
+    textAlign: "center",
+    color: "gray",
+    marginBottom: "20px",
+  },
+  section: { marginBottom: "20px" },
+  sectionTitle: { fontSize: "18px", fontWeight: "bold", marginBottom: "5px" },
+  paragraph: { fontSize: "14px", lineHeight: "1.6", color: "#333" },
+};
 
 export default EventureTermsAndConditions;

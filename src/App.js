@@ -3,7 +3,7 @@ import "bootstrap/dist/css/bootstrap.min.css";
 import "./App.css";
 import "./Components/Css/components.css";
 import AppNavbar from "./Components/Navbar";
-import { Routes, Route } from "react-router-dom";
+import { Routes, Route, useLocation } from "react-router-dom";
 import Home from "./Components/Home";
 import ContactUs from "./Components/ContactUs";
 import Djmc from "./Components/Djmc";
@@ -28,7 +28,7 @@ function App() {
   const [userData, setUserData] = useState(null);
   const auth = getAuth();
   const db = firestore;
-
+  const location = useLocation();
   const [cartItems, setCartItems] = useState([]);
 
   const addToCart = (item) => {
@@ -69,15 +69,9 @@ function App() {
 
   return (
     <div>
-      <AppNavbar />
-
+      {location.pathname !== "/eventure-terms-conditions" && <AppNavbar />}
       <Routes>
         <Route exact path="/" element={<Home />} />
-        <Route
-          exact
-          path="/eventure-terms-conditions"
-          element={<EventureTermsAndConditions />}
-        />
         <Route exact path="/contact" element={<ContactUs />} />
         <Route exact path="/DJMC" element={<Djmc />} />
         <Route exact path="/Downloads" element={<Downloads />} />
@@ -93,37 +87,33 @@ function App() {
           path="/RentalItems"
           element={<Rentals addToCart={addToCart} />}
         />
-        {isAdmin ? (
+        {isAdmin && (
           <Route exact path="/rental-items-admin" element={<RentalsAdmin />} />
-        ) : (
-          ""
         )}
-        {isAdmin ? (
+        {isAdmin && (
           <Route
             exact
             path="/music-video-admin"
             element={<MusicVideoAdmin />}
           />
-        ) : (
-          ""
         )}
-        {isAdmin ? (
-          <Route exact path="/dj-mc-admin" element={<DjmcAdmin />} />
-        ) : (
-          ""
-        )}
-        {isAdmin ? (
+        {isAdmin && <Route exact path="/dj-mc-admin" element={<DjmcAdmin />} />}
+        {isAdmin && (
           <Route exact path="/inquiries-admin" element={<Inquiries />} />
-        ) : (
-          ""
         )}
-        {/* <Route exact path='/RentalItems' element={userData?.isAdmin?<RentalsAdmin/>:<Rentals addToCart={addToCart} />}/> */}
+        <Route
+          exact
+          path="/eventure-terms-conditions"
+          element={<EventureTermsAndConditions />}
+        />
         <Route path="/*" element={<PageNotFound />} />
       </Routes>
-      <div>
-        <div className="line"></div>
-        <Footer />
-      </div>
+      {location.pathname !== "/eventure-terms-conditions" && (
+        <div>
+          <div className="line"></div>
+          <Footer />
+        </div>
+      )}
     </div>
   );
 }
