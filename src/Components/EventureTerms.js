@@ -57,6 +57,15 @@ const EventureTermsAndConditions = () => {
         ))}
       </div>
 
+      {/* Footer Message */}
+      <div style={styles.footerMessage}>
+        To delete your user data, please email{" "}
+        <a href="mailto:eventure.app.info@gmail.com">
+          eventure.app.info@gmail.com
+        </a>
+        .
+      </div>
+
       {isModalOpen && (
         <div style={styles.modalOverlay}>
           <div style={styles.modal}>
@@ -223,7 +232,8 @@ const styles = {
     padding: "20px",
     backgroundColor: "#f9f9f9",
     display: "flex",
-    justifyContent: "center",
+    flexDirection: "column",
+    alignItems: "center",
   },
   card: {
     backgroundColor: "white",
@@ -338,6 +348,12 @@ const styles = {
   section: { marginBottom: "20px" },
   sectionTitle: { fontSize: "18px", fontWeight: "bold", marginBottom: "5px" },
   paragraph: { fontSize: "14px", lineHeight: "1.6", color: "#333" },
+  footerMessage: {
+    marginTop: "20px",
+    fontSize: "14px",
+    textAlign: "center",
+    color: "#555",
+  },
 };
 
 export default EventureTermsAndConditions;
