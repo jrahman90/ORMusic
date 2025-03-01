@@ -127,6 +127,13 @@ function AppNavbar() {
                   >
                     Inquiries
                   </NavDropdown.Item>
+                  <NavDropdown.Item
+                    className="nav-items-dropdown"
+                    as={Link}
+                    to="/eventure-admin"
+                  >
+                    Eventure Admin
+                  </NavDropdown.Item>
                 </NavDropdown>
               ) : (
                 ""

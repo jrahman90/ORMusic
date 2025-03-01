@@ -22,6 +22,7 @@ import { getDoc, doc } from "@firebase/firestore";
 import firestore from "./api/firestore/firestore";
 import Inquiries from "./Components/Admin/Inquiries";
 import EventureTermsAndConditions from "./Components/EventureTerms";
+import EventureAdmin from "./Components/Admin/EventureAdmin";
 
 function App() {
   const [isAdmin, setIsAdmin] = useState(null);
@@ -98,6 +99,9 @@ function App() {
           />
         )}
         {isAdmin && <Route exact path="/dj-mc-admin" element={<DjmcAdmin />} />}
+        {isAdmin && (
+          <Route exact path="/eventure-admin" element={<EventureAdmin />} />
+        )}
         {isAdmin && (
           <Route exact path="/inquiries-admin" element={<Inquiries />} />
         )}
