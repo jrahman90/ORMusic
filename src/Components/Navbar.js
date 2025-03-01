@@ -14,6 +14,8 @@ import firestore from "../api/firestore/firestore";
 function AppNavbar() {
   const [isAdmin, setIsAdmin] = useState(null);
   const [userData, setUserData] = useState(null);
+  const [navExpanded, setNavExpanded] = useState(false);
+
   const auth = getAuth();
   const db = firestore;
 
@@ -52,12 +54,21 @@ function AppNavbar() {
         console.log("User is not logged in.");
       }
     });
-    // eslint-disable-next-line
-  }, [auth]);
+  }, [auth, db]);
+
+  // Handler to close navbar on link click
+  const handleNavItemClick = () => {
+    setNavExpanded(false);
+  };
 
   return (
     <div>
-      <Navbar bg="primary" expand="lg">
+      <Navbar
+        bg="primary"
+        expand="lg"
+        expanded={navExpanded}
+        onToggle={() => setNavExpanded((prev) => !prev)}
+      >
         <Container>
           <Navbar.Brand href="/">
             <img
@@ -71,38 +82,60 @@ function AppNavbar() {
           <Navbar.Toggle aria-controls="basic-navbar-nav" />
           <Navbar.Collapse id="basic-navbar-nav">
             <Nav className="me-auto">
-              <Nav.Link className="nav-items" as={Link} to="/">
+              <Nav.Link
+                className="nav-items"
+                as={Link}
+                to="/"
+                onClick={handleNavItemClick}
+              >
                 Home
               </Nav.Link>
-              <Nav.Link className="nav-items" as={Link} to="/contact">
+              <Nav.Link
+                className="nav-items"
+                as={Link}
+                to="/contact"
+                onClick={handleNavItemClick}
+              >
                 Contact Us
               </Nav.Link>
-              <Nav.Link className="nav-items" as={Link} to="/DJMC">
+              <Nav.Link
+                className="nav-items"
+                as={Link}
+                to="/DJMC"
+                onClick={handleNavItemClick}
+              >
                 DJ/MC
               </Nav.Link>
-              <Nav.Link className="nav-items" as={Link} to="/RentalItems">
+              <Nav.Link
+                className="nav-items"
+                as={Link}
+                to="/RentalItems"
+                onClick={handleNavItemClick}
+              >
                 Rental Items
               </Nav.Link>
+
+              {/* MEDIA DROPDOWN */}
               <NavDropdown title="Media" className="nav-items">
                 <NavDropdown.Item
                   className="nav-items-dropdown"
                   as={Link}
                   to="/MusicVideos"
+                  onClick={handleNavItemClick}
                 >
                   Music Videos
                 </NavDropdown.Item>
-                {/* <NavDropdown.Item className="nav-items-dropdown" as={Link} to="/Downloads">
-                    Downloads
-                  </NavDropdown.Item>
-                */}
-                {/* <NavDropdown.Divider />  */}
+                {/* Additional dropdown items here if needed */}
               </NavDropdown>
-              {isAdmin ? (
+
+              {/* ADMIN DROPDOWN (only if admin) */}
+              {isAdmin && (
                 <NavDropdown title="Admin" className="nav-items">
                   <NavDropdown.Item
                     className="nav-items-dropdown"
                     as={Link}
                     to="/rental-items-admin"
+                    onClick={handleNavItemClick}
                   >
                     Rental Items
                   </NavDropdown.Item>
@@ -110,6 +143,7 @@ function AppNavbar() {
                     className="nav-items-dropdown"
                     as={Link}
                     to="/music-video-admin"
+                    onClick={handleNavItemClick}
                   >
                     Music Videos
                   </NavDropdown.Item>
@@ -117,6 +151,7 @@ function AppNavbar() {
                     className="nav-items-dropdown"
                     as={Link}
                     to="/dj-mc-admin"
+                    onClick={handleNavItemClick}
                   >
                     DJ/MC
                   </NavDropdown.Item>
@@ -124,6 +159,7 @@ function AppNavbar() {
                     className="nav-items-dropdown"
                     as={Link}
                     to="/inquiries-admin"
+                    onClick={handleNavItemClick}
                   >
                     Inquiries
                   </NavDropdown.Item>
@@ -131,16 +167,22 @@ function AppNavbar() {
                     className="nav-items-dropdown"
                     as={Link}
                     to="/eventure-admin"
+                    onClick={handleNavItemClick}
                   >
                     Eventure Admin
                   </NavDropdown.Item>
                 </NavDropdown>
-              ) : (
-                ""
               )}
             </Nav>
+
+            {/* CART & SOCIALS */}
             <Nav variant="pills">
-              <Nav.Link className="mx-3" as={Link} to="/Cart">
+              <Nav.Link
+                className="mx-3"
+                as={Link}
+                to="/Cart"
+                onClick={handleNavItemClick}
+              >
                 <PiShoppingCartBold style={{ fontSize: "225%" }} />
               </Nav.Link>
               {socials.map((social, idx) => (
@@ -149,6 +191,7 @@ function AppNavbar() {
                   href={social.linkToSocial}
                   target="_blank"
                   rel="noreferrer"
+                  onClick={handleNavItemClick}
                 >
                   <img style={{ opacity: ".5" }} alt="" src={social.imageSrc} />
                 </a>
