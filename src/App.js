@@ -1,3 +1,4 @@
+// App.js
 import React, { useState, useEffect } from "react";
 import "bootstrap/dist/css/bootstrap.min.css";
 import "./App.css";
@@ -30,23 +31,56 @@ function App() {
   const auth = getAuth();
   const db = firestore;
   const location = useLocation();
-  const [cartItems, setCartItems] = useState([]);
 
-  const addToCart = (item) => {
-    const existingItemIndex = cartItems.findIndex(
-      (cartItem) => cartItem.id === item.id
-    );
-
-    if (existingItemIndex !== -1) {
-      const updatedCartItems = [...cartItems];
-      updatedCartItems[existingItemIndex] = {
-        ...updatedCartItems[existingItemIndex],
-        quantity: updatedCartItems[existingItemIndex].quantity + 1,
-      };
-      setCartItems(updatedCartItems);
-    } else {
-      setCartItems([...cartItems, { ...item, quantity: 1 }]);
+  // hydrate cart from localStorage once
+  const [cartItems, setCartItems] = useState(() => {
+    try {
+      const raw = localStorage.getItem("cartItems");
+      return raw ? JSON.parse(raw) : [];
+    } catch {
+      return [];
     }
+  });
+
+  // helper to persist and notify listeners
+  const persistCart = (items) => {
+    try {
+      localStorage.setItem("cartItems", JSON.stringify(items));
+      window.dispatchEvent(new Event("cart:update"));
+    } catch {}
+  };
+
+  // keep storage in sync when cart changes
+  useEffect(() => {
+    persistCart(cartItems);
+  }, [cartItems]);
+
+  // add to cart, merge quantities
+  const addToCart = (item) => {
+    setCartItems((prev) => {
+      const idx = prev.findIndex((p) => p.id === item.id);
+      let next;
+      if (idx > -1) {
+        next = prev.map((p, i) =>
+          i === idx ? { ...p, quantity: Number(p.quantity || 0) + 1 } : p
+        );
+      } else {
+        next = [
+          ...prev,
+          {
+            id: item.id,
+            name: item.name,
+            price: item.price,
+            description: item.description || "",
+            media: Array.isArray(item.media) ? item.media : [],
+            quantity: 1,
+          },
+        ];
+      }
+      // persist immediately so the navbar badge updates in the same tick
+      persistCart(next);
+      return next;
+    });
   };
 
   useEffect(() => {

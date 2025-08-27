@@ -3,18 +3,20 @@ import Container from "react-bootstrap/Container";
 import Nav from "react-bootstrap/Nav";
 import Navbar from "react-bootstrap/Navbar";
 import NavDropdown from "react-bootstrap/NavDropdown";
+import Badge from "react-bootstrap/Badge";
 import { getAuth, onAuthStateChanged } from "@firebase/auth";
 import { getDoc, doc } from "@firebase/firestore";
 import "./Css/components.css";
 import { Link } from "react-router-dom";
 import { PiShoppingCartBold } from "react-icons/pi";
-
 import firestore from "../api/firestore/firestore";
 
 function AppNavbar() {
   const [isAdmin, setIsAdmin] = useState(null);
   const [userData, setUserData] = useState(null);
   const [navExpanded, setNavExpanded] = useState(false);
+
+  const [cartCount, setCartCount] = useState(0);
 
   const auth = getAuth();
   const db = firestore;
@@ -38,6 +40,32 @@ function AppNavbar() {
     },
   ];
 
+  // read total quantity from localStorage
+  const readCartCount = () => {
+    try {
+      const raw = localStorage.getItem("cartItems");
+      const arr = raw ? JSON.parse(raw) : [];
+      const total = arr.reduce((sum, it) => sum + Number(it.quantity || 0), 0);
+      setCartCount(total);
+    } catch {
+      setCartCount(0);
+    }
+  };
+
+  useEffect(() => {
+    readCartCount();
+    const onStorage = (e) => {
+      if (e.key === "cartItems") readCartCount();
+    };
+    window.addEventListener("storage", onStorage);
+    // allow other parts of the app to trigger a refresh
+    window.addEventListener("cart:update", readCartCount);
+    return () => {
+      window.removeEventListener("storage", onStorage);
+      window.removeEventListener("cart:update", readCartCount);
+    };
+  }, []);
+
   useEffect(() => {
     onAuthStateChanged(auth, async (user) => {
       if (user) {
@@ -56,10 +84,7 @@ function AppNavbar() {
     });
   }, [auth, db]);
 
-  // Handler to close navbar on link click
-  const handleNavItemClick = () => {
-    setNavExpanded(false);
-  };
+  const handleNavItemClick = () => setNavExpanded(false);
 
   return (
     <div>
@@ -115,7 +140,6 @@ function AppNavbar() {
                 Rental Items
               </Nav.Link>
 
-              {/* MEDIA DROPDOWN */}
               <NavDropdown title="Media" className="nav-items">
                 <NavDropdown.Item
                   className="nav-items-dropdown"
@@ -125,10 +149,8 @@ function AppNavbar() {
                 >
                   Music Videos
                 </NavDropdown.Item>
-                {/* Additional dropdown items here if needed */}
               </NavDropdown>
 
-              {/* ADMIN DROPDOWN (only if admin) */}
               {isAdmin && (
                 <NavDropdown title="Admin" className="nav-items">
                   <NavDropdown.Item
@@ -175,16 +197,26 @@ function AppNavbar() {
               )}
             </Nav>
 
-            {/* CART & SOCIALS */}
+            {/* Cart with badge */}
             <Nav variant="pills">
               <Nav.Link
-                className="mx-3"
+                className="mx-3 position-relative"
                 as={Link}
                 to="/Cart"
                 onClick={handleNavItemClick}
               >
                 <PiShoppingCartBold style={{ fontSize: "225%" }} />
+                {cartCount > 0 && (
+                  <Badge
+                    bg="danger"
+                    pill
+                    className="position-absolute top-0 start-100 translate-middle"
+                  >
+                    {cartCount}
+                  </Badge>
+                )}
               </Nav.Link>
+
               {socials.map((social, idx) => (
                 <a
                   key={idx}
