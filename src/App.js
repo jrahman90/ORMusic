@@ -42,12 +42,18 @@ function App() {
     }
   });
 
-  // persist cart and notify listeners when it changes
+  // persist cart and notify listeners when it really changed
   useEffect(() => {
     try {
-      localStorage.setItem("cartItems", JSON.stringify(cartItems));
-      window.dispatchEvent(new Event("cart:update"));
-    } catch {}
+      const cur = localStorage.getItem("cartItems");
+      const next = JSON.stringify(cartItems);
+      if (cur !== next) {
+        localStorage.setItem("cartItems", next);
+        window.dispatchEvent(new Event("cart:update"));
+      }
+    } catch {
+      /* ignore */
+    }
   }, [cartItems]);
 
   // add to cart, merge quantities
