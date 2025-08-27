@@ -42,65 +42,65 @@ function App() {
     }
   });
 
-  // helper to persist and notify listeners
-  const persistCart = (items) => {
+  // persist cart and notify listeners when it changes
+  useEffect(() => {
     try {
-      localStorage.setItem("cartItems", JSON.stringify(items));
+      localStorage.setItem("cartItems", JSON.stringify(cartItems));
       window.dispatchEvent(new Event("cart:update"));
     } catch {}
-  };
-
-  // keep storage in sync when cart changes
-  useEffect(() => {
-    persistCart(cartItems);
   }, [cartItems]);
 
   // add to cart, merge quantities
   const addToCart = (item) => {
     setCartItems((prev) => {
       const idx = prev.findIndex((p) => p.id === item.id);
-      let next;
       if (idx > -1) {
-        next = prev.map((p, i) =>
+        return prev.map((p, i) =>
           i === idx ? { ...p, quantity: Number(p.quantity || 0) + 1 } : p
         );
-      } else {
-        next = [
-          ...prev,
-          {
-            id: item.id,
-            name: item.name,
-            price: item.price,
-            description: item.description || "",
-            media: Array.isArray(item.media) ? item.media : [],
-            quantity: 1,
-          },
-        ];
       }
-      // persist immediately so the navbar badge updates in the same tick
-      persistCart(next);
-      return next;
+      return [
+        ...prev,
+        {
+          id: item.id,
+          name: item.name,
+          price: item.price,
+          description: item.description || "",
+          media: Array.isArray(item.media) ? item.media : [],
+          quantity: 1,
+        },
+      ];
     });
   };
 
+  // subscribe to auth once, clean up on unmount
   useEffect(() => {
-    onAuthStateChanged(auth, async (user) => {
-      if (user) {
-        const uid = user.uid;
-        const docRef = doc(db, "users", uid);
-        const docSnap = await getDoc(docRef);
-        if (docSnap.exists()) {
-          setUserData(docSnap.data());
-          setIsAdmin(docSnap.data()?.isAdmin);
+    const unsub = onAuthStateChanged(auth, async (user) => {
+      if (!user) {
+        // avoid stale state churn
+        setUserData((s) => (s !== null ? null : s));
+        setIsAdmin((s) => (s !== null ? null : s));
+        return;
+      }
+      try {
+        const snap = await getDoc(doc(db, "users", user.uid));
+        if (snap.exists()) {
+          const data = snap.data();
+          setUserData((prev) =>
+            JSON.stringify(prev) !== JSON.stringify(data) ? data : prev
+          );
+          const nextIsAdmin = !!data?.isAdmin;
+          setIsAdmin((prev) => (prev !== nextIsAdmin ? nextIsAdmin : prev));
         } else {
-          console.log("Document does not exist");
+          setUserData((s) => (s !== null ? null : s));
+          setIsAdmin((s) => (s !== null ? null : s));
         }
-      } else {
-        console.log("User is not logged in.");
+      } catch {
+        // keep current state
       }
     });
-    // eslint-disable-next-line
-  }, []);
+    return () => unsub();
+  }, [auth, db]);
 
   return (
     <div>

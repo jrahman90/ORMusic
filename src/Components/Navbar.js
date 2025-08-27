@@ -115,14 +115,7 @@ function AppNavbar() {
               >
                 Home
               </Nav.Link>
-              <Nav.Link
-                className="nav-items"
-                as={Link}
-                to="/contact"
-                onClick={handleNavItemClick}
-              >
-                Contact Us
-              </Nav.Link>
+
               <Nav.Link
                 className="nav-items"
                 as={Link}
@@ -137,7 +130,7 @@ function AppNavbar() {
                 to="/RentalItems"
                 onClick={handleNavItemClick}
               >
-                Rental Items
+                Services
               </Nav.Link>
 
               <NavDropdown title="Media" className="nav-items">
@@ -148,6 +141,14 @@ function AppNavbar() {
                   onClick={handleNavItemClick}
                 >
                   Music Videos
+                </NavDropdown.Item>
+                <NavDropdown.Item
+                  className="nav-items-dropdown"
+                  as={Link}
+                  to="/contact"
+                  onClick={handleNavItemClick}
+                >
+                  Contact Us
                 </NavDropdown.Item>
               </NavDropdown>
 

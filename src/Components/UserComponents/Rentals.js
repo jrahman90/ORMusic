@@ -60,6 +60,70 @@ const MediaCarousel = ({ media = [] }) => {
   );
 };
 
+function SectionGrid({ title, items = [], onAddToCart }) {
+  if (!items.length) return null;
+
+  return (
+    <>
+      <div className="d-flex align-items-center justify-content-between mt-4 mb-2">
+        <h3 className="m-0">{title}</h3>
+        <Badge bg="secondary" pill>
+          {items.length} items
+        </Badge>
+      </div>
+
+      <Row xs={1} sm={2} md={3} xl={4} className="g-3">
+        {items.map((item) => (
+          <Col key={`${title}-${item.id}`}>
+            <Card className="h-100 shadow-sm border-0">
+              {Array.isArray(item.media) && item.media.length > 0 ? (
+                <MediaCarousel media={item.media} />
+              ) : null}
+              <Card.Body className="d-flex flex-column">
+                <div className="d-flex justify-content-between align-items-start mb-2">
+                  <div>
+                    <Card.Title className="mb-0">{item.name}</Card.Title>
+                    <div className="d-flex flex-wrap gap-1 mt-1">
+                      {(Array.isArray(item.categories) ? item.categories : [])
+                        .length > 0 ? (
+                        item.categories.map((c) => (
+                          <Badge key={c} bg="info">
+                            {c}
+                          </Badge>
+                        ))
+                      ) : (
+                        <Badge bg="secondary">uncategorized</Badge>
+                      )}
+                    </div>
+                  </div>
+                  <Badge bg="dark">{money(item.price)}</Badge>
+                </div>
+
+                {item.description ? (
+                  <Card.Text className="text-muted" style={{ minHeight: 48 }}>
+                    {item.description}
+                  </Card.Text>
+                ) : (
+                  <div style={{ minHeight: 48 }} />
+                )}
+
+                <div className="mt-auto d-grid">
+                  <Button variant="primary" onClick={() => onAddToCart(item)}>
+                    Add to Cart
+                  </Button>
+                </div>
+              </Card.Body>
+              <Card.Footer className="text-muted small">
+                Prices listed are not final until confirmed.
+              </Card.Footer>
+            </Card>
+          </Col>
+        ))}
+      </Row>
+    </>
+  );
+}
+
 const Rentals = ({ addToCart }) => {
   const [rentals, setRentals] = useState([]);
   const [addedToCart, setAddedToCart] = useState(false);
@@ -85,7 +149,6 @@ const Rentals = ({ addToCart }) => {
     fetchRentals();
   }, []);
 
-  // Write through to localStorage for persistence
   const addToCartLocal = (item) => {
     try {
       const raw = localStorage.getItem("cartItems");
@@ -102,6 +165,7 @@ const Rentals = ({ addToCart }) => {
           description: item.description || "",
           media: Array.isArray(item.media) ? item.media : [],
           quantity: 1,
+          categories: Array.isArray(item.categories) ? item.categories : [],
         });
       }
 
@@ -122,19 +186,37 @@ const Rentals = ({ addToCart }) => {
     setTimeout(() => setAddedToCart(false), 1000);
   };
 
+  const itemsWith = (cat) =>
+    rentals.filter((r) =>
+      Array.isArray(r.categories) ? r.categories.includes(cat) : false
+    );
+
+  const packages = itemsWith("packages");
+  const rentalsSection = itemsWith("addons"); // shown as Rentals
+
+  const nothingToShow =
+    !loading && packages.length === 0 && rentalsSection.length === 0;
+
   return (
     <Container className="py-3">
       {addedToCart ? <Alert variant="success">Added to Cart</Alert> : null}
-      <div className="d-flex align-items-center justify-content-between mb-2">
-        <h2 className="m-0">Rentals</h2>
-        <Badge bg="secondary" pill>
-          {rentals.length} items
-        </Badge>
+
+      <div className="d-flex justify-content-center my-3">
+        <div
+          className="text-center px-3 py-2 bg-light rounded shadow-sm"
+          style={{ maxWidth: 600 }}
+        >
+          <p className="mb-0 small text-muted">
+            Please add items to your cart to submit an inquiry. Payments and
+            bookings will only be processed once your inquiry has been reviewed
+            and confirmed.
+          </p>
+        </div>
       </div>
 
       {loading ? (
         <p>Loading products...</p>
-      ) : rentals.length === 0 ? (
+      ) : nothingToShow ? (
         <Card className="shadow-sm">
           <Card.Body>
             <Card.Title>Coming soon</Card.Title>
@@ -145,41 +227,19 @@ const Rentals = ({ addToCart }) => {
           </Card.Body>
         </Card>
       ) : (
-        <Row xs={1} sm={2} md={3} xl={4} className="g-3">
-          {rentals.map((item) => (
-            <Col key={item.id}>
-              <Card className="h-100 shadow-sm border-0">
-                {Array.isArray(item.media) && item.media.length > 0 ? (
-                  <MediaCarousel media={item.media} />
-                ) : null}
-                <Card.Body className="d-flex flex-column">
-                  <div className="d-flex justify-content-between align-items-start mb-2">
-                    <Card.Title className="mb-0">{item.name}</Card.Title>
-                    <Badge bg="dark">{money(item.price)}</Badge>
-                  </div>
-                  {item.description ? (
-                    <Card.Text className="text-muted" style={{ minHeight: 48 }}>
-                      {item.description}
-                    </Card.Text>
-                  ) : (
-                    <div style={{ minHeight: 48 }} />
-                  )}
-                  <div className="mt-auto d-grid">
-                    <Button
-                      variant="primary"
-                      onClick={() => handleAddToCart(item)}
-                    >
-                      Add to Cart
-                    </Button>
-                  </div>
-                </Card.Body>
-                <Card.Footer className="text-muted small">
-                  Minimum 4 hour rental, setup handled by our team
-                </Card.Footer>
-              </Card>
-            </Col>
-          ))}
-        </Row>
+        <>
+          <SectionGrid
+            title="Packages"
+            items={packages}
+            onAddToCart={handleAddToCart}
+          />
+
+          <SectionGrid
+            title="Rentals"
+            items={rentalsSection}
+            onAddToCart={handleAddToCart}
+          />
+        </>
       )}
     </Container>
   );

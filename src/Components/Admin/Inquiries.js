@@ -9,6 +9,7 @@ import {
   InputGroup,
   Badge,
   Accordion,
+  Image,
 } from "react-bootstrap";
 import {
   collection,
@@ -35,17 +36,68 @@ const statusOptions = [
   "Completed",
 ];
 
+function ContactBlock({ inq }) {
+  if (!inq?.name && !inq?.email && !inq?.phoneNumber && !inq?.eventDetails) {
+    return null;
+  }
+  return (
+    <>
+      <div className="fw-semibold mt-3 mb-2">Contact</div>
+      <div className="small text-muted">
+        {inq?.name ? <div>Name: {inq.name}</div> : null}
+        {inq?.email ? (
+          <div>
+            Email:{" "}
+            <a href={`mailto:${inq.email}`} className="text-reset">
+              {inq.email}
+            </a>
+          </div>
+        ) : null}
+        {inq?.phoneNumber ? <div>Phone: {inq.phoneNumber}</div> : null}
+      </div>
+      {inq?.eventDetails ? (
+        <Card className="mt-2">
+          <Card.Body className="py-2">
+            <div className="small">{inq.eventDetails}</div>
+          </Card.Body>
+        </Card>
+      ) : null}
+    </>
+  );
+}
+
+function EventSchedule({ inq }) {
+  const events = Array.isArray(inq?.events) ? inq.events : [];
+  if (events.length === 0) return null;
+  return (
+    <>
+      <div className="fw-semibold mt-3 mb-2">Event schedule</div>
+      <div className="d-flex flex-column gap-2">
+        {events.map((e, i) => (
+          <Card key={`${inq.id}-ev-${i}`}>
+            <Card.Body className="py-2">
+              <div className="fw-semibold">{e?.type || "Event"}</div>
+              <div className="small text-muted">
+                {e?.date || "Date N/A"} from {e?.startTime || "Start N/A"} to{" "}
+                {e?.endTime || "End N/A"}
+              </div>
+            </Card.Body>
+          </Card>
+        ))}
+      </div>
+    </>
+  );
+}
+
 export default function Inquiries() {
   const [inquiries, setInquiries] = useState([]);
   const [saving, setSaving] = useState({});
-  const [adding, setAdding] = useState({}); // per inquiry add form
-  const [itemDrafts, setItemDrafts] = useState({}); // per row edits
+  const [adding, setAdding] = useState({});
+  const [itemDrafts, setItemDrafts] = useState({});
   const [discountDraft, setDiscountDraft] = useState({});
   const [taxDraft, setTaxDraft] = useState({});
   const [travelDraft, setTravelDraft] = useState({});
   const [feeDraft, setFeeDraft] = useState({});
-
-  // rentals catalog for the dropdown
   const [catalog, setCatalog] = useState([]);
 
   // load inquiries realtime
@@ -130,7 +182,7 @@ export default function Inquiries() {
     return () => stop();
   }, []);
 
-  // load rentals catalog realtime for dropdown
+  // catalog realtime
   useEffect(() => {
     const ref = collection(db, "rentals");
     const q = query(ref, orderBy("name", "asc"));
@@ -160,7 +212,6 @@ export default function Inquiries() {
       },
     }));
 
-  // pick from catalog, or custom
   const handlePickCatalog = (inqId, rentalId) => {
     if (rentalId === "__custom__") {
       setAdding((s) => ({
@@ -185,9 +236,8 @@ export default function Inquiries() {
         pickId: rentalId,
         name: picked.name || "",
         description: picked.description || "",
-        price: picked.price != null ? String(picked.price) : "", // allow admin to fill if not present
+        price: picked.price != null ? String(picked.price) : "",
         quantity: s[inqId]?.quantity || 1,
-        // keep media reference if you decide to store it later
       },
     }));
   };
@@ -379,7 +429,7 @@ export default function Inquiries() {
       description: draft.description || "",
       price: Number(draft.price || 0),
       quantity: Math.max(1, Number(draft.quantity || 1)),
-      media: [], // optional, you can also attach picked media if you like
+      media: [],
     };
     const items = [...(inq.items || []), item];
     await saveItems(inq, items);
@@ -416,11 +466,11 @@ export default function Inquiries() {
 
           return (
             <Col key={inq.id}>
-              <Card className="shadow-sm h-100">
+              <Card className="shadow-sm h-100 border-0">
                 <Card.Body>
                   <style>{`
                     .nowrap { white-space: nowrap; }
-                    .btn-sm.text-nowrap { white-space: nowrap; }
+                    .thumb { width: 56px; height: 32px; object-fit: cover; border-radius: .375rem; }
                     @media (max-width: 576px) { .stack-on-xs { display: grid; gap: .5rem; } }
                   `}</style>
 
@@ -456,34 +506,60 @@ export default function Inquiries() {
                     </Form.Select>
                   </Form.Group>
 
-                  {inq.eventDetails ? (
-                    <>
-                      <div className="line my-3"></div>
-                      <Card.Text className="text-muted">
-                        {inq.eventDetails}
-                      </Card.Text>
-                    </>
-                  ) : null}
+                  {/* Contact and schedule pulled from cart */}
+                  <ContactBlock inq={inq} />
+                  <EventSchedule inq={inq} />
 
                   {/* Mobile collapsible, desktop expanded */}
                   <div className="d-md-none">
-                    <Accordion alwaysOpen className="mt-2">
+                    <Accordion alwaysOpen className="mt-3">
                       <Accordion.Item eventKey="items">
                         <Accordion.Header>Items</Accordion.Header>
                         <Accordion.Body className="pt-3">
                           {(inq.items || []).map((item, idx) => {
                             const draft = itemDrafts[inq.id]?.[idx] || {};
+                            const media = Array.isArray(item.media)
+                              ? item.media
+                              : [];
+                            const cover = media[0];
+                            const lineTotal =
+                              Number(draft.price ?? item.price ?? 0) *
+                              Number(draft.quantity ?? item.quantity ?? 0);
+
                             return (
                               <div
                                 key={`${inq.id}-${item.id || idx}`}
                                 className="mb-3"
                               >
-                                <div className="fw-semibold">{item.name}</div>
-                                <div className="text-muted small mb-2">
-                                  {item.description}
+                                <div className="d-flex align-items-center gap-2">
+                                  {cover && cover.type !== "video" ? (
+                                    <Image
+                                      src={cover.url}
+                                      alt="thumb"
+                                      className="thumb"
+                                    />
+                                  ) : (
+                                    <div
+                                      className="thumb d-flex align-items-center justify-content-center bg-light text-muted"
+                                      style={{ fontSize: 10 }}
+                                    >
+                                      {cover ? "video" : "no media"}
+                                    </div>
+                                  )}
+                                  <div className="fw-semibold">{item.name}</div>
+                                  <Badge bg="light" text="dark">
+                                    {money(item.price)} x {item.quantity}
+                                  </Badge>
                                 </div>
-                                <Row className="g-2">
-                                  <Col xs={12} sm={6}>
+
+                                {item.description ? (
+                                  <div className="text-muted small mt-1">
+                                    {item.description}
+                                  </div>
+                                ) : null}
+
+                                <Row className="g-2 mt-2">
+                                  <Col xs={6}>
                                     <Form.Label className="mb-0 small">
                                       Price
                                     </Form.Label>
@@ -506,7 +582,7 @@ export default function Inquiries() {
                                       />
                                     </InputGroup>
                                   </Col>
-                                  <Col xs={12} sm={6}>
+                                  <Col xs={6}>
                                     <Form.Label className="mb-0 small">
                                       Quantity
                                     </Form.Label>
@@ -527,6 +603,11 @@ export default function Inquiries() {
                                       }
                                       disabled={busy}
                                     />
+                                  </Col>
+                                  <Col xs={12} className="d-flex gap-2 mt-1">
+                                    <div className="ms-auto small text-muted">
+                                      Line total: {money(lineTotal)}
+                                    </div>
                                   </Col>
                                   <Col
                                     xs={12}
@@ -558,13 +639,12 @@ export default function Inquiries() {
                           {/* Add item, with catalog picker */}
                           <div className="mt-2">
                             <div className="fw-semibold mb-1">Add item</div>
-
                             <Form.Group className="mb-2">
                               <Form.Label className="mb-1">
                                 Pick from catalog
                               </Form.Label>
                               <Form.Select
-                                value={add.pickId || ""}
+                                value={adding[inq.id]?.pickId || ""}
                                 onChange={(e) =>
                                   handlePickCatalog(inq.id, e.target.value)
                                 }
@@ -587,7 +667,7 @@ export default function Inquiries() {
                               <Col xs={12}>
                                 <Form.Control
                                   placeholder="Name"
-                                  value={add.name || ""}
+                                  value={adding[inq.id]?.name || ""}
                                   onChange={(e) =>
                                     setAddingField(
                                       inq.id,
@@ -601,7 +681,7 @@ export default function Inquiries() {
                               <Col xs={12}>
                                 <Form.Control
                                   placeholder="Description"
-                                  value={add.description || ""}
+                                  value={adding[inq.id]?.description || ""}
                                   onChange={(e) =>
                                     setAddingField(
                                       inq.id,
@@ -619,7 +699,7 @@ export default function Inquiries() {
                                     type="text"
                                     inputMode="decimal"
                                     placeholder="Price"
-                                    value={add.price || ""}
+                                    value={adding[inq.id]?.price || ""}
                                     onChange={(e) =>
                                       setAddingField(
                                         inq.id,
@@ -636,7 +716,7 @@ export default function Inquiries() {
                                   type="text"
                                   inputMode="numeric"
                                   placeholder="Qty"
-                                  value={add.quantity || ""}
+                                  value={adding[inq.id]?.quantity || ""}
                                   onChange={(e) =>
                                     setAddingField(
                                       inq.id,
@@ -651,7 +731,7 @@ export default function Inquiries() {
                                 <Button
                                   className="w-100"
                                   onClick={() => addItem(inq)}
-                                  disabled={busy || !add.name}
+                                  disabled={busy || !adding[inq.id]?.name}
                                 >
                                   Add
                                 </Button>
@@ -661,7 +741,7 @@ export default function Inquiries() {
                         </Accordion.Body>
                       </Accordion.Item>
 
-                      {/* Charges mobile... unchanged from your last version */}
+                      {/* Charges mobile */}
                       <Accordion.Item eventKey="charges">
                         <Accordion.Header>Charges</Accordion.Header>
                         <Accordion.Body className="pt-3">
@@ -891,15 +971,47 @@ export default function Inquiries() {
 
                     {(inq.items || []).map((item, idx) => {
                       const draft = itemDrafts[inq.id]?.[idx] || {};
+                      const media = Array.isArray(item.media) ? item.media : [];
+                      const cover = media[0];
+                      const lineTotal =
+                        Number(draft.price ?? item.price ?? 0) *
+                        Number(draft.quantity ?? item.quantity ?? 0);
+
                       return (
                         <div
                           key={`${inq.id}-${item.id || idx}`}
                           className="mb-3"
                         >
-                          <div className="fw-semibold">{item.name}</div>
-                          <div className="text-muted small mb-2">
-                            {item.description}
+                          <div className="d-flex align-items-center gap-2 mb-1">
+                            {cover && cover.type !== "video" ? (
+                              <Image
+                                src={cover.url}
+                                alt="thumb"
+                                className="thumb"
+                              />
+                            ) : (
+                              <div
+                                className="thumb d-flex align-items-center justify-content-center bg-light text-muted"
+                                style={{ fontSize: 10 }}
+                              >
+                                {cover ? "video" : "no media"}
+                              </div>
+                            )}
+                            <div className="fw-semibold">{item.name}</div>
+                            <Badge bg="light" text="dark">
+                              {money(item.price)} x {item.quantity}
+                            </Badge>
+                            <div className="ms-auto small text-muted">
+                              Line total: {money(lineTotal)}
+                            </div>
                           </div>
+
+                          {item.description ? (
+                            <div className="text-muted small mb-2">
+                              {item.description}
+                            </div>
+                          ) : null}
+
                           <Row className="g-2 align-items-end">
                             <Col lg={5}>
                               <Form.Label className="mb-0 small">
@@ -974,14 +1086,13 @@ export default function Inquiries() {
                     {/* Add item with catalog picker */}
                     <div className="mt-3">
                       <div className="fw-semibold mb-1">Add item</div>
-
                       <Row className="g-2 align-items-end">
                         <Col lg={6}>
                           <Form.Label className="mb-1">
                             Pick from catalog
                           </Form.Label>
                           <Form.Select
-                            value={add.pickId || ""}
+                            value={adding[inq.id]?.pickId || ""}
                             onChange={(e) =>
                               handlePickCatalog(inq.id, e.target.value)
                             }
@@ -1002,7 +1113,7 @@ export default function Inquiries() {
                           <Form.Label className="mb-1">Name</Form.Label>
                           <Form.Control
                             placeholder="Name"
-                            value={add.name || ""}
+                            value={adding[inq.id]?.name || ""}
                             onChange={(e) =>
                               setAddingField(inq.id, "name", e.target.value)
                             }
@@ -1014,7 +1125,7 @@ export default function Inquiries() {
                           <Form.Label className="mb-1">Description</Form.Label>
                           <Form.Control
                             placeholder="Description"
-                            value={add.description || ""}
+                            value={adding[inq.id]?.description || ""}
                             onChange={(e) =>
                               setAddingField(
                                 inq.id,
@@ -1034,7 +1145,7 @@ export default function Inquiries() {
                               type="text"
                               inputMode="decimal"
                               placeholder="0.00"
-                              value={add.price || ""}
+                              value={adding[inq.id]?.price || ""}
                               onChange={(e) =>
                                 setAddingField(inq.id, "price", e.target.value)
                               }
@@ -1049,7 +1160,7 @@ export default function Inquiries() {
                             type="text"
                             inputMode="numeric"
                             placeholder="1"
-                            value={add.quantity || ""}
+                            value={adding[inq.id]?.quantity || ""}
                             onChange={(e) =>
                               setAddingField(inq.id, "quantity", e.target.value)
                             }
@@ -1062,7 +1173,7 @@ export default function Inquiries() {
                             size="sm"
                             className="text-nowrap mt-4"
                             onClick={() => addItem(inq)}
-                            disabled={busy || !add.name}
+                            disabled={busy || !adding[inq.id]?.name}
                           >
                             Add
                           </Button>
@@ -1072,7 +1183,7 @@ export default function Inquiries() {
 
                     <div className="line my-3"></div>
 
-                    {/* Charges desktop, unchanged */}
+                    {/* Charges desktop */}
                     <Row className="g-2 align-items-end">
                       <Col lg={4}>
                         <Form.Label className="fw-semibold mb-1">

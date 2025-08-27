@@ -1,16 +1,17 @@
 // Cart.js
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import {
   Alert,
   Button,
   Card,
   Container,
   Form,
-  InputGroup,
   Row,
   Col,
   Badge,
   ListGroup,
+  InputGroup,
+  Modal,
 } from "react-bootstrap";
 import {
   collection,
@@ -22,15 +23,23 @@ import {
 import { getAuth } from "firebase/auth";
 import db from "../../api/firestore/firestore";
 import PreviousInquiries from "./PreviousInquiries";
-import Modal from "react-bootstrap/Modal";
 
+/* ---------- Helpers ---------- */
 const money = (v) =>
   new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(
     Number(v || 0)
   );
-
 const emailOk = (v) => /\S+@\S+\.\S+/.test(String(v || "").trim());
 const minLen = (v, n) => String(v || "").trim().length >= n;
+
+// shallowish deep equal for small arrays of plain objects
+function equalItems(a, b) {
+  try {
+    return JSON.stringify(a || []) === JSON.stringify(b || []);
+  } catch {
+    return false;
+  }
+}
 
 const Cart = ({ items, setItems }) => {
   const [show, setShow] = useState(false);
@@ -44,7 +53,7 @@ const Cart = ({ items, setItems }) => {
   const [eventDetails, setEventDetails] = useState("");
 
   // event schedule
-  const [events, setEvents] = useState([]); // [{type, date, startTime, endTime}]
+  const [events, setEvents] = useState([]);
   const [eventDraft, setEventDraft] = useState({
     type: "",
     date: "",
@@ -53,56 +62,66 @@ const Cart = ({ items, setItems }) => {
   });
 
   const [userData, setUserData] = useState({});
+  const mountedRef = useRef(false);
 
   const handleClose = () => setShow(false);
   const handleShow = () => setShow(true);
 
-  // hydrate cart and contact drafts from localStorage
+  /* ---------- Hydrate cart and contact drafts from localStorage ---------- */
   useEffect(() => {
+    mountedRef.current = true;
+
     try {
       const raw = localStorage.getItem("cartItems");
       const cached = raw ? JSON.parse(raw) : [];
       if (
         Array.isArray(cached) &&
-        setItems &&
-        (!Array.isArray(items) || items.length === 0)
+        typeof setItems === "function" &&
+        !equalItems(items, cached)
       ) {
         setItems(cached);
       }
     } catch {}
+
     try {
-      const d = localStorage.getItem("cartContact");
-      if (d) {
-        const parsed = JSON.parse(d);
-        const {
-          name,
-          email,
-          phoneNumber,
-          eventDetails,
-          events: savedEvents,
-        } = parsed || {};
-        if (name != null) setName(name);
-        if (email != null) setEmail(email);
-        if (phoneNumber != null) setPhoneNumber(phoneNumber);
-        if (eventDetails != null) setEventDetails(eventDetails);
-        if (Array.isArray(savedEvents)) setEvents(savedEvents);
+      const raw = localStorage.getItem("cartContact");
+      if (raw) {
+        const parsed = JSON.parse(raw) || {};
+        if (parsed.name != null) setName(parsed.name);
+        if (parsed.email != null) setEmail(parsed.email);
+        if (parsed.phoneNumber != null) setPhoneNumber(parsed.phoneNumber);
+        if (parsed.eventDetails != null) setEventDetails(parsed.eventDetails);
+        if (Array.isArray(parsed.events)) setEvents(parsed.events);
       }
     } catch {}
+
     const onUpdate = () => {
       try {
         const raw = localStorage.getItem("cartItems");
         const cached = raw ? JSON.parse(raw) : [];
-        if (setItems) setItems(cached);
+        if (typeof setItems === "function") {
+          if (!equalItems(cached, items)) {
+            setItems(cached);
+          }
+        }
       } catch {}
     };
+
     window.addEventListener("cart:update", onUpdate);
-    return () => window.removeEventListener("cart:update", onUpdate);
+    return () => {
+      mountedRef.current = false;
+      window.removeEventListener("cart:update", onUpdate);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, []); // run once
 
   const persistCart = (next) => {
-    localStorage.setItem("cartItems", JSON.stringify(next));
-    window.dispatchEvent(new Event("cart:update"));
+    try {
+      localStorage.setItem("cartItems", JSON.stringify(next));
+    } finally {
+      // announce change to any listeners such as navbar badge
+      window.dispatchEvent(new Event("cart:update"));
+    }
   };
 
   const persistContact = (draft = {}) => {
@@ -123,25 +142,32 @@ const Cart = ({ items, setItems }) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [name, email, phoneNumber, eventDetails, events]);
 
+  /* ---------- Cart item controls ---------- */
   const handleQuantityToggle = (item, increment) => {
-    const updatedItems = items.map((cartItem) => {
+    const updatedItems = (items || []).map((cartItem) => {
       if (cartItem.id === item.id) {
-        const next = increment ? cartItem.quantity + 1 : cartItem.quantity - 1;
+        const next = increment
+          ? Number(cartItem.quantity || 0) + 1
+          : Number(cartItem.quantity || 0) - 1;
         return { ...cartItem, quantity: next >= 0 ? next : 0 };
       }
       return cartItem;
     });
-    setItems(updatedItems);
-    persistCart(updatedItems);
+    if (!equalItems(updatedItems, items)) {
+      setItems(updatedItems);
+      persistCart(updatedItems);
+    }
   };
 
   const handleDeleteItem = (itemId) => {
-    const updatedItems = items.filter((item) => item.id !== itemId);
-    setItems(updatedItems);
-    persistCart(updatedItems);
+    const updatedItems = (items || []).filter((item) => item.id !== itemId);
+    if (!equalItems(updatedItems, items)) {
+      setItems(updatedItems);
+      persistCart(updatedItems);
+    }
   };
 
-  // add event rows
+  /* ---------- Event rows ---------- */
   const canAddEvent =
     minLen(eventDraft.type, 2) &&
     !!eventDraft.date &&
@@ -170,13 +196,13 @@ const Cart = ({ items, setItems }) => {
     persistContact({ events: next });
   };
 
-  // single place to clear cart locally and broadcast
   const clearCartEverywhere = () => {
-    setItems([]);
+    if (typeof setItems === "function") setItems([]);
     localStorage.setItem("cartItems", JSON.stringify([]));
     window.dispatchEvent(new Event("cart:update"));
   };
 
+  /* ---------- Submit inquiry ---------- */
   const handleInquiry = async () => {
     if (isSending) return;
     const auth = getAuth();
@@ -203,9 +229,7 @@ const Cart = ({ items, setItems }) => {
         events,
       });
 
-      // clear cart after successful write
       clearCartEverywhere();
-
       setSuccessMessage(true);
       setTimeout(() => setSuccessMessage(false), 3000);
     } catch (error) {
@@ -215,47 +239,52 @@ const Cart = ({ items, setItems }) => {
     }
   };
 
-  // prefill name, email, phone from user profile when available
+  /* ---------- Prefill from user profile ---------- */
   useEffect(() => {
     const auth = getAuth();
     const user = auth.currentUser;
-    if (user) {
-      const userRef = doc(db, "users", user?.uid);
-      getDoc(userRef).then((d) => {
+    if (!user) return;
+
+    const userRef = doc(db, "users", user.uid);
+    getDoc(userRef)
+      .then((d) => {
         const data = d.data() || {};
         setUserData(data);
         if (!name && data.name) setName(data.name);
         if (!phoneNumber && data.phoneNumber) setPhoneNumber(data.phoneNumber);
         if (!email && user.email) setEmail(user.email);
-      });
-    }
+      })
+      .catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  /* ---------- Totals ---------- */
   const total = useMemo(() => {
-    return items.reduce(
+    return (items || []).reduce(
       (sum, it) => sum + Number(it.price || 0) * Number(it.quantity || 0),
       0
     );
   }, [items]);
 
   const canSubmit =
-    items.length > 0 &&
+    (items || []).length > 0 &&
     minLen(name, 2) &&
     emailOk(email) &&
     minLen(eventDetails, 20);
 
+  /* ---------- UI ---------- */
   return (
     <Container className="py-3">
       <div className="d-flex align-items-center justify-content-between mb-2">
         <h2 className="m-0">Cart</h2>
         <Badge bg="secondary" pill>
-          {items.reduce((sum, it) => sum + Number(it.quantity || 0), 0)} items
+          {(items || []).reduce((sum, it) => sum + Number(it.quantity || 0), 0)}{" "}
+          items
         </Badge>
       </div>
 
       {/* Contact and event details */}
-      {items.length > 0 ? (
+      {(items || []).length > 0 ? (
         <Card className="mb-3 shadow-sm border-0">
           <Card.Body>
             <div className="mb-2 fw-semibold">Your contact information</div>
@@ -420,10 +449,10 @@ const Cart = ({ items, setItems }) => {
         </Card>
       ) : null}
 
-      {items.length === 0 ? (
+      {(items || []).length === 0 ? (
         <p>No items in cart</p>
       ) : (
-        items.map((item) => {
+        (items || []).map((item) => {
           const media = Array.isArray(item.media) ? item.media : [];
           const cover = media[0];
           return (
@@ -543,7 +572,7 @@ const Cart = ({ items, setItems }) => {
         })
       )}
 
-      {items.length > 0 && (
+      {(items || []).length > 0 && (
         <Card className="mb-3 border-0 shadow-sm">
           <Card.Body className="d-flex justify-content-between align-items-center">
             <div className="fw-semibold">Cart total</div>
@@ -560,14 +589,14 @@ const Cart = ({ items, setItems }) => {
         {isSending ? "Sending..." : "Send Inquiry"}
       </Button>
 
-      {!canSubmit && items.length > 0 ? (
+      {!canSubmit && (items || []).length > 0 ? (
         <Alert className="mt-3" variant="danger">
           Fill in your name, a valid email, and at least 20 characters of event
           details.
         </Alert>
       ) : null}
 
-      {items.length === 0 ? (
+      {(items || []).length === 0 ? (
         <Alert className="mt-3" variant="danger">
           Add something to the cart to send an inquiry.
         </Alert>
@@ -589,7 +618,7 @@ const Cart = ({ items, setItems }) => {
         keyboard={false}
       >
         <Modal.Header closeButton>
-          <Modal.Title>uh oh ...</Modal.Title>
+          <Modal.Title>Sign in required</Modal.Title>
         </Modal.Header>
         <Modal.Body>Please sign in to submit an inquiry.</Modal.Body>
         <Modal.Footer>

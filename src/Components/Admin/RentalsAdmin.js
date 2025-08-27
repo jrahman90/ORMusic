@@ -35,6 +35,8 @@ const money = (v) =>
     Number(v || 0)
   );
 
+const CATEGORIES = ["packages", "addons"];
+
 const MediaCarousel = ({ media = [] }) => {
   if (!media.length) return null;
   return (
@@ -76,6 +78,32 @@ const MediaCarousel = ({ media = [] }) => {
   );
 };
 
+function CategoryChecks({ value = [], onChange, disabled, controlIdPrefix }) {
+  const setChecked = (cat, checked) => {
+    if (!onChange) return;
+    const next = new Set(value || []);
+    if (checked) next.add(cat);
+    else next.delete(cat);
+    onChange(Array.from(next));
+  };
+  return (
+    <Row>
+      {CATEGORIES.map((cat) => (
+        <Col xs="auto" key={cat}>
+          <Form.Check
+            id={`${controlIdPrefix}-${cat}`}
+            type="checkbox"
+            label={cat}
+            checked={Array.isArray(value) && value.includes(cat)}
+            onChange={(e) => setChecked(cat, e.target.checked)}
+            disabled={disabled}
+          />
+        </Col>
+      ))}
+    </Row>
+  );
+}
+
 const RentalsAdmin = () => {
   const [rentals, setRentals] = useState([]);
   const [uploadProgress, setUploadProgress] = useState(0);
@@ -87,6 +115,7 @@ const RentalsAdmin = () => {
     name: "",
     description: "",
     price: "",
+    categories: [], // can include "packages", "addons"
   });
   const [selectedFiles, setSelectedFiles] = useState([]);
 
@@ -97,6 +126,7 @@ const RentalsAdmin = () => {
     name: "",
     description: "",
     price: "",
+    categories: [],
   });
   const [editFiles, setEditFiles] = useState([]);
   const [editProgress, setEditProgress] = useState(0);
@@ -126,7 +156,7 @@ const RentalsAdmin = () => {
   };
 
   const resetForm = () => {
-    setNewRental({ name: "", description: "", price: "" });
+    setNewRental({ name: "", description: "", price: "", categories: [] });
     setSelectedFiles([]);
     setUploadProgress(0);
     if (fileInputRef.current) fileInputRef.current.value = "";
@@ -178,6 +208,9 @@ const RentalsAdmin = () => {
         name: newRental.name.trim(),
         description: newRental.description.trim(),
         price: Number(newRental.price || 0),
+        categories: Array.isArray(newRental.categories)
+          ? newRental.categories
+          : [],
         media: [],
         createdAt: Date.now(),
       };
@@ -260,6 +293,7 @@ const RentalsAdmin = () => {
       name: item.name || "",
       description: item.description || "",
       price: item.price != null ? String(item.price) : "",
+      categories: Array.isArray(item.categories) ? item.categories : [],
     });
     setEditFiles([]);
     setEditProgress(0);
@@ -285,6 +319,9 @@ const RentalsAdmin = () => {
         name: editData.name.trim(),
         description: editData.description.trim(),
         price: Number(editData.price || 0),
+        categories: Array.isArray(editData.categories)
+          ? editData.categories
+          : [],
       };
       await updateDoc(doc(db, "rentals", editingId), updates);
 
@@ -387,6 +424,24 @@ const RentalsAdmin = () => {
                   />
                 </Form.Group>
               </Col>
+
+              <Col md={12}>
+                <Form.Group controlId="rentalCategories">
+                  <Form.Label>Categories</Form.Label>
+                  <CategoryChecks
+                    controlIdPrefix="create-cat"
+                    value={newRental.categories}
+                    onChange={(cats) =>
+                      setNewRental({ ...newRental, categories: cats })
+                    }
+                    disabled={isSaving}
+                  />
+                  <Form.Text muted>
+                    Choose one or both: packages, addons
+                  </Form.Text>
+                </Form.Group>
+              </Col>
+
               <Col md={12}>
                 <Form.Group controlId="rentalMedia">
                   <Form.Label>Images or videos</Form.Label>
@@ -438,8 +493,25 @@ const RentalsAdmin = () => {
                 <Card.Body className="d-flex flex-column">
                   <div className="d-flex justify-content-between align-items-start mb-2">
                     <Card.Title className="mb-0">{item.name}</Card.Title>
-                    <Badge bg="dark">{money(item.price)}</Badge>
+                    <div className="d-flex flex-column align-items-end">
+                      <Badge bg="dark" className="mb-1">
+                        {money(item.price)}
+                      </Badge>
+                      <div className="d-flex flex-wrap gap-1 justify-content-end">
+                        {(Array.isArray(item.categories) ? item.categories : [])
+                          .length > 0 ? (
+                          item.categories.map((c) => (
+                            <Badge key={c} bg="info">
+                              {c}
+                            </Badge>
+                          ))
+                        ) : (
+                          <Badge bg="secondary">uncategorized</Badge>
+                        )}
+                      </div>
+                    </div>
                   </div>
+
                   {item.description ? (
                     <Card.Text className="text-muted">
                       {item.description}
@@ -573,6 +645,7 @@ const RentalsAdmin = () => {
                   />
                 </Form.Group>
               </Col>
+
               <Col md={12}>
                 <Form.Group controlId="editDesc">
                   <Form.Label>Description</Form.Label>
@@ -586,6 +659,20 @@ const RentalsAdmin = () => {
                         description: e.target.value,
                       }))
                     }
+                  />
+                </Form.Group>
+              </Col>
+
+              <Col md={12}>
+                <Form.Group controlId="editCategories">
+                  <Form.Label>Categories</Form.Label>
+                  <CategoryChecks
+                    controlIdPrefix="edit-cat"
+                    value={editData.categories}
+                    onChange={(cats) =>
+                      setEditData((s) => ({ ...s, categories: cats }))
+                    }
+                    disabled={editSaving}
                   />
                 </Form.Group>
               </Col>
