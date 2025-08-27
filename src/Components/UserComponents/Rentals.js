@@ -1,13 +1,12 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   Button,
   Card,
   Container,
   Row,
   Col,
-  Alert,
-  Carousel,
   Badge,
+  Carousel,
   Ratio,
 } from "react-bootstrap";
 import { collection, getDocs } from "firebase/firestore";
@@ -18,6 +17,7 @@ const money = (v) =>
     Number(v || 0)
   );
 
+/* ---------- Media ---------- */
 const MediaCarousel = ({ media = [] }) => {
   if (!media.length) return null;
 
@@ -60,6 +60,80 @@ const MediaCarousel = ({ media = [] }) => {
   );
 };
 
+/* ---------- Snack: lightweight top overlay with slide and fade ---------- */
+function Snack({ show, onClose, text = "Added to cart" }) {
+  const [visible, setVisible] = useState(false);
+  const timers = useRef({ t1: null, t2: null });
+
+  useEffect(() => {
+    // clear any running timers
+    clearTimeout(timers.current.t1);
+    clearTimeout(timers.current.t2);
+
+    if (show) {
+      // enter on next frame for smooth transition
+      requestAnimationFrame(() => setVisible(true));
+      // stay visible for 1s, then animate out, then call onClose after 180ms
+      timers.current.t1 = setTimeout(() => {
+        setVisible(false);
+        timers.current.t2 = setTimeout(() => {
+          onClose?.();
+        }, 200); // match CSS transition
+      }, 2000);
+    } else {
+      setVisible(false);
+    }
+
+    return () => {
+      clearTimeout(timers.current.t1);
+      clearTimeout(timers.current.t2);
+    };
+  }, [show, onClose]);
+
+  return (
+    <div
+      aria-live="polite"
+      aria-atomic="true"
+      style={{
+        zIndex: 1080,
+        position: "fixed",
+        top: "1rem",
+        left: "50%",
+        transform: "translateX(-50%)",
+        pointerEvents: "none",
+      }}
+    >
+      <div className={`snack ${visible ? "snack-in" : ""}`}>
+        <span className="me-1">✔</span> {text}
+      </div>
+
+      <style>{`
+        .snack {
+          max-width: 220px;
+          padding: .5rem 1rem;
+          border-radius: 8px;
+          background: #198754;
+          color: #fff;
+          text-align: center;
+          box-shadow: 0 6px 20px rgba(0,0,0,.15);
+          transform: translateY(-12px);
+          opacity: 0;
+          transition: transform 180ms ease, opacity 180ms ease;
+          margin: 0 auto;
+          pointer-events: auto;
+          font-size: .85rem;
+          font-weight: 600;
+        }
+        .snack.snack-in {
+          transform: translateY(0);
+          opacity: 1;
+        }
+      `}</style>
+    </div>
+  );
+}
+
+/* ---------- Section grid ---------- */
 function SectionGrid({ title, items = [], onAddToCart }) {
   if (!items.length) return null;
 
@@ -124,6 +198,7 @@ function SectionGrid({ title, items = [], onAddToCart }) {
   );
 }
 
+/* ---------- Page ---------- */
 const Rentals = ({ addToCart }) => {
   const [rentals, setRentals] = useState([]);
   const [addedToCart, setAddedToCart] = useState(false);
@@ -183,7 +258,7 @@ const Rentals = ({ addToCart }) => {
       addToCartLocal(item);
     }
     setAddedToCart(true);
-    setTimeout(() => setAddedToCart(false), 1000);
+    // Snack will auto hide and call onClose to set false
   };
 
   const itemsWith = (cat) =>
@@ -192,14 +267,19 @@ const Rentals = ({ addToCart }) => {
     );
 
   const packages = itemsWith("packages");
-  const rentalsSection = itemsWith("addons"); // shown as Rentals
+  const rentalsSection = itemsWith("addons"); // Rentals section
 
   const nothingToShow =
     !loading && packages.length === 0 && rentalsSection.length === 0;
 
   return (
     <Container className="py-3">
-      {addedToCart ? <Alert variant="success">Added to Cart</Alert> : null}
+      {/* Compact animated snackbar */}
+      <Snack
+        show={addedToCart}
+        onClose={() => setAddedToCart(false)}
+        text="Added to cart"
+      />
 
       <div className="d-flex justify-content-center my-3">
         <div
