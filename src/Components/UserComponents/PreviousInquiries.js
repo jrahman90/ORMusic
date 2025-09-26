@@ -9,6 +9,7 @@ import {
   prettyDate,
   prettyDateTimeFromTs,
 } from "../../utils/formatters";
+import ContractModal from "../contracts/ContractModal";
 
 const money = (v) =>
   new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(
@@ -143,6 +144,10 @@ const ScheduleBlock = ({ inquiry }) => {
 const PreviousInquiries = () => {
   const [inquiries, setInquiries] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [showContract, setShowContract] = useState(false);
+  const [contractInquiry, setContractInquiry] = useState(null);
+  const [activeContract, setActiveContract] = useState(null);
+
   const auth = getAuth();
 
   useEffect(() => {
@@ -208,6 +213,11 @@ const PreviousInquiries = () => {
       </div>
     );
   }
+  const openClientContract = (inq, c) => {
+    setContractInquiry(inq);
+    setActiveContract(c);
+    setShowContract(true);
+  };
 
   return (
     <div>
@@ -240,10 +250,36 @@ const PreviousInquiries = () => {
                     <div className="fw-semibold">{dateStr}</div>
                     <StatusBadge status={inquiry.status} />
                   </div>
-
                   <ContactBlock inquiry={inquiry} />
-                  <ScheduleBlock inquiry={inquiry} />
-
+                  <ScheduleBlock inquiry={inquiry} />{" "}
+                  {/* Contracts for this inquiry */}
+                  <div className="fw-semibold mt-3 mb-1">Contracts</div>
+                  {(inquiry.contracts || []).length === 0 ? (
+                    <div className="text-muted small">No contracts yet</div>
+                  ) : (
+                    <ul className="mb-2">
+                      {inquiry.contracts.map((c) => (
+                        <li key={`${inquiry.id}-c-${c.id}`}>
+                          <button
+                            type="button"
+                            className="btn btn-link p-0 align-baseline"
+                            onClick={() => openClientContract(inquiry, c)}
+                          >
+                            {c.title}
+                          </button>
+                          {c.clientSignature ? (
+                            <Badge bg="success" className="ms-2">
+                              Signed
+                            </Badge>
+                          ) : (
+                            <Badge bg="warning" text="dark" className="ms-2">
+                              Pending
+                            </Badge>
+                          )}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
                   <div className="fw-semibold mt-3 mb-1">Items</div>
                   <ul className="mb-2">
                     {(inquiry.items || []).map((item, idx) => (
@@ -252,7 +288,6 @@ const PreviousInquiries = () => {
                       </li>
                     ))}
                   </ul>
-
                   <div className="border-top pt-2">
                     <div className="d-flex justify-content-between">
                       <span>Subtotal</span>
@@ -345,7 +380,6 @@ const PreviousInquiries = () => {
             return (
               <tr key={inquiry.id}>
                 <td>{dateStr}</td>
-
                 {/* Contact and schedule */}
                 <td style={{ minWidth: 260 }}>
                   {inquiry?.name ? (
@@ -385,7 +419,6 @@ const PreviousInquiries = () => {
                     </div>
                   ) : null}
                 </td>
-
                 {/* Items */}
                 <td>
                   <ul className="mb-2">
@@ -396,7 +429,6 @@ const PreviousInquiries = () => {
                     ))}
                   </ul>
                 </td>
-
                 {/* Qty */}
                 <td>
                   <ul className="mb-0">
@@ -405,7 +437,6 @@ const PreviousInquiries = () => {
                     ))}
                   </ul>
                 </td>
-
                 {/* Totals */}
                 <td>
                   <div>Subtotal: {money(subtotal)}</div>
@@ -437,7 +468,34 @@ const PreviousInquiries = () => {
                   ) : null}
                   <div className="fw-semibold">Total: {money(total)}</div>
                 </td>
-
+                {/* Contracts list */}
+                {(inquiry.contracts || []).length > 0 ? (
+                  <div className="mt-1">
+                    <strong>Contracts:</strong>
+                    <ul className="mb-0">
+                      {inquiry.contracts.map((c) => (
+                        <li key={`${inquiry.id}-ct-${c.id}`}>
+                          <button
+                            type="button"
+                            className="btn btn-link p-0 align-baseline"
+                            onClick={() => openClientContract(inquiry, c)}
+                          >
+                            {c.title}
+                          </button>
+                          {c.clientSignature ? (
+                            <Badge bg="success" className="ms-2">
+                              Signed
+                            </Badge>
+                          ) : (
+                            <Badge bg="warning" text="dark" className="ms-2">
+                              Pending
+                            </Badge>
+                          )}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : null}
                 <td>
                   <StatusBadge status={inquiry.status} />
                 </td>
@@ -446,6 +504,13 @@ const PreviousInquiries = () => {
           })}
         </tbody>
       </Table>
+      <ContractModal
+        show={showContract}
+        onHide={() => setShowContract(false)}
+        inquiry={contractInquiry}
+        contract={activeContract}
+        mode="client"
+      />
     </div>
   );
 };

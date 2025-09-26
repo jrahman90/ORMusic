@@ -27,6 +27,7 @@ import {
   prettyDate,
   prettyDateTimeFromTs,
 } from "../../utils/formatters";
+import ContractModal from "../contracts/ContractModal";
 
 const money = (v) =>
   new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(
@@ -107,6 +108,10 @@ export default function Inquiries() {
   const [travelDraft, setTravelDraft] = useState({});
   const [feeDraft, setFeeDraft] = useState({});
   const [catalog, setCatalog] = useState([]);
+  const [showContract, setShowContract] = useState(false);
+  const [contractMode, setContractMode] = useState("admin"); // 'admin' or 'client'
+  const [contractInquiry, setContractInquiry] = useState(null);
+  const [activeContract, setActiveContract] = useState(null);
 
   // load inquiries realtime
   useEffect(() => {
@@ -204,6 +209,33 @@ export default function Inquiries() {
     );
     return () => stop();
   }, []);
+
+  const openAddContract = (inq) => {
+    setContractInquiry(inq);
+    setActiveContract(null);
+    setContractMode("admin");
+    setShowContract(true);
+  };
+
+  const openViewContractAdmin = (inq, contract, sign = false) => {
+    setContractInquiry(inq);
+    setActiveContract(contract);
+    setContractMode("admin");
+    setShowContract(true);
+  };
+
+  const removeContract = async (inq, contractId) => {
+    try {
+      setSavingFlag(inq.id, true);
+      const list = Array.isArray(inq.contracts) ? inq.contracts : [];
+      const next = list.filter((c) => c.id !== contractId);
+      await updateDoc(doc(db, "inquiries", inq.id), { contracts: next });
+    } catch (e) {
+      console.error("Remove contract failed:", e);
+    } finally {
+      setSavingFlag(inq.id, false);
+    }
+  };
 
   const setSavingFlag = (id, v) =>
     setSaving((s) => ({ ...s, [id]: Boolean(v) }));
@@ -490,13 +522,15 @@ export default function Inquiries() {
           return (
             <Col key={inq.id}>
               <Card className="shadow-sm h-100 border-0">
-                <Card.Body>
+                <Card.Body
+                  className="position-relative"
+                  style={{ overflow: "visible" }}
+                >
                   <style>{`
                     .nowrap { white-space: nowrap; }
                     .thumb { width: 56px; height: 32px; object-fit: cover; border-radius: .375rem; }
                     @media (max-width: 576px) { .stack-on-xs { display: grid; gap: .5rem; } }
                   `}</style>
-
                   {/* Header with date and delete */}
                   <div className="d-flex flex-column flex-sm-row justify-content-between gap-1">
                     <div>
@@ -520,7 +554,6 @@ export default function Inquiries() {
                       </Button>
                     </div>
                   </div>
-
                   {/* Status */}
                   <Form.Group className="mt-3">
                     <Form.Label className="fw-semibold">Status</Form.Label>
@@ -536,10 +569,88 @@ export default function Inquiries() {
                       ))}
                     </Form.Select>
                   </Form.Group>
-
                   {/* Contact and schedule pulled from cart */}
                   <ContactBlock inq={inq} />
                   <EventSchedule inq={inq} />
+
+                  {/* Contracts */}
+                  <div className="mt-3">
+                    <div className="d-flex justify-content-between align-items-center">
+                      <div className="fw-semibold">Contracts</div>
+                      <Button
+                        size="sm"
+                        variant="outline-primary"
+                        onClick={() => openAddContract(inq)}
+                      >
+                        Add contract
+                      </Button>
+                    </div>
+
+                    <div className="mt-2">
+                      {(inq.contracts || []).length === 0 ? (
+                        <div className="text-muted small">No contracts yet</div>
+                      ) : (
+                        <ul
+                          className="list-unstyled mb-0"
+                          style={{ overflow: "visible" }}
+                        >
+                          {inq.contracts.map((c) => (
+                            <li
+                              key={c.id}
+                              className="d-flex align-items-center justify-content-between flex-wrap gap-2 py-1"
+                            >
+                              {/* Left: title + badges */}
+                              <div className="d-flex align-items-center flex-wrap gap-2">
+                                <span className="fw-semibold">{c.title}</span>
+                                {c.clientSignature ? (
+                                  <Badge bg="success">Client signed</Badge>
+                                ) : (
+                                  <Badge bg="warning" text="dark">
+                                    Client pending
+                                  </Badge>
+                                )}
+                                {c.adminSignature ? (
+                                  <Badge bg="success">Admin signed</Badge>
+                                ) : (
+                                  <Badge bg="warning" text="dark">
+                                    Admin pending
+                                  </Badge>
+                                )}
+                              </div>
+
+                              {/* Right: actions */}
+                              <div className="d-flex gap-2 flex-shrink-0">
+                                <Button
+                                  size="sm"
+                                  variant="outline-secondary"
+                                  onClick={() =>
+                                    openViewContractAdmin(inq, c, false)
+                                  }
+                                >
+                                  View
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  onClick={() =>
+                                    openViewContractAdmin(inq, c, true)
+                                  }
+                                >
+                                  Sign as admin
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="outline-danger"
+                                  onClick={() => removeContract(inq, c.id)}
+                                >
+                                  Remove
+                                </Button>
+                              </div>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </div>
+                  </div>
 
                   {/* Mobile collapsible, desktop expanded */}
                   <div className="d-md-none">
@@ -1430,6 +1541,13 @@ export default function Inquiries() {
           );
         })}
       </Row>
+      <ContractModal
+        show={showContract}
+        onHide={() => setShowContract(false)}
+        inquiry={contractInquiry}
+        contract={activeContract}
+        mode={contractMode}
+      />
     </Container>
   );
 }
