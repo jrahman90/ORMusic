@@ -1,3 +1,4 @@
+// src/components/admin/Inquiries.jsx
 import React, { useEffect, useMemo, useState } from "react";
 import {
   Card,
@@ -18,8 +19,14 @@ import {
   query,
   updateDoc,
   doc,
+  deleteDoc, // ← added
 } from "firebase/firestore";
 import db from "../../api/firestore/firestore";
+import {
+  to12h,
+  prettyDate,
+  prettyDateTimeFromTs,
+} from "../../utils/formatters";
 
 const money = (v) =>
   new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(
@@ -78,8 +85,9 @@ function EventSchedule({ inq }) {
             <Card.Body className="py-2">
               <div className="fw-semibold">{e?.type || "Event"}</div>
               <div className="small text-muted">
-                {e?.date || "Date N/A"} from {e?.startTime || "Start N/A"} to{" "}
-                {e?.endTime || "End N/A"}
+                {e?.date ? prettyDate(e.date) : "Date N/A"} from{" "}
+                {e?.startTime ? to12h(e.startTime) : "Start N/A"} to{" "}
+                {e?.endTime ? to12h(e.endTime) : "End N/A"}
               </div>
             </Card.Body>
           </Card>
@@ -304,6 +312,21 @@ export default function Inquiries() {
     }
   };
 
+  const deleteInquiry = async (inq) => {
+    const ok = window.confirm(
+      "Delete this inquiry permanently? This cannot be undone."
+    );
+    if (!ok) return;
+    try {
+      setSavingFlag(inq.id, true);
+      await deleteDoc(doc(db, "inquiries", inq.id));
+      // onSnapshot will remove it from the list automatically
+    } catch (e) {
+      console.error("Delete failed:", e);
+      setSavingFlag(inq.id, false);
+    }
+  };
+
   const saveDiscount = async (inq) => {
     try {
       setSavingFlag(inq.id, true);
@@ -453,14 +476,14 @@ export default function Inquiries() {
           const {
             subtotal,
             discountApplied,
+            baseAfterDiscount,
             feeApplied,
             travel,
             taxApplied,
             total,
           } = calcTotals(inq);
-          const dateStr = inq?.timestamp?.toDate
-            ? inq.timestamp.toDate().toLocaleString()
-            : "N/A";
+
+          const dateStr = prettyDateTimeFromTs(inq?.timestamp);
           const busy = Boolean(saving[inq.id]);
           const add = adding[inq.id] || {};
 
@@ -474,7 +497,7 @@ export default function Inquiries() {
                     @media (max-width: 576px) { .stack-on-xs { display: grid; gap: .5rem; } }
                   `}</style>
 
-                  {/* Header */}
+                  {/* Header with date and delete */}
                   <div className="d-flex flex-column flex-sm-row justify-content-between gap-1">
                     <div>
                       <Card.Title className="mb-1">
@@ -485,9 +508,17 @@ export default function Inquiries() {
                         {inq.email ? `, ${inq.email}` : ""}
                       </div>
                     </div>
-                    <Badge bg="secondary" className="align-self-start">
-                      {dateStr}
-                    </Badge>
+                    <div className="d-flex align-items-center gap-2">
+                      <Badge bg="secondary">{dateStr}</Badge>
+                      <Button
+                        size="sm"
+                        variant="outline-danger"
+                        onClick={() => deleteInquiry(inq)}
+                        disabled={busy}
+                      >
+                        Delete
+                      </Button>
+                    </div>
                   </div>
 
                   {/* Status */}
@@ -948,6 +979,7 @@ export default function Inquiries() {
                                 <span>{money(travel)}</span>
                               </div>
                             )}
+
                             {taxApplied > 0 && (
                               <div className="d-flex justify-content-between">
                                 <span>Tax</span>
@@ -1378,6 +1410,10 @@ export default function Inquiries() {
                           Travel: {money(travel)}
                         </div>
                       )}
+                      <div className="small text-muted">
+                        Net Total:{" "}
+                        {money(baseAfterDiscount + feeApplied + travel)}
+                      </div>
                       {taxApplied > 0 && (
                         <div className="small text-muted">
                           Tax: {money(taxApplied)}

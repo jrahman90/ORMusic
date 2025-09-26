@@ -12,6 +12,9 @@ import {
   ListGroup,
   InputGroup,
   Modal,
+  Tabs,
+  Tab,
+  Spinner,
 } from "react-bootstrap";
 import {
   collection,
@@ -19,10 +22,16 @@ import {
   serverTimestamp,
   doc,
   getDoc,
+  setDoc,
 } from "firebase/firestore";
-import { getAuth } from "firebase/auth";
+import {
+  getAuth,
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
+} from "firebase/auth";
 import db from "../../api/firestore/firestore";
 import PreviousInquiries from "./PreviousInquiries";
+import { to12h, prettyDate } from "../../utils/formatters";
 
 /* ---------- Helpers ---------- */
 const money = (v) =>
@@ -43,8 +52,24 @@ function equalItems(a, b) {
 
 const Cart = ({ items, setItems }) => {
   const [show, setShow] = useState(false);
+  const [authTab, setAuthTab] = useState("login"); // "login" or "signup"
   const [successMessage, setSuccessMessage] = useState(false);
   const [isSending, setIsSending] = useState(false);
+
+  // login form
+  const [authEmail, setAuthEmail] = useState("");
+  const [authPassword, setAuthPassword] = useState("");
+  const [authBusy, setAuthBusy] = useState(false);
+  const [authError, setAuthError] = useState("");
+
+  // signup form
+  const [suName, setSuName] = useState("");
+  const [suEmail, setSuEmail] = useState("");
+  const [suPhone, setSuPhone] = useState("");
+  const [suPassword, setSuPassword] = useState("");
+  const [suConfirm, setSuConfirm] = useState("");
+  const [suBusy, setSuBusy] = useState(false);
+  const [suError, setSuError] = useState("");
 
   // contact fields
   const [name, setName] = useState("");
@@ -65,7 +90,88 @@ const Cart = ({ items, setItems }) => {
   const mountedRef = useRef(false);
 
   const handleClose = () => setShow(false);
-  const handleShow = () => setShow(true);
+  const handleShow = () => {
+    setAuthTab("login");
+    setShow(true);
+  };
+
+  /* ---------- Auth handlers ---------- */
+  const handleLogin = async (e) => {
+    e?.preventDefault?.();
+    setAuthBusy(true);
+    setAuthError("");
+    try {
+      const auth = getAuth();
+      await signInWithEmailAndPassword(auth, authEmail, authPassword);
+      setShow(false);
+      setAuthPassword("");
+    } catch (err) {
+      setAuthError(err?.message || "Login failed");
+    } finally {
+      setAuthBusy(false);
+    }
+  };
+
+  const handleSignup = async (e) => {
+    e?.preventDefault?.();
+    setSuBusy(true);
+    setSuError("");
+
+    if (!emailOk(suEmail)) {
+      setSuBusy(false);
+      setSuError("Enter a valid email");
+      return;
+    }
+    if (suPassword.length < 6) {
+      setSuBusy(false);
+      setSuError("Password must be at least 6 characters");
+      return;
+    }
+    if (suPassword !== suConfirm) {
+      setSuBusy(false);
+      setSuError("Passwords do not match");
+      return;
+    }
+
+    try {
+      const auth = getAuth();
+      const { user } = await createUserWithEmailAndPassword(
+        auth,
+        suEmail,
+        suPassword
+      );
+
+      // create profile in Firestore
+      await setDoc(doc(db, "users", user.uid), {
+        name: suName,
+        email: suEmail,
+        phoneNumber: suPhone || "",
+        isAdmin: false,
+      });
+
+      // reflect info in the cart fields for a smooth feel
+      if (!name) setName(suName);
+      if (!email) setEmail(suEmail);
+      if (!phoneNumber && suPhone) setPhoneNumber(suPhone);
+
+      // clear and close
+      setSuName("");
+      setSuEmail("");
+      setSuPhone("");
+      setSuPassword("");
+      setSuConfirm("");
+      setShow(false);
+    } catch (err) {
+      setSuError(err?.message || "Signup failed");
+    } finally {
+      setSuBusy(false);
+    }
+  };
+
+  // prefill login email from contact email
+  useEffect(() => {
+    if (!authEmail) setAuthEmail(email || "");
+  }, [email]); // eslint-disable-line react-hooks/exhaustive-deps
 
   /* ---------- Hydrate cart and contact drafts from localStorage ---------- */
   useEffect(() => {
@@ -340,8 +446,8 @@ const Cart = ({ items, setItems }) => {
                 rows={3}
               />
               <Form.Text muted>
-                Provide details on the type of event, venue, date and time, and
-                the best time to reach you.
+                Provide details on the type of event, venue or location, date
+                and time, and the best time to reach you.
               </Form.Text>
               {eventDetails.length > 0 && eventDetails.length < 20 ? (
                 <Alert className="mt-2 mb-0" variant="danger">
@@ -430,7 +536,8 @@ const Cart = ({ items, setItems }) => {
                       <div>
                         <div className="fw-semibold">{ev.type}</div>
                         <div className="text-muted small">
-                          {ev.date} from {ev.startTime} to {ev.endTime}
+                          {prettyDate(ev.date)} from {to12h(ev.startTime)} to{" "}
+                          {to12h(ev.endTime)}
                         </div>
                       </div>
                       <Button
@@ -611,16 +718,191 @@ const Cart = ({ items, setItems }) => {
       <div className="line"></div>
       <PreviousInquiries />
 
-      <Modal
-        show={show}
-        onHide={handleClose}
-        backdrop="static"
-        keyboard={false}
-      >
+      {/* Unified auth modal with tabs */}
+      <Modal show={show} onHide={handleClose} centered>
         <Modal.Header closeButton>
-          <Modal.Title>Sign in required</Modal.Title>
+          <Modal.Title>
+            {authTab === "login" ? "Sign in" : "Create account"}
+          </Modal.Title>
         </Modal.Header>
-        <Modal.Body>Please sign in to submit an inquiry.</Modal.Body>
+
+        <Modal.Body>
+          <Tabs
+            id="auth-tabs"
+            activeKey={authTab}
+            onSelect={(k) => setAuthTab(k || "login")}
+            className="mb-3"
+            justify
+          >
+            {/* Sign in */}
+            <Tab eventKey="login" title="Sign in">
+              <Form id="cartLoginForm" onSubmit={handleLogin}>
+                <Form.Group controlId="cartLoginEmail">
+                  <Form.Label>Email</Form.Label>
+                  <Form.Control
+                    type="email"
+                    placeholder="Enter email"
+                    value={authEmail}
+                    onChange={(e) => setAuthEmail(e.target.value)}
+                    autoComplete="email"
+                    autoFocus
+                    required
+                  />
+                </Form.Group>
+
+                <Form.Group className="mt-2" controlId="cartLoginPassword">
+                  <Form.Label>Password</Form.Label>
+                  <Form.Control
+                    type="password"
+                    placeholder="Enter password"
+                    value={authPassword}
+                    onChange={(e) => setAuthPassword(e.target.value)}
+                    autoComplete="current-password"
+                    required
+                  />
+                </Form.Group>
+
+                {authError ? (
+                  <Alert className="mt-3" variant="danger">
+                    {authError}
+                  </Alert>
+                ) : null}
+
+                <div className="d-flex justify-content-between align-items-center mt-3">
+                  <div className="text-muted small">
+                    No account yet?{" "}
+                    <Button
+                      variant="link"
+                      className="p-0 align-baseline"
+                      onClick={() => setAuthTab("signup")}
+                    >
+                      Create one
+                    </Button>
+                  </div>
+                  <Button variant="primary" type="submit" disabled={authBusy}>
+                    {authBusy ? (
+                      <>
+                        <Spinner
+                          animation="border"
+                          size="sm"
+                          className="me-2"
+                        />{" "}
+                        Signing in...
+                      </>
+                    ) : (
+                      "Sign in"
+                    )}
+                  </Button>
+                </div>
+              </Form>
+            </Tab>
+
+            {/* Sign up */}
+            <Tab eventKey="signup" title="Create account">
+              <Form id="cartSignupForm" onSubmit={handleSignup}>
+                <Row className="g-2">
+                  <Col xs={12}>
+                    <Form.Group controlId="suName">
+                      <Form.Label>Name</Form.Label>
+                      <Form.Control
+                        type="text"
+                        placeholder="Full name"
+                        value={suName}
+                        onChange={(e) => setSuName(e.target.value)}
+                        autoFocus
+                        required
+                      />
+                    </Form.Group>
+                  </Col>
+                  <Col xs={12}>
+                    <Form.Group controlId="suEmail">
+                      <Form.Label>Email</Form.Label>
+                      <Form.Control
+                        type="email"
+                        placeholder="you@example.com"
+                        value={suEmail}
+                        onChange={(e) => setSuEmail(e.target.value)}
+                        required
+                      />
+                    </Form.Group>
+                  </Col>
+                  <Col xs={12}>
+                    <Form.Group controlId="suPhone">
+                      <Form.Label>Phone number</Form.Label>
+                      <Form.Control
+                        type="tel"
+                        placeholder="(999) 999 9999"
+                        value={suPhone}
+                        onChange={(e) => setSuPhone(e.target.value)}
+                      />
+                    </Form.Group>
+                  </Col>
+                  <Col xs={12} md={6}>
+                    <Form.Group controlId="suPassword">
+                      <Form.Label>Password</Form.Label>
+                      <Form.Control
+                        type="password"
+                        placeholder="Enter password"
+                        value={suPassword}
+                        onChange={(e) => setSuPassword(e.target.value)}
+                        required
+                      />
+                    </Form.Group>
+                  </Col>
+                  <Col xs={12} md={6}>
+                    <Form.Group controlId="suConfirm">
+                      <Form.Label>Confirm password</Form.Label>
+                      <Form.Control
+                        type="password"
+                        placeholder="Confirm password"
+                        value={suConfirm}
+                        onChange={(e) => setSuConfirm(e.target.value)}
+                        required
+                      />
+                    </Form.Group>
+                  </Col>
+                </Row>
+
+                {suError ? (
+                  <Alert className="mt-3" variant="danger">
+                    {suError}
+                  </Alert>
+                ) : null}
+
+                <div className="d-flex justify-content-between align-items-center mt-3">
+                  <div className="text-muted small">
+                    Already have an account?{" "}
+                    <Button
+                      variant="link"
+                      className="p-0 align-baseline"
+                      onClick={() => {
+                        setAuthTab("login");
+                        setAuthEmail(suEmail || authEmail);
+                      }}
+                    >
+                      Sign in
+                    </Button>
+                  </div>
+                  <Button variant="primary" type="submit" disabled={suBusy}>
+                    {suBusy ? (
+                      <>
+                        <Spinner
+                          animation="border"
+                          size="sm"
+                          className="me-2"
+                        />{" "}
+                        Creating...
+                      </>
+                    ) : (
+                      "Create account"
+                    )}
+                  </Button>
+                </div>
+              </Form>
+            </Tab>
+          </Tabs>
+        </Modal.Body>
+
         <Modal.Footer>
           <Button variant="secondary" onClick={handleClose}>
             Close

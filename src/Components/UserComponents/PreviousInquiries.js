@@ -1,8 +1,14 @@
+// src/components/cart/PreviousInquiries.jsx
 import React, { useState, useEffect } from "react";
 import { Table, Badge, Card, Row, Col, ListGroup } from "react-bootstrap";
 import { collection, query, orderBy, onSnapshot } from "firebase/firestore";
 import { getAuth, onAuthStateChanged } from "firebase/auth";
 import db from "../../api/firestore/firestore";
+import {
+  to12h,
+  prettyDate,
+  prettyDateTimeFromTs,
+} from "../../utils/formatters";
 
 const money = (v) =>
   new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(
@@ -123,8 +129,9 @@ const ScheduleBlock = ({ inquiry }) => {
           <ListGroup.Item key={`${e?.type || "event"}-${e?.date || i}`}>
             <div className="fw-semibold">{e?.type || "Event"}</div>
             <div className="text-muted small">
-              {e?.date || "Date N/A"} from {e?.startTime || "Start N/A"} to{" "}
-              {e?.endTime || "End N/A"}
+              {e?.date ? prettyDate(e.date) : "Date N/A"} from{" "}
+              {e?.startTime ? to12h(e.startTime) : "Start N/A"} to{" "}
+              {e?.endTime ? to12h(e.endTime) : "End N/A"}
             </div>
           </ListGroup.Item>
         ))}
@@ -209,12 +216,11 @@ const PreviousInquiries = () => {
       {/* Mobile cards */}
       <Row className="g-3 d-md-none">
         {inquiries.map((inquiry) => {
-          const dateStr = inquiry?.timestamp?.toDate
-            ? inquiry.timestamp.toDate().toLocaleString()
-            : "N/A";
+          const dateStr = prettyDateTimeFromTs(inquiry?.timestamp);
           const {
             subtotal,
             discountApplied,
+            baseAfterDiscount,
             feeApplied,
             travel,
             taxApplied,
@@ -280,6 +286,14 @@ const PreviousInquiries = () => {
                         <span>{money(travel)}</span>
                       </div>
                     ) : null}
+                    {/* Net total before tax */}
+                    <div className="d-flex justify-content-between">
+                      <span>Net total</span>
+                      <span>
+                        {money(baseAfterDiscount + feeApplied + travel)}
+                      </span>
+                    </div>
+
                     {taxApplied > 0 ? (
                       <div className="d-flex justify-content-between">
                         <span>Tax ({Number(taxPercent)}%)</span>
@@ -312,12 +326,11 @@ const PreviousInquiries = () => {
         </thead>
         <tbody>
           {inquiries.map((inquiry) => {
-            const dateStr = inquiry?.timestamp?.toDate
-              ? inquiry.timestamp.toDate().toLocaleString()
-              : "N/A";
+            const dateStr = prettyDateTimeFromTs(inquiry?.timestamp);
             const {
               subtotal,
               discountApplied,
+              baseAfterDiscount,
               feeApplied,
               travel,
               taxApplied,
@@ -362,8 +375,10 @@ const PreviousInquiries = () => {
                       <ul className="mb-0">
                         {inquiry.events.map((e, i) => (
                           <li key={`${inquiry.id}-ev-${i}`}>
-                            {e?.type || "Event"} on {e?.date || "N/A"} from{" "}
-                            {e?.startTime || "N/A"} to {e?.endTime || "N/A"}
+                            {e?.type || "Event"} on{" "}
+                            {e?.date ? prettyDate(e.date) : "N/A"} from{" "}
+                            {e?.startTime ? to12h(e.startTime) : "N/A"} to{" "}
+                            {e?.endTime ? to12h(e.endTime) : "N/A"}
                           </li>
                         ))}
                       </ul>
@@ -411,6 +426,10 @@ const PreviousInquiries = () => {
                     </div>
                   ) : null}
                   {travel > 0 ? <div>Travel: {money(travel)}</div> : null}
+                  <div>
+                    Net total: {money(baseAfterDiscount + feeApplied + travel)}
+                  </div>
+
                   {taxApplied > 0 ? (
                     <div>
                       Tax ({Number(taxPercent)}%): {money(taxApplied)}

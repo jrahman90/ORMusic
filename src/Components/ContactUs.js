@@ -47,6 +47,18 @@ export default function ContactUs() {
       className="justify-content-center align-items-center"
       style={{ padding: 20 }}
     >
+      {/* Professional notice about proper flow for event requests */}
+      <Alert variant="light" className="border mb-3">
+        <div className="fw-semibold">Before you send a message:</div>
+        This form is for general questions, partnerships, support, or other non
+        booking requests. To request an event, go to the{" "}
+        <a href="/RentalItems" className="text-decoration-underline">
+          Services
+        </a>{" "}
+        tab, add the items you need to your cart, then submit your inquiry from
+        the Cart.
+      </Alert>
+
       <Form
         className="mb-3"
         ref={form}
@@ -87,9 +99,13 @@ export default function ContactUs() {
             <Form.Control
               as="textarea"
               name="message"
-              placeholder="Please enter detailed information for your inquiry."
+              placeholder="Share your question or comment. For event requests, please use the Services tab and send an inquiry from your cart."
               rows={4}
             />
+            <Form.Text className="text-muted">
+              Event bookings are handled through Services and the Cart, not this
+              form.
+            </Form.Text>
           </Form.Group>
         </fieldset>
 

@@ -5,7 +5,14 @@ import Navbar from "react-bootstrap/Navbar";
 import NavDropdown from "react-bootstrap/NavDropdown";
 import Badge from "react-bootstrap/Badge";
 import { getAuth, onAuthStateChanged } from "@firebase/auth";
-import { getDoc, doc } from "@firebase/firestore";
+import {
+  getDoc,
+  doc,
+  collection,
+  query,
+  where,
+  onSnapshot,
+} from "@firebase/firestore";
 import "./Css/components.css";
 import { Link } from "react-router-dom";
 import { PiShoppingCartBold } from "react-icons/pi";
@@ -15,6 +22,8 @@ function AppNavbar() {
   const [isAdmin, setIsAdmin] = useState(null);
   const [userData, setUserData] = useState(null);
   const [cartCount, setCartCount] = useState(0);
+  const [processingCount, setProcessingCount] = useState(0);
+  const [expanded, setExpanded] = useState(false); // control mobile collapse
 
   const auth = getAuth();
   const db = firestore;
@@ -38,6 +47,11 @@ function AppNavbar() {
     },
   ];
 
+  // close the navbar after navigation on mobile
+  const handleNavItemClick = useCallback(() => {
+    setExpanded(false);
+  }, []);
+
   // stable reader for cart count
   const readCartCount = useCallback(() => {
     try {
@@ -50,9 +64,9 @@ function AppNavbar() {
     }
   }, []);
 
-  // listen once for cart changes, never broadcast from here
+  // listen once for cart changes
   useEffect(() => {
-    readCartCount(); // initial
+    readCartCount();
     const onStorage = (e) => {
       if (e.key === "cartItems") readCartCount();
     };
@@ -64,7 +78,7 @@ function AppNavbar() {
     };
   }, [readCartCount]);
 
-  // auth subscription with cleanup and churn guard
+  // auth subscription
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (user) => {
       if (!user) {
@@ -92,10 +106,34 @@ function AppNavbar() {
     return () => unsub();
   }, [auth, db]);
 
+  // subscribe to Processing inquiries for admins
+  useEffect(() => {
+    if (!isAdmin) {
+      setProcessingCount(0);
+      return;
+    }
+    const q = query(
+      collection(db, "inquiries"),
+      where("status", "==", "Processing")
+    );
+    const unsub = onSnapshot(
+      q,
+      (snap) => setProcessingCount(snap.size || 0),
+      () => setProcessingCount(0)
+    );
+    return () => unsub();
+  }, [db, isAdmin]);
+
   return (
-    <Navbar bg="primary" expand="lg" collapseOnSelect>
+    <Navbar
+      bg="primary"
+      expand="lg"
+      collapseOnSelect
+      expanded={expanded}
+      onToggle={setExpanded}
+    >
       <Container>
-        <Navbar.Brand as={Link} to="/">
+        <Navbar.Brand as={Link} to="/" onClick={handleNavItemClick}>
           <img
             src="ormusiclogo.png"
             alt=""
@@ -108,22 +146,42 @@ function AppNavbar() {
         <Navbar.Toggle aria-controls="basic-navbar-nav" />
 
         <Navbar.Collapse id="basic-navbar-nav">
-          <Nav className="me-auto">
-            <Nav.Link className="nav-items" as={Link} to="/">
+          <Nav className="me-auto" onSelect={handleNavItemClick}>
+            <Nav.Link
+              className="nav-items"
+              as={Link}
+              to="/"
+              onClick={handleNavItemClick}
+            >
               Home
             </Nav.Link>
-            <Nav.Link className="nav-items" as={Link} to="/DJMC">
+            <Nav.Link
+              className="nav-items"
+              as={Link}
+              to="/DJMC"
+              onClick={handleNavItemClick}
+            >
               DJ/MC
             </Nav.Link>
-            <Nav.Link className="nav-items" as={Link} to="/RentalItems">
+            <Nav.Link
+              className="nav-items"
+              as={Link}
+              to="/RentalItems"
+              onClick={handleNavItemClick}
+            >
               Services
             </Nav.Link>
 
-            <NavDropdown title="Media" className="nav-items">
+            <NavDropdown
+              title="Media"
+              className="nav-items"
+              id="media-dropdown"
+            >
               <NavDropdown.Item
                 className="nav-items-dropdown"
                 as={Link}
                 to="/MusicVideos"
+                onClick={handleNavItemClick}
               >
                 Music Videos
               </NavDropdown.Item>
@@ -131,26 +189,66 @@ function AppNavbar() {
                 className="nav-items-dropdown"
                 as={Link}
                 to="/contact"
+                onClick={handleNavItemClick}
               >
                 Contact Us
               </NavDropdown.Item>
             </NavDropdown>
 
             {isAdmin && (
-              <NavDropdown title="Admin" className="nav-items">
-                <NavDropdown.Item as={Link} to="/rental-items-admin">
+              <NavDropdown
+                className="nav-items"
+                id="admin-dropdown"
+                title={
+                  <span className="d-inline-flex align-items-center">
+                    Admin
+                    {processingCount > 0 && (
+                      <Badge
+                        bg="light"
+                        text="dark"
+                        pill
+                        className="ms-2"
+                        title="Inquiries in Processing"
+                      >
+                        {processingCount}
+                      </Badge>
+                    )}
+                  </span>
+                }
+              >
+                <NavDropdown.Item
+                  as={Link}
+                  to="/rental-items-admin"
+                  onClick={handleNavItemClick}
+                >
                   Rental Items
                 </NavDropdown.Item>
-                <NavDropdown.Item as={Link} to="/music-video-admin">
+                <NavDropdown.Item
+                  as={Link}
+                  to="/music-video-admin"
+                  onClick={handleNavItemClick}
+                >
                   Music Videos
                 </NavDropdown.Item>
-                <NavDropdown.Item as={Link} to="/dj-mc-admin">
+                <NavDropdown.Item
+                  as={Link}
+                  to="/dj-mc-admin"
+                  onClick={handleNavItemClick}
+                >
                   DJ/MC
                 </NavDropdown.Item>
-                <NavDropdown.Item as={Link} to="/inquiries-admin">
+                <NavDropdown.Item
+                  as={Link}
+                  to="/inquiries-admin"
+                  onClick={handleNavItemClick}
+                >
                   Inquiries
                 </NavDropdown.Item>
-                <NavDropdown.Item as={Link} to="/eventure-admin">
+                <NavDropdown.Item
+                  as={Link}
+                  to="/eventure-admin"
+                  onClick={handleNavItemClick}
+                >
                   Eventure Admin
                 </NavDropdown.Item>
               </NavDropdown>
@@ -158,7 +256,12 @@ function AppNavbar() {
           </Nav>
 
           <Nav variant="pills">
-            <Nav.Link className="mx-3 position-relative" as={Link} to="/Cart">
+            <Nav.Link
+              className="mx-3 position-relative"
+              as={Link}
+              to="/Cart"
+              onClick={handleNavItemClick}
+            >
               <PiShoppingCartBold style={{ fontSize: "225%" }} />
               {cartCount > 0 && (
                 <Badge
@@ -172,7 +275,13 @@ function AppNavbar() {
             </Nav.Link>
 
             {socials.map((s, i) => (
-              <a key={i} href={s.linkToSocial} target="_blank" rel="noreferrer">
+              <a
+                key={i}
+                href={s.linkToSocial}
+                target="_blank"
+                rel="noreferrer"
+                onClick={handleNavItemClick}
+              >
                 <img style={{ opacity: ".5" }} alt="" src={s.imageSrc} />
               </a>
             ))}
