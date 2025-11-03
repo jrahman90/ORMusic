@@ -1,5 +1,3 @@
-// src/utils/formatters.js
-
 // Convert "14:05" or "14:05:30" to "2:05 PM".
 // If it already includes AM or PM, return it unchanged.
 export const to12h = (timeStr = "") => {
@@ -54,4 +52,36 @@ export const prettyDateTimeFromTs = (ts) => {
   } catch {
     return "N/A";
   }
+};
+
+/* =======================
+   Extra deposit formatter
+   ======================= */
+
+// Accepts Firestore Timestamp, JS Date, ISO string, or epoch millis
+const _toDateFlexible = (input) => {
+  try {
+    if (!input) return null;
+    if (typeof input?.toDate === "function") return input.toDate(); // Firestore Timestamp
+    if (input instanceof Date) return input; // JS Date
+    if (typeof input === "number") return new Date(input); // epoch millis
+    if (typeof input === "string") return new Date(input); // ISO string
+  } catch {}
+  return null;
+};
+
+// Format as mm/dd/yy hh:mm AM/PM for deposits, returns "N/A" if invalid
+export const prettyDateTimeMMDDYY = (input) => {
+  const d = _toDateFlexible(input);
+  if (!d || Number.isNaN(d.getTime())) return "N/A";
+
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  const yy = String(d.getFullYear()).slice(-2);
+  let h = d.getHours();
+  const mins = String(d.getMinutes()).padStart(2, "0");
+  const ap = h >= 12 ? "PM" : "AM";
+  h = h % 12 || 12;
+
+  return `${mm}/${dd}/${yy} ${h}:${mins} ${ap}`;
 };

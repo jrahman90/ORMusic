@@ -7,7 +7,7 @@ import db from "../../api/firestore/firestore";
 import {
   to12h,
   prettyDate,
-  prettyDateTimeFromTs,
+  prettyDateTimeMMDDYY,
 } from "../../utils/formatters";
 import ContractModal from "../contracts/ContractModal";
 
@@ -30,7 +30,7 @@ const StatusBadge = ({ status }) => {
   return <Badge bg={color}>{status || "No Status"}</Badge>;
 };
 
-// math matches admin
+// math matches admin, deposits are not included in totals
 const calcTotals = (inquiry) => {
   const items = Array.isArray(inquiry.items) ? inquiry.items : [];
   const subtotal = items.reduce(
@@ -97,6 +97,12 @@ const calcTotals = (inquiry) => {
   };
 };
 
+const sumDeposits = (inquiry) =>
+  (Array.isArray(inquiry?.deposits) ? inquiry.deposits : []).reduce(
+    (s, d) => s + Number(d?.amount || 0),
+    0
+  );
+
 const ContactBlock = ({ inquiry }) => {
   const hasContact =
     inquiry?.name ||
@@ -137,6 +143,53 @@ const ScheduleBlock = ({ inquiry }) => {
           </ListGroup.Item>
         ))}
       </ListGroup>
+    </div>
+  );
+};
+
+const DepositsBlock = ({ inquiry }) => {
+  const deposits = Array.isArray(inquiry?.deposits) ? inquiry.deposits : [];
+  if (deposits.length === 0) {
+    return (
+      <div className="mt-3">
+        <div className="fw-semibold mb-1">Deposits</div>
+        <div className="text-muted small">No deposits yet</div>
+      </div>
+    );
+  }
+  const totalDeposits = sumDeposits(inquiry);
+  const { total } = calcTotals(inquiry);
+  const remaining = Math.max(0, total - totalDeposits);
+
+  return (
+    <div className="mt-3">
+      <div className="fw-semibold mb-1">Deposits</div>
+      <ul className="mb-2">
+        {deposits.map((d) => (
+          <li key={d.id}>
+            <span className="fw-semibold">{money(Number(d.amount || 0))}</span>
+            {d.note ? (
+              <span className="text-muted small">, {d.note}</span>
+            ) : null}
+            {d.date ? (
+              <span className="text-muted small">
+                , {prettyDateTimeMMDDYY(d.date)}
+              </span>
+            ) : null}
+          </li>
+        ))}
+      </ul>
+      <div className="d-flex justify-content-between">
+        <span>Total deposits</span>
+        <span>{money(totalDeposits)}</span>
+      </div>
+      <div className="d-flex justify-content-between fw-semibold">
+        <span>Balance after deposits</span>
+        <span>{money(remaining)}</span>
+      </div>
+      <div className="text-muted small mt-1">
+        Deposits are not included in contract totals
+      </div>
     </div>
   );
 };
@@ -226,7 +279,7 @@ const PreviousInquiries = () => {
       {/* Mobile cards */}
       <Row className="g-3 d-md-none">
         {inquiries.map((inquiry) => {
-          const dateStr = prettyDateTimeFromTs(inquiry?.timestamp);
+          const dateStr = prettyDateTimeMMDDYY(inquiry?.timestamp);
           const {
             subtotal,
             discountApplied,
@@ -241,6 +294,8 @@ const PreviousInquiries = () => {
             fRaw,
             taxPercent,
           } = calcTotals(inquiry);
+          const totalDeposits = sumDeposits(inquiry);
+          const remaining = Math.max(0, total - totalDeposits);
 
           return (
             <Col xs={12} key={inquiry.id}>
@@ -251,7 +306,8 @@ const PreviousInquiries = () => {
                     <StatusBadge status={inquiry.status} />
                   </div>
                   <ContactBlock inquiry={inquiry} />
-                  <ScheduleBlock inquiry={inquiry} />{" "}
+                  <ScheduleBlock inquiry={inquiry} />
+
                   {/* Contracts for this inquiry */}
                   <div className="fw-semibold mt-3 mb-1">Contracts</div>
                   {(inquiry.contracts || []).length === 0 ? (
@@ -280,6 +336,7 @@ const PreviousInquiries = () => {
                       ))}
                     </ul>
                   )}
+
                   <div className="fw-semibold mt-3 mb-1">Items</div>
                   <ul className="mb-2">
                     {(inquiry.items || []).map((item, idx) => (
@@ -288,11 +345,13 @@ const PreviousInquiries = () => {
                       </li>
                     ))}
                   </ul>
+
                   <div className="border-top pt-2">
                     <div className="d-flex justify-content-between">
                       <span>Subtotal</span>
                       <span>{money(subtotal)}</span>
                     </div>
+
                     {discountApplied > 0 ? (
                       <div className="d-flex justify-content-between text-success">
                         <span>
@@ -304,6 +363,7 @@ const PreviousInquiries = () => {
                         <span>{money(discountApplied)}</span>
                       </div>
                     ) : null}
+
                     {feeApplied > 0 ? (
                       <div className="d-flex justify-content-between">
                         <span>
@@ -315,13 +375,14 @@ const PreviousInquiries = () => {
                         <span>{money(feeApplied)}</span>
                       </div>
                     ) : null}
+
                     {travel > 0 ? (
                       <div className="d-flex justify-content-between">
                         <span>Travel</span>
                         <span>{money(travel)}</span>
                       </div>
                     ) : null}
-                    {/* Net total before tax */}
+
                     <div className="d-flex justify-content-between">
                       <span>Net total</span>
                       <span>
@@ -335,10 +396,18 @@ const PreviousInquiries = () => {
                         <span>{money(taxApplied)}</span>
                       </div>
                     ) : null}
+
                     <div className="d-flex justify-content-between fw-semibold mt-1">
                       <span>Total</span>
                       <span>{money(total)}</span>
                     </div>
+                  </div>
+
+                  {/* Deposits and remaining */}
+                  <DepositsBlock inquiry={inquiry} />
+                  <div className="d-flex justify-content-between fw-semibold mt-2">
+                    <span>Amount due after deposits</span>
+                    <span>{money(remaining)}</span>
                   </div>
                 </Card.Body>
               </Card>
@@ -361,7 +430,7 @@ const PreviousInquiries = () => {
         </thead>
         <tbody>
           {inquiries.map((inquiry) => {
-            const dateStr = prettyDateTimeFromTs(inquiry?.timestamp);
+            const dateStr = prettyDateTimeMMDDYY(inquiry?.timestamp);
             const {
               subtotal,
               discountApplied,
@@ -376,10 +445,16 @@ const PreviousInquiries = () => {
               fRaw,
               taxPercent,
             } = calcTotals(inquiry);
+            const depositsArr = Array.isArray(inquiry.deposits)
+              ? inquiry.deposits
+              : [];
+            const totalDeposits = sumDeposits(inquiry);
+            const remaining = Math.max(0, total - totalDeposits);
 
             return (
               <tr key={inquiry.id}>
                 <td>{dateStr}</td>
+
                 {/* Contact and schedule */}
                 <td style={{ minWidth: 260 }}>
                   {inquiry?.name ? (
@@ -418,7 +493,36 @@ const PreviousInquiries = () => {
                       </ul>
                     </div>
                   ) : null}
+
+                  {(inquiry.contracts || []).length > 0 ? (
+                    <div className="mt-2">
+                      <strong>Contracts:</strong>
+                      <ul className="mb-0">
+                        {inquiry.contracts.map((c) => (
+                          <li key={`${inquiry.id}-ct-${c.id}`}>
+                            <button
+                              type="button"
+                              className="btn btn-link p-0 align-baseline"
+                              onClick={() => openClientContract(inquiry, c)}
+                            >
+                              {c.title}
+                            </button>
+                            {c.clientSignature ? (
+                              <Badge bg="success" className="ms-2">
+                                Signed
+                              </Badge>
+                            ) : (
+                              <Badge bg="warning" text="dark" className="ms-2">
+                                Pending
+                              </Badge>
+                            )}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  ) : null}
                 </td>
+
                 {/* Items */}
                 <td>
                   <ul className="mb-2">
@@ -429,6 +533,7 @@ const PreviousInquiries = () => {
                     ))}
                   </ul>
                 </td>
+
                 {/* Qty */}
                 <td>
                   <ul className="mb-0">
@@ -437,7 +542,8 @@ const PreviousInquiries = () => {
                     ))}
                   </ul>
                 </td>
-                {/* Totals */}
+
+                {/* Totals and deposits */}
                 <td>
                   <div>Subtotal: {money(subtotal)}</div>
                   {discountApplied > 0 ? (
@@ -460,42 +566,43 @@ const PreviousInquiries = () => {
                   <div>
                     Net total: {money(baseAfterDiscount + feeApplied + travel)}
                   </div>
-
                   {taxApplied > 0 ? (
                     <div>
                       Tax ({Number(taxPercent)}%): {money(taxApplied)}
                     </div>
                   ) : null}
                   <div className="fw-semibold">Total: {money(total)}</div>
-                </td>
-                {/* Contracts list */}
-                {(inquiry.contracts || []).length > 0 ? (
-                  <div className="mt-1">
-                    <strong>Contracts:</strong>
-                    <ul className="mb-0">
-                      {inquiry.contracts.map((c) => (
-                        <li key={`${inquiry.id}-ct-${c.id}`}>
-                          <button
-                            type="button"
-                            className="btn btn-link p-0 align-baseline"
-                            onClick={() => openClientContract(inquiry, c)}
-                          >
-                            {c.title}
-                          </button>
-                          {c.clientSignature ? (
-                            <Badge bg="success" className="ms-2">
-                              Signed
-                            </Badge>
-                          ) : (
-                            <Badge bg="warning" text="dark" className="ms-2">
-                              Pending
-                            </Badge>
-                          )}
+
+                  <hr className="my-2" />
+                  <div className="fw-semibold mb-1">Deposits</div>
+                  {depositsArr.length === 0 ? (
+                    <div className="text-muted small">No deposits yet</div>
+                  ) : (
+                    <ul className="mb-1">
+                      {depositsArr.map((d) => (
+                        <li key={d.id}>
+                          {money(Number(d.amount || 0))}
+                          {d.note ? (
+                            <span className="text-muted small">, {d.note}</span>
+                          ) : null}
+                          {d.date ? (
+                            <span className="text-muted small">
+                              , {prettyDateTimeMMDDYY(d.date)}
+                            </span>
+                          ) : null}
                         </li>
                       ))}
                     </ul>
+                  )}
+                  <div>Total deposits: {money(totalDeposits)}</div>
+                  <div className="fw-semibold">
+                    Balance after deposits: {money(remaining)}
                   </div>
-                ) : null}
+                  <div className="text-muted small">
+                    Deposits are not included in contract totals
+                  </div>
+                </td>
+
                 <td>
                   <StatusBadge status={inquiry.status} />
                 </td>
@@ -504,6 +611,7 @@ const PreviousInquiries = () => {
           })}
         </tbody>
       </Table>
+
       <ContractModal
         show={showContract}
         onHide={() => setShowContract(false)}

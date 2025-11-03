@@ -1,4 +1,3 @@
-// src/components/admin/Inquiries.jsx
 import React, { useEffect, useMemo, useState } from "react";
 import {
   Card,
@@ -11,6 +10,7 @@ import {
   Badge,
   Accordion,
   Image,
+  Spinner,
 } from "react-bootstrap";
 import {
   collection,
@@ -19,13 +19,14 @@ import {
   query,
   updateDoc,
   doc,
-  deleteDoc, // ← added
+  deleteDoc,
 } from "firebase/firestore";
 import db from "../../api/firestore/firestore";
 import {
   to12h,
   prettyDate,
   prettyDateTimeFromTs,
+  prettyDateTimeMMDDYY, // new formatter for deposits
 } from "../../utils/formatters";
 import ContractModal from "../contracts/ContractModal";
 
@@ -98,6 +99,169 @@ function EventSchedule({ inq }) {
   );
 }
 
+// Admin can edit schedule before contracts exist
+function EventScheduleEditor({ inq, onSave, busy }) {
+  const [rows, setRows] = useState(
+    Array.isArray(inq?.events) ? inq.events : []
+  );
+  const [draft, setDraft] = useState({
+    type: "",
+    date: "",
+    startTime: "",
+    endTime: "",
+  });
+
+  useEffect(() => {
+    setRows(Array.isArray(inq?.events) ? inq.events : []);
+  }, [inq?.events]);
+
+  const canAdd =
+    String(draft.type || "").trim().length > 1 &&
+    draft.date &&
+    draft.startTime &&
+    draft.endTime;
+
+  const addRow = () => {
+    if (!canAdd) return;
+    setRows((r) => [...r, { ...draft }]);
+    setDraft({ type: "", date: "", startTime: "", endTime: "" });
+  };
+
+  const removeRow = (idx) => setRows(rows.filter((_, i) => i !== idx));
+
+  const changeRow = (idx, key, val) => {
+    const next = rows.slice();
+    next[idx] = { ...next[idx], [key]: val };
+    setRows(next);
+  };
+
+  return (
+    <div className="mt-3">
+      <div className="fw-semibold mb-2">Event schedule, admin edit</div>
+
+      {rows.length > 0 ? (
+        <div className="d-flex flex-column gap-2 mb-2">
+          {rows.map((e, i) => (
+            <Card key={`edit-ev-${inq.id}-${i}`}>
+              <Card.Body className="py-2">
+                <Row className="g-2">
+                  <Col xs={12} md={3}>
+                    <Form.Label className="mb-1 small">Type</Form.Label>
+                    <Form.Control
+                      value={e.type || ""}
+                      onChange={(ev) => changeRow(i, "type", ev.target.value)}
+                      disabled={busy}
+                    />
+                  </Col>
+                  <Col xs={6} md={3}>
+                    <Form.Label className="mb-1 small">Date</Form.Label>
+                    <Form.Control
+                      type="date"
+                      value={e.date || ""}
+                      onChange={(ev) => changeRow(i, "date", ev.target.value)}
+                      disabled={busy}
+                    />
+                  </Col>
+                  <Col xs={3} md={3}>
+                    <Form.Label className="mb-1 small">Start</Form.Label>
+                    <Form.Control
+                      type="time"
+                      value={e.startTime || ""}
+                      onChange={(ev) =>
+                        changeRow(i, "startTime", ev.target.value)
+                      }
+                      disabled={busy}
+                    />
+                  </Col>
+                  <Col xs={3} md={3}>
+                    <Form.Label className="mb-1 small">End</Form.Label>
+                    <Form.Control
+                      type="time"
+                      value={e.endTime || ""}
+                      onChange={(ev) =>
+                        changeRow(i, "endTime", ev.target.value)
+                      }
+                      disabled={busy}
+                    />
+                  </Col>
+                </Row>
+                <div className="d-flex justify-content-end mt-2">
+                  <Button
+                    size="sm"
+                    variant="outline-danger"
+                    onClick={() => removeRow(i)}
+                    disabled={busy}
+                  >
+                    Remove
+                  </Button>
+                </div>
+              </Card.Body>
+            </Card>
+          ))}
+        </div>
+      ) : (
+        <div className="text-muted small mb-2">No events yet</div>
+      )}
+
+      <Row className="g-2 align-items-end">
+        <Col xs={12} md={3}>
+          <Form.Label className="mb-1 small">Type</Form.Label>
+          <Form.Control
+            value={draft.type}
+            onChange={(e) => setDraft((s) => ({ ...s, type: e.target.value }))}
+            disabled={busy}
+          />
+        </Col>
+        <Col xs={6} md={3}>
+          <Form.Label className="mb-1 small">Date</Form.Label>
+          <Form.Control
+            type="date"
+            value={draft.date}
+            onChange={(e) => setDraft((s) => ({ ...s, date: e.target.value }))}
+            disabled={busy}
+          />
+        </Col>
+        <Col xs={3} md={3}>
+          <Form.Label className="mb-1 small">Start</Form.Label>
+          <Form.Control
+            type="time"
+            value={draft.startTime}
+            onChange={(e) =>
+              setDraft((s) => ({ ...s, startTime: e.target.value }))
+            }
+            disabled={busy}
+          />
+        </Col>
+        <Col xs={3} md={3}>
+          <Form.Label className="mb-1 small">End</Form.Label>
+          <Form.Control
+            type="time"
+            value={draft.endTime}
+            onChange={(e) =>
+              setDraft((s) => ({ ...s, endTime: e.target.value }))
+            }
+            disabled={busy}
+          />
+        </Col>
+      </Row>
+
+      <div className="d-flex gap-2 mt-2">
+        <Button
+          size="sm"
+          variant="outline-primary"
+          onClick={addRow}
+          disabled={!canAdd || busy}
+        >
+          Add event
+        </Button>
+        <Button size="sm" onClick={() => onSave(rows)} disabled={busy}>
+          Save schedule
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 export default function Inquiries() {
   const [inquiries, setInquiries] = useState([]);
   const [saving, setSaving] = useState({});
@@ -109,9 +273,14 @@ export default function Inquiries() {
   const [feeDraft, setFeeDraft] = useState({});
   const [catalog, setCatalog] = useState([]);
   const [showContract, setShowContract] = useState(false);
-  const [contractMode, setContractMode] = useState("admin"); // 'admin' or 'client'
+  const [contractMode, setContractMode] = useState("admin");
   const [contractInquiry, setContractInquiry] = useState(null);
   const [activeContract, setActiveContract] = useState(null);
+
+  // new: deposits state and expansion state for compact accordion
+  const [depositDraft, setDepositDraft] = useState({});
+  const [expanded, setExpanded] = useState({});
+  const [loading, setLoading] = useState(true);
 
   // load inquiries realtime
   useEffect(() => {
@@ -122,6 +291,7 @@ export default function Inquiries() {
       (snap) => {
         const rows = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
         setInquiries(rows);
+        setLoading(false);
 
         // seed drafts
         setDiscountDraft((prev) => {
@@ -190,7 +360,10 @@ export default function Inquiries() {
           return next;
         });
       },
-      (err) => console.error("Realtime inquiries error:", err)
+      (err) => {
+        console.error("Realtime inquiries error:", err);
+        setLoading(false);
+      }
     );
     return () => stop();
   }, []);
@@ -332,6 +505,57 @@ export default function Inquiries() {
     };
   };
 
+  // deposits helpers
+  const sumDeposits = (inq) =>
+    (Array.isArray(inq?.deposits) ? inq.deposits : []).reduce(
+      (s, d) => s + Number(d?.amount || 0),
+      0
+    );
+
+  const setDepositField = (inqId, key, val) =>
+    setDepositDraft((s) => ({
+      ...s,
+      [inqId]: { ...(s[inqId] || {}), [key]: val },
+    }));
+
+  const addDeposit = async (inq) => {
+    const draft = depositDraft[inq.id] || {};
+    const amt = Number(draft.amount || 0);
+    if (amt <= 0) return;
+    const next = [
+      ...(Array.isArray(inq.deposits) ? inq.deposits : []),
+      {
+        id: crypto.randomUUID?.() || String(Date.now()),
+        amount: amt,
+        note: String(draft.note || ""),
+        date: new Date().toISOString(),
+        addedBy: "admin",
+      },
+    ];
+    try {
+      setSavingFlag(inq.id, true);
+      await updateDoc(doc(db, "inquiries", inq.id), { deposits: next });
+      setDepositDraft((s) => ({ ...s, [inq.id]: { amount: "", note: "" } }));
+    } catch (e) {
+      console.error("Add deposit failed:", e);
+    } finally {
+      setSavingFlag(inq.id, false);
+    }
+  };
+
+  const removeDeposit = async (inq, depId) => {
+    const list = Array.isArray(inq.deposits) ? inq.deposits : [];
+    const next = list.filter((d) => d.id !== depId);
+    try {
+      setSavingFlag(inq.id, true);
+      await updateDoc(doc(db, "inquiries", inq.id), { deposits: next });
+    } catch (e) {
+      console.error("Remove deposit failed:", e);
+    } finally {
+      setSavingFlag(inq.id, false);
+    }
+  };
+
   // saves
   const saveStatus = async (inq, nextStatus) => {
     try {
@@ -352,7 +576,6 @@ export default function Inquiries() {
     try {
       setSavingFlag(inq.id, true);
       await deleteDoc(doc(db, "inquiries", inq.id));
-      // onSnapshot will remove it from the list automatically
     } catch (e) {
       console.error("Delete failed:", e);
       setSavingFlag(inq.id, false);
@@ -491,6 +714,17 @@ export default function Inquiries() {
     setAdding((s) => ({ ...s, [inq.id]: {} }));
   };
 
+  const saveEvents = async (inq, rows) => {
+    try {
+      setSavingFlag(inq.id, true);
+      await updateDoc(doc(db, "inquiries", inq.id), { events: rows });
+    } catch (e) {
+      console.error("Events update failed:", e);
+    } finally {
+      setSavingFlag(inq.id, false);
+    }
+  };
+
   const list = useMemo(
     () =>
       inquiries.slice().sort((a, b) => {
@@ -501,10 +735,38 @@ export default function Inquiries() {
     [inquiries]
   );
 
+  // compact accordion requirement and Completed section
+  const activeList = useMemo(
+    () => list.filter((inq) => (inq.status || "Processing") !== "Completed"),
+    [list]
+  );
+  const completedList = useMemo(
+    () => list.filter((inq) => (inq.status || "Processing") === "Completed"),
+    [list]
+  );
+
+  const toggleExpanded = (id) => setExpanded((m) => ({ ...m, [id]: !m[id] }));
+
+  if (loading) {
+    return (
+      <div className="d-flex align-items-center justify-content-center py-5">
+        <Spinner animation="border" />
+      </div>
+    );
+  }
+
   return (
     <Container className="py-3">
+      <style>{`
+        .nowrap { white-space: nowrap; }
+        .thumb { width: 56px; height: 32px; object-fit: cover; border-radius: .375rem; }
+        @media (max-width: 576px) { .stack-on-xs { display: grid; gap: .5rem; } }
+      `}</style>
+
+      {/* Inquiries, compact accordion cards */}
+      <h4 className="mb-2">Inquiries</h4>
       <Row xs={1} sm={1} md={1} lg={2} xl={3} className="g-3">
-        {list.map((inq) => {
+        {activeList.map((inq) => {
           const {
             subtotal,
             discountApplied,
@@ -517,33 +779,39 @@ export default function Inquiries() {
 
           const dateStr = prettyDateTimeFromTs(inq?.timestamp);
           const busy = Boolean(saving[inq.id]);
+          const depTotal = sumDeposits(inq);
+          const remaining = Math.max(0, total - depTotal);
           const add = adding[inq.id] || {};
 
           return (
             <Col key={inq.id}>
               <Card className="shadow-sm h-100 border-0">
-                <Card.Body
-                  className="position-relative"
-                  style={{ overflow: "visible" }}
+                {/* Compact header with only name, date, total, status */}
+                <Card.Header
+                  role="button"
+                  onClick={() => toggleExpanded(inq.id)}
+                  className="d-flex justify-content-between align-items-center"
                 >
-                  <style>{`
-                    .nowrap { white-space: nowrap; }
-                    .thumb { width: 56px; height: 32px; object-fit: cover; border-radius: .375rem; }
-                    @media (max-width: 576px) { .stack-on-xs { display: grid; gap: .5rem; } }
-                  `}</style>
-                  {/* Header with date and delete */}
-                  <div className="d-flex flex-column flex-sm-row justify-content-between gap-1">
-                    <div>
-                      <Card.Title className="mb-1">
-                        {inq.name || "Unknown"}
-                      </Card.Title>
-                      <div className="text-muted small">
-                        {inq.phoneNumber || ""}
-                        {inq.email ? `, ${inq.email}` : ""}
-                      </div>
-                    </div>
-                    <div className="d-flex align-items-center gap-2">
-                      <Badge bg="secondary">{dateStr}</Badge>
+                  <div>
+                    <div className="fw-semibold">{inq.name || "Unknown"}</div>
+                    <div className="small text-muted">{dateStr}</div>
+                  </div>
+                  <div className="d-flex align-items-center gap-2">
+                    <Badge bg="light" text="dark">
+                      {money(total)}
+                    </Badge>
+                    <Badge bg="secondary">{inq.status || "Processing"}</Badge>
+                  </div>
+                </Card.Header>
+
+                {/* Expanded content */}
+                {expanded[inq.id] ? (
+                  <Card.Body
+                    className="position-relative"
+                    style={{ overflow: "visible" }}
+                  >
+                    {/* Row of actions on top */}
+                    <div className="d-flex align-items-center justify-content-end gap-2 mb-2">
                       <Button
                         size="sm"
                         variant="outline-danger"
@@ -553,298 +821,743 @@ export default function Inquiries() {
                         Delete
                       </Button>
                     </div>
-                  </div>
-                  {/* Status */}
-                  <Form.Group className="mt-3">
-                    <Form.Label className="fw-semibold">Status</Form.Label>
-                    <Form.Select
-                      value={inq.status || "Processing"}
-                      onChange={(e) => saveStatus(inq, e.target.value)}
-                      disabled={busy}
-                    >
-                      {statusOptions.map((s) => (
-                        <option key={s} value={s}>
-                          {s}
-                        </option>
-                      ))}
-                    </Form.Select>
-                  </Form.Group>
-                  {/* Contact and schedule pulled from cart */}
-                  <ContactBlock inq={inq} />
-                  <EventSchedule inq={inq} />
 
-                  {/* Contracts */}
-                  <div className="mt-3">
-                    <div className="d-flex justify-content-between align-items-center">
-                      <div className="fw-semibold">Contracts</div>
-                      <Button
-                        size="sm"
-                        variant="outline-primary"
-                        onClick={() => openAddContract(inq)}
+                    {/* Status */}
+                    <Form.Group className="mt-1 mb-3">
+                      <Form.Label className="fw-semibold">Status</Form.Label>
+                      <Form.Select
+                        value={inq.status || "Processing"}
+                        onChange={(e) => saveStatus(inq, e.target.value)}
+                        disabled={busy}
                       >
-                        Add contract
-                      </Button>
-                    </div>
+                        {statusOptions.map((s) => (
+                          <option key={s} value={s}>
+                            {s}
+                          </option>
+                        ))}
+                      </Form.Select>
+                    </Form.Group>
 
-                    <div className="mt-2">
-                      {(inq.contracts || []).length === 0 ? (
-                        <div className="text-muted small">No contracts yet</div>
+                    {/* Contact and schedule view */}
+                    <ContactBlock inq={inq} />
+                    <EventSchedule inq={inq} />
+
+                    {/* Admin schedule editor */}
+                    <EventScheduleEditor
+                      inq={inq}
+                      busy={busy}
+                      onSave={(rows) => saveEvents(inq, rows)}
+                    />
+
+                    {/* Deposits section, not used in contracts or totals */}
+                    <div className="mt-4">
+                      <div className="d-flex justify-content-between align-items-center">
+                        <div className="fw-semibold">Deposits</div>
+                      </div>
+                      <div className="small text-muted">
+                        Not included in contracts or totals
+                      </div>
+
+                      {(Array.isArray(inq.deposits) ? inq.deposits : [])
+                        .length === 0 ? (
+                        <div className="text-muted small mt-1">
+                          No deposits yet
+                        </div>
                       ) : (
-                        <ul
-                          className="list-unstyled mb-0"
-                          style={{ overflow: "visible" }}
-                        >
-                          {inq.contracts.map((c) => (
+                        <ul className="list-unstyled mt-2">
+                          {inq.deposits.map((d) => (
                             <li
-                              key={c.id}
-                              className="d-flex align-items-center justify-content-between flex-wrap gap-2 py-1"
+                              key={d.id}
+                              className="d-flex justify-content-between align-items-center py-1"
                             >
-                              {/* Left: title + badges */}
-                              <div className="d-flex align-items-center flex-wrap gap-2">
-                                <span className="fw-semibold">{c.title}</span>
-                                {c.clientSignature ? (
-                                  <Badge bg="success">Client signed</Badge>
-                                ) : (
-                                  <Badge bg="warning" text="dark">
-                                    Client pending
-                                  </Badge>
-                                )}
-                                {c.adminSignature ? (
-                                  <Badge bg="success">Admin signed</Badge>
-                                ) : (
-                                  <Badge bg="warning" text="dark">
-                                    Admin pending
-                                  </Badge>
-                                )}
+                              <div>
+                                <span className="fw-semibold">
+                                  {money(Number(d.amount || 0))}
+                                </span>
+                                {d.note ? (
+                                  <span className="text-muted small">
+                                    , {d.note}
+                                  </span>
+                                ) : null}
+                                {d.date ? (
+                                  <span className="text-muted small">
+                                    , {prettyDateTimeMMDDYY(d.date)}
+                                  </span>
+                                ) : null}
                               </div>
-
-                              {/* Right: actions */}
-                              <div className="d-flex gap-2 flex-shrink-0">
-                                <Button
-                                  size="sm"
-                                  variant="outline-secondary"
-                                  onClick={() =>
-                                    openViewContractAdmin(inq, c, false)
-                                  }
-                                >
-                                  View
-                                </Button>
-                                <Button
-                                  size="sm"
-                                  onClick={() =>
-                                    openViewContractAdmin(inq, c, true)
-                                  }
-                                >
-                                  Sign as admin
-                                </Button>
-                                <Button
-                                  size="sm"
-                                  variant="outline-danger"
-                                  onClick={() => removeContract(inq, c.id)}
-                                >
-                                  Remove
-                                </Button>
-                              </div>
+                              <Button
+                                size="sm"
+                                variant="outline-danger"
+                                onClick={() => removeDeposit(inq, d.id)}
+                                disabled={busy}
+                              >
+                                Remove
+                              </Button>
                             </li>
                           ))}
                         </ul>
                       )}
+
+                      <Row className="g-2 mt-1">
+                        <Col xs={6} md={3}>
+                          <InputGroup>
+                            <InputGroup.Text>$</InputGroup.Text>
+                            <Form.Control
+                              placeholder="0.00"
+                              inputMode="decimal"
+                              value={depositDraft[inq.id]?.amount || ""}
+                              onChange={(e) =>
+                                setDepositField(
+                                  inq.id,
+                                  "amount",
+                                  e.target.value
+                                )
+                              }
+                              disabled={busy}
+                            />
+                          </InputGroup>
+                        </Col>
+                        <Col xs={6} md={5}>
+                          <Form.Control
+                            placeholder="Note, optional"
+                            value={depositDraft[inq.id]?.note || ""}
+                            onChange={(e) =>
+                              setDepositField(inq.id, "note", e.target.value)
+                            }
+                            disabled={busy}
+                          />
+                        </Col>
+                        <Col xs={12} md="auto">
+                          <Button
+                            size="sm"
+                            onClick={() => addDeposit(inq)}
+                            disabled={busy}
+                          >
+                            Add deposit
+                          </Button>
+                        </Col>
+                      </Row>
+
+                      <div className="mt-2">
+                        <div className="d-flex justify-content-between">
+                          <span>Total deposits</span>
+                          <span>{money(depTotal)}</span>
+                        </div>
+                        <div className="d-flex justify-content-between fw-semibold">
+                          <span>Balance after deposits</span>
+                          <span>{money(remaining)}</span>
+                        </div>
+                      </div>
                     </div>
-                  </div>
 
-                  {/* Mobile collapsible, desktop expanded */}
-                  <div className="d-md-none">
-                    <Accordion alwaysOpen className="mt-3">
-                      <Accordion.Item eventKey="items">
-                        <Accordion.Header>Items</Accordion.Header>
-                        <Accordion.Body className="pt-3">
-                          {(inq.items || []).map((item, idx) => {
-                            const draft = itemDrafts[inq.id]?.[idx] || {};
-                            const media = Array.isArray(item.media)
-                              ? item.media
-                              : [];
-                            const cover = media[0];
-                            const lineTotal =
-                              Number(draft.price ?? item.price ?? 0) *
-                              Number(draft.quantity ?? item.quantity ?? 0);
+                    {/* Contracts */}
+                    <div className="mt-4">
+                      <div className="d-flex justify-content-between align-items-center">
+                        <div className="fw-semibold">Contracts</div>
+                        <Button
+                          size="sm"
+                          variant="outline-primary"
+                          onClick={() => openAddContract(inq)}
+                        >
+                          Add contract
+                        </Button>
+                      </div>
 
-                            return (
-                              <div
-                                key={`${inq.id}-${item.id || idx}`}
-                                className="mb-3"
+                      <div className="mt-2">
+                        {(inq.contracts || []).length === 0 ? (
+                          <div className="text-muted small">
+                            No contracts yet
+                          </div>
+                        ) : (
+                          <ul
+                            className="list-unstyled mb-0"
+                            style={{ overflow: "visible" }}
+                          >
+                            {inq.contracts.map((c) => (
+                              <li
+                                key={c.id}
+                                className="d-flex align-items-center justify-content-between flex-wrap gap-2 py-1"
                               >
-                                <div className="d-flex align-items-center gap-2">
-                                  {cover && cover.type !== "video" ? (
-                                    <Image
-                                      src={cover.url}
-                                      alt="thumb"
-                                      className="thumb"
-                                    />
+                                <div className="d-flex align-items-center flex-wrap gap-2">
+                                  <span className="fw-semibold">{c.title}</span>
+                                  {c.clientSignature ? (
+                                    <Badge bg="success">Client signed</Badge>
                                   ) : (
-                                    <div
-                                      className="thumb d-flex align-items-center justify-content-center bg-light text-muted"
-                                      style={{ fontSize: 10 }}
-                                    >
-                                      {cover ? "video" : "no media"}
-                                    </div>
+                                    <Badge bg="warning" text="dark">
+                                      Client pending
+                                    </Badge>
                                   )}
-                                  <div className="fw-semibold">{item.name}</div>
-                                  <Badge bg="light" text="dark">
-                                    {money(item.price)} x {item.quantity}
-                                  </Badge>
+                                  {c.adminSignature ? (
+                                    <Badge bg="success">Admin signed</Badge>
+                                  ) : (
+                                    <Badge bg="warning" text="dark">
+                                      Admin pending
+                                    </Badge>
+                                  )}
                                 </div>
 
-                                {item.description ? (
-                                  <div className="text-muted small mt-1">
-                                    {item.description}
-                                  </div>
-                                ) : null}
+                                <div className="d-flex gap-2 flex-shrink-0">
+                                  <Button
+                                    size="sm"
+                                    variant="outline-secondary"
+                                    onClick={() =>
+                                      openViewContractAdmin(inq, c, false)
+                                    }
+                                  >
+                                    View
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    onClick={() =>
+                                      openViewContractAdmin(inq, c, true)
+                                    }
+                                  >
+                                    Sign as admin
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="outline-danger"
+                                    onClick={() => removeContract(inq, c.id)}
+                                  >
+                                    Remove
+                                  </Button>
+                                </div>
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                      </div>
+                    </div>
 
-                                <Row className="g-2 mt-2">
-                                  <Col xs={6}>
-                                    <Form.Label className="mb-0 small">
-                                      Price
-                                    </Form.Label>
-                                    <InputGroup>
-                                      <InputGroup.Text>$</InputGroup.Text>
+                    {/* Mobile collapsible, desktop expanded, items and charges remain unchanged */}
+                    <div className="d-md-none">
+                      <Accordion alwaysOpen className="mt-3">
+                        <Accordion.Item eventKey="items">
+                          <Accordion.Header>Items</Accordion.Header>
+                          <Accordion.Body className="pt-3">
+                            {(inq.items || []).map((item, idx) => {
+                              const draft = itemDrafts[inq.id]?.[idx] || {};
+                              const media = Array.isArray(item.media)
+                                ? item.media
+                                : [];
+                              const cover = media[0];
+                              const lineTotal =
+                                Number(draft.price ?? item.price ?? 0) *
+                                Number(draft.quantity ?? item.quantity ?? 0);
+
+                              return (
+                                <div
+                                  key={`${inq.id}-${item.id || idx}`}
+                                  className="mb-3"
+                                >
+                                  <div className="d-flex align-items-center gap-2">
+                                    {cover && cover.type !== "video" ? (
+                                      <Image
+                                        src={cover.url}
+                                        alt="thumb"
+                                        className="thumb"
+                                      />
+                                    ) : (
+                                      <div
+                                        className="thumb d-flex align-items-center justify-content-center bg-light text-muted"
+                                        style={{ fontSize: 10 }}
+                                      >
+                                        {cover ? "video" : "no media"}
+                                      </div>
+                                    )}
+                                    <div className="fw-semibold">
+                                      {item.name}
+                                    </div>
+                                    <Badge bg="light" text="dark">
+                                      {money(item.price)} x {item.quantity}
+                                    </Badge>
+                                  </div>
+
+                                  {item.description ? (
+                                    <div className="text-muted small mt-1">
+                                      {item.description}
+                                    </div>
+                                  ) : null}
+
+                                  <Row className="g-2 mt-2">
+                                    <Col xs={6}>
+                                      <Form.Label className="mb-0 small">
+                                        Price
+                                      </Form.Label>
+                                      <InputGroup>
+                                        <InputGroup.Text>$</InputGroup.Text>
+                                        <Form.Control
+                                          type="text"
+                                          inputMode="decimal"
+                                          placeholder="0.00"
+                                          value={
+                                            draft.price ?? item.price ?? ""
+                                          }
+                                          onChange={(e) =>
+                                            setItemDraftField(
+                                              inq.id,
+                                              idx,
+                                              "price",
+                                              e.target.value
+                                            )
+                                          }
+                                          disabled={busy}
+                                        />
+                                      </InputGroup>
+                                    </Col>
+                                    <Col xs={6}>
+                                      <Form.Label className="mb-0 small">
+                                        Quantity
+                                      </Form.Label>
                                       <Form.Control
                                         type="text"
-                                        inputMode="decimal"
-                                        placeholder="0.00"
-                                        value={draft.price ?? item.price ?? ""}
+                                        inputMode="numeric"
+                                        placeholder="0"
+                                        value={
+                                          draft.quantity ?? item.quantity ?? ""
+                                        }
                                         onChange={(e) =>
                                           setItemDraftField(
                                             inq.id,
                                             idx,
-                                            "price",
+                                            "quantity",
                                             e.target.value
                                           )
                                         }
                                         disabled={busy}
                                       />
-                                    </InputGroup>
-                                  </Col>
-                                  <Col xs={6}>
-                                    <Form.Label className="mb-0 small">
-                                      Quantity
-                                    </Form.Label>
+                                    </Col>
+                                    <Col xs={12} className="d-flex gap-2 mt-1">
+                                      <div className="ms-auto small text-muted">
+                                        Line total: {money(lineTotal)}
+                                      </div>
+                                    </Col>
+                                    <Col
+                                      xs={12}
+                                      className="stack-on-xs d-flex gap-2"
+                                    >
+                                      <Button
+                                        size="sm"
+                                        className="text-nowrap"
+                                        onClick={() => submitItemRow(inq, idx)}
+                                        disabled={busy}
+                                      >
+                                        Update
+                                      </Button>
+                                      <Button
+                                        size="sm"
+                                        variant="outline-danger"
+                                        className="text-nowrap"
+                                        onClick={() => removeItem(inq, idx)}
+                                        disabled={busy}
+                                      >
+                                        Remove
+                                      </Button>
+                                    </Col>
+                                  </Row>
+                                </div>
+                              );
+                            })}
+
+                            {/* Add item, with catalog picker */}
+                            <div className="mt-2">
+                              <div className="fw-semibold mb-1">Add item</div>
+                              <Form.Group className="mb-2">
+                                <Form.Label className="mb-1">
+                                  Pick from catalog
+                                </Form.Label>
+                                <Form.Select
+                                  value={adding[inq.id]?.pickId || ""}
+                                  onChange={(e) =>
+                                    handlePickCatalog(inq.id, e.target.value)
+                                  }
+                                  disabled={busy}
+                                >
+                                  <option value="">Choose an item</option>
+                                  {catalog.map((r) => (
+                                    <option key={r.id} value={r.id}>
+                                      {r.name}
+                                      {r.price != null
+                                        ? `, ${money(r.price)}`
+                                        : ""}
+                                    </option>
+                                  ))}
+                                  <option value="__custom__">
+                                    Custom item
+                                  </option>
+                                </Form.Select>
+                              </Form.Group>
+
+                              <Row className="g-2">
+                                <Col xs={12}>
+                                  <Form.Control
+                                    placeholder="Name"
+                                    value={adding[inq.id]?.name || ""}
+                                    onChange={(e) =>
+                                      setAddingField(
+                                        inq.id,
+                                        "name",
+                                        e.target.value
+                                      )
+                                    }
+                                    disabled={busy}
+                                  />
+                                </Col>
+                                <Col xs={12}>
+                                  <Form.Control
+                                    placeholder="Description"
+                                    value={adding[inq.id]?.description || ""}
+                                    onChange={(e) =>
+                                      setAddingField(
+                                        inq.id,
+                                        "description",
+                                        e.target.value
+                                      )
+                                    }
+                                    disabled={busy}
+                                  />
+                                </Col>
+                                <Col xs={6}>
+                                  <InputGroup>
+                                    <InputGroup.Text>$</InputGroup.Text>
                                     <Form.Control
                                       type="text"
-                                      inputMode="numeric"
-                                      placeholder="0"
-                                      value={
-                                        draft.quantity ?? item.quantity ?? ""
-                                      }
+                                      inputMode="decimal"
+                                      placeholder="Price"
+                                      value={adding[inq.id]?.price || ""}
                                       onChange={(e) =>
-                                        setItemDraftField(
+                                        setAddingField(
                                           inq.id,
-                                          idx,
-                                          "quantity",
+                                          "price",
                                           e.target.value
                                         )
                                       }
                                       disabled={busy}
                                     />
-                                  </Col>
-                                  <Col xs={12} className="d-flex gap-2 mt-1">
-                                    <div className="ms-auto small text-muted">
-                                      Line total: {money(lineTotal)}
-                                    </div>
-                                  </Col>
-                                  <Col
-                                    xs={12}
-                                    className="stack-on-xs d-flex gap-2"
+                                  </InputGroup>
+                                </Col>
+                                <Col xs={6}>
+                                  <Form.Control
+                                    type="text"
+                                    inputMode="numeric"
+                                    placeholder="Qty"
+                                    value={adding[inq.id]?.quantity || ""}
+                                    onChange={(e) =>
+                                      setAddingField(
+                                        inq.id,
+                                        "quantity",
+                                        e.target.value
+                                      )
+                                    }
+                                    disabled={busy}
+                                  />
+                                </Col>
+                                <Col xs={12}>
+                                  <Button
+                                    className="w-100"
+                                    onClick={() => addItem(inq)}
+                                    disabled={busy || !adding[inq.id]?.name}
                                   >
-                                    <Button
-                                      size="sm"
-                                      className="text-nowrap"
-                                      onClick={() => submitItemRow(inq, idx)}
-                                      disabled={busy}
-                                    >
-                                      Update
-                                    </Button>
-                                    <Button
-                                      size="sm"
-                                      variant="outline-danger"
-                                      className="text-nowrap"
-                                      onClick={() => removeItem(inq, idx)}
-                                      disabled={busy}
-                                    >
-                                      Remove
-                                    </Button>
-                                  </Col>
-                                </Row>
-                              </div>
-                            );
-                          })}
+                                    Add
+                                  </Button>
+                                </Col>
+                              </Row>
+                            </div>
+                          </Accordion.Body>
+                        </Accordion.Item>
 
-                          {/* Add item, with catalog picker */}
-                          <div className="mt-2">
-                            <div className="fw-semibold mb-1">Add item</div>
-                            <Form.Group className="mb-2">
-                              <Form.Label className="mb-1">
-                                Pick from catalog
-                              </Form.Label>
-                              <Form.Select
-                                value={adding[inq.id]?.pickId || ""}
-                                onChange={(e) =>
-                                  handlePickCatalog(inq.id, e.target.value)
-                                }
-                                disabled={busy}
-                              >
-                                <option value="">Choose an item</option>
-                                {catalog.map((r) => (
-                                  <option key={r.id} value={r.id}>
-                                    {r.name}
-                                    {r.price != null
-                                      ? `, ${money(r.price)}`
-                                      : ""}
-                                  </option>
-                                ))}
-                                <option value="__custom__">Custom item</option>
-                              </Form.Select>
-                            </Form.Group>
-
+                        {/* Charges mobile */}
+                        <Accordion.Item eventKey="charges">
+                          <Accordion.Header>Charges</Accordion.Header>
+                          <Accordion.Body className="pt-3">
+                            {/* Discount */}
                             <Row className="g-2">
-                              <Col xs={12}>
-                                <Form.Control
-                                  placeholder="Name"
-                                  value={adding[inq.id]?.name || ""}
+                              <Col xs={12} sm={6}>
+                                <Form.Label className="fw-semibold mb-1">
+                                  Discount type
+                                </Form.Label>
+                                <Form.Select
+                                  value={
+                                    discountDraft[inq.id]?.type || "amount"
+                                  }
                                   onChange={(e) =>
-                                    setAddingField(
-                                      inq.id,
-                                      "name",
-                                      e.target.value
-                                    )
+                                    setDiscountDraft((s) => ({
+                                      ...s,
+                                      [inq.id]: {
+                                        ...(s[inq.id] || {}),
+                                        type: e.target.value,
+                                      },
+                                    }))
+                                  }
+                                  disabled={busy}
+                                >
+                                  <option value="amount">Amount, $</option>
+                                  <option value="percent">Percent, %</option>
+                                </Form.Select>
+                              </Col>
+                              <Col xs={12} sm={4}>
+                                <Form.Label className="fw-semibold mb-1">
+                                  Value
+                                </Form.Label>
+                                <Form.Control
+                                  type="text"
+                                  inputMode="decimal"
+                                  placeholder="0"
+                                  value={discountDraft[inq.id]?.value ?? ""}
+                                  onChange={(e) =>
+                                    setDiscountDraft((s) => ({
+                                      ...s,
+                                      [inq.id]: {
+                                        ...(s[inq.id] || {}),
+                                        value: e.target.value,
+                                      },
+                                    }))
                                   }
                                   disabled={busy}
                                 />
                               </Col>
-                              <Col xs={12}>
-                                <Form.Control
-                                  placeholder="Description"
-                                  value={adding[inq.id]?.description || ""}
-                                  onChange={(e) =>
-                                    setAddingField(
-                                      inq.id,
-                                      "description",
-                                      e.target.value
-                                    )
-                                  }
+                              <Col xs={12} sm={2} className="stack-on-xs">
+                                <Button
+                                  size="sm"
+                                  className="w-100 text-nowrap"
+                                  onClick={() => saveDiscount(inq)}
                                   disabled={busy}
-                                />
+                                >
+                                  Save
+                                </Button>
                               </Col>
-                              <Col xs={6}>
+                            </Row>
+
+                            {/* Taxes and travel */}
+                            <Row className="g-2 mt-2">
+                              <Col xs={12} sm={5}>
+                                <Form.Label className="fw-semibold mb-1">
+                                  Tax percent
+                                </Form.Label>
+                                <InputGroup>
+                                  <Form.Control
+                                    type="text"
+                                    inputMode="decimal"
+                                    placeholder="0"
+                                    value={taxDraft[inq.id] ?? ""}
+                                    onChange={(e) =>
+                                      setTaxDraft((s) => ({
+                                        ...s,
+                                        [inq.id]: e.target.value,
+                                      }))
+                                    }
+                                    disabled={busy}
+                                  />
+                                  <InputGroup.Text>%</InputGroup.Text>
+                                </InputGroup>
+                              </Col>
+                              <Col xs={12} sm={2} className="stack-on-xs">
+                                <Button
+                                  size="sm"
+                                  className="w-100 text-nowrap"
+                                  onClick={() => saveTax(inq)}
+                                  disabled={busy}
+                                >
+                                  Save
+                                </Button>
+                              </Col>
+
+                              <Col xs={12} sm={5}>
+                                <Form.Label className="fw-semibold mb-1">
+                                  Travel amount
+                                </Form.Label>
                                 <InputGroup>
                                   <InputGroup.Text>$</InputGroup.Text>
                                   <Form.Control
                                     type="text"
                                     inputMode="decimal"
-                                    placeholder="Price"
-                                    value={adding[inq.id]?.price || ""}
+                                    placeholder="0"
+                                    value={travelDraft[inq.id] ?? ""}
                                     onChange={(e) =>
-                                      setAddingField(
+                                      setTravelDraft((s) => ({
+                                        ...s,
+                                        [inq.id]: e.target.value,
+                                      }))
+                                    }
+                                    disabled={busy}
+                                  />
+                                </InputGroup>
+                              </Col>
+                              <Col xs={12} sm={2} className="stack-on-xs">
+                                <Button
+                                  size="sm"
+                                  className="w-100 text-nowrap"
+                                  onClick={() => saveTravel(inq)}
+                                  disabled={busy}
+                                >
+                                  Save
+                                </Button>
+                              </Col>
+                            </Row>
+
+                            {/* Fee */}
+                            <Row className="g-2 mt-2">
+                              <Col xs={12} sm={6}>
+                                <Form.Label className="fw-semibold mb-1">
+                                  Processing fee type
+                                </Form.Label>
+                                <Form.Select
+                                  value={feeDraft[inq.id]?.type || "amount"}
+                                  onChange={(e) =>
+                                    setFeeDraft((s) => ({
+                                      ...s,
+                                      [inq.id]: {
+                                        ...(s[inq.id] || {}),
+                                        type: e.target.value,
+                                      },
+                                    }))
+                                  }
+                                  disabled={busy}
+                                >
+                                  <option value="amount">Amount, $</option>
+                                  <option value="percent">Percent, %</option>
+                                </Form.Select>
+                              </Col>
+                              <Col xs={12} sm={4}>
+                                <Form.Label className="fw-semibold mb-1">
+                                  Value
+                                </Form.Label>
+                                <Form.Control
+                                  type="text"
+                                  inputMode="decimal"
+                                  placeholder="0"
+                                  value={feeDraft[inq.id]?.value ?? ""}
+                                  onChange={(e) =>
+                                    setFeeDraft((s) => ({
+                                      ...s,
+                                      [inq.id]: {
+                                        ...(s[inq.id] || {}),
+                                        value: e.target.value,
+                                      },
+                                    }))
+                                  }
+                                  disabled={busy}
+                                />
+                              </Col>
+                              <Col xs={12} sm={2} className="stack-on-xs">
+                                <Button
+                                  size="sm"
+                                  className="w-100 text-nowrap"
+                                  onClick={() => saveFee(inq)}
+                                  disabled={busy}
+                                >
+                                  Save
+                                </Button>
+                              </Col>
+                            </Row>
+
+                            {/* Totals */}
+                            <div className="mt-3 border-top pt-2">
+                              <div className="d-flex justify-content-between">
+                                <span>Subtotal</span>
+                                <span>{money(subtotal)}</span>
+                              </div>
+                              {discountApplied > 0 && (
+                                <div className="d-flex justify-content-between">
+                                  <span>Discount</span>
+                                  <span>{money(discountApplied)}</span>
+                                </div>
+                              )}
+                              {feeApplied > 0 && (
+                                <div className="d-flex justify-content-between">
+                                  <span>Processing fee</span>
+                                  <span>{money(feeApplied)}</span>
+                                </div>
+                              )}
+                              {travel > 0 && (
+                                <div className="d-flex justify-content-between">
+                                  <span>Travel</span>
+                                  <span>{money(travel)}</span>
+                                </div>
+                              )}
+
+                              {taxApplied > 0 && (
+                                <div className="d-flex justify-content-between">
+                                  <span>Tax</span>
+                                  <span>{money(taxApplied)}</span>
+                                </div>
+                              )}
+                              <div className="d-flex justify-content-between fw-semibold mt-1">
+                                <span>Total</span>
+                                <span>{money(total)}</span>
+                              </div>
+                            </div>
+                          </Accordion.Body>
+                        </Accordion.Item>
+                      </Accordion>
+                    </div>
+
+                    {/* Desktop items and charges */}
+                    <div className="d-none d-md-block">
+                      <div className="line my-3"></div>
+                      <div className="fw-semibold mb-2">Items</div>
+
+                      {(inq.items || []).map((item, idx) => {
+                        const draft = itemDrafts[inq.id]?.[idx] || {};
+                        const media = Array.isArray(item.media)
+                          ? item.media
+                          : [];
+                        const cover = media[0];
+                        const lineTotal =
+                          Number(draft.price ?? item.price ?? 0) *
+                          Number(draft.quantity ?? item.quantity ?? 0);
+
+                        return (
+                          <div
+                            key={`${inq.id}-${item.id || idx}`}
+                            className="mb-3"
+                          >
+                            <div className="d-flex align-items-center gap-2 mb-1">
+                              {cover && cover.type !== "video" ? (
+                                <Image
+                                  src={cover.url}
+                                  alt="thumb"
+                                  className="thumb"
+                                />
+                              ) : (
+                                <div
+                                  className="thumb d-flex align-items-center justify-content-center bg-light text-muted"
+                                  style={{ fontSize: 10 }}
+                                >
+                                  {cover ? "video" : "no media"}
+                                </div>
+                              )}
+                              <div className="fw-semibold">{item.name}</div>
+                              <Badge bg="light" text="dark">
+                                {money(item.price)} x {item.quantity}
+                              </Badge>
+                              <div className="ms-auto small text-muted">
+                                Line total: {money(lineTotal)}
+                              </div>
+                            </div>
+
+                            {item.description ? (
+                              <div className="text-muted small mb-2">
+                                {item.description}
+                              </div>
+                            ) : null}
+
+                            <Row className="g-2 align-items-end">
+                              <Col lg={5}>
+                                <Form.Label className="mb-0 small">
+                                  Price
+                                </Form.Label>
+                                <InputGroup>
+                                  <InputGroup.Text>$</InputGroup.Text>
+                                  <Form.Control
+                                    type="text"
+                                    inputMode="decimal"
+                                    placeholder="0.00"
+                                    value={draft.price ?? item.price ?? ""}
+                                    onChange={(e) =>
+                                      setItemDraftField(
                                         inq.id,
+                                        idx,
                                         "price",
                                         e.target.value
                                       )
@@ -853,15 +1566,19 @@ export default function Inquiries() {
                                   />
                                 </InputGroup>
                               </Col>
-                              <Col xs={6}>
+                              <Col lg={3}>
+                                <Form.Label className="mb-0 small">
+                                  Quantity
+                                </Form.Label>
                                 <Form.Control
                                   type="text"
                                   inputMode="numeric"
-                                  placeholder="Qty"
-                                  value={adding[inq.id]?.quantity || ""}
+                                  placeholder="0"
+                                  value={draft.quantity ?? item.quantity ?? ""}
                                   onChange={(e) =>
-                                    setAddingField(
+                                    setItemDraftField(
                                       inq.id,
+                                      idx,
                                       "quantity",
                                       e.target.value
                                     )
@@ -869,678 +1586,400 @@ export default function Inquiries() {
                                   disabled={busy}
                                 />
                               </Col>
-                              <Col xs={12}>
+                              <Col
+                                lg={4}
+                                className="d-flex gap-2 justify-content-end"
+                              >
                                 <Button
-                                  className="w-100"
-                                  onClick={() => addItem(inq)}
-                                  disabled={busy || !adding[inq.id]?.name}
+                                  size="sm"
+                                  className="text-nowrap"
+                                  onClick={() => submitItemRow(inq, idx)}
+                                  disabled={busy}
                                 >
-                                  Add
+                                  Update
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="outline-danger"
+                                  className="text-nowrap"
+                                  onClick={() => removeItem(inq, idx)}
+                                  disabled={busy}
+                                >
+                                  Remove
                                 </Button>
                               </Col>
                             </Row>
                           </div>
-                        </Accordion.Body>
-                      </Accordion.Item>
+                        );
+                      })}
 
-                      {/* Charges mobile */}
-                      <Accordion.Item eventKey="charges">
-                        <Accordion.Header>Charges</Accordion.Header>
-                        <Accordion.Body className="pt-3">
-                          {/* Discount */}
-                          <Row className="g-2">
-                            <Col xs={12} sm={6}>
-                              <Form.Label className="fw-semibold mb-1">
-                                Discount type
-                              </Form.Label>
-                              <Form.Select
-                                value={discountDraft[inq.id]?.type || "amount"}
-                                onChange={(e) =>
-                                  setDiscountDraft((s) => ({
-                                    ...s,
-                                    [inq.id]: {
-                                      ...(s[inq.id] || {}),
-                                      type: e.target.value,
-                                    },
-                                  }))
-                                }
-                                disabled={busy}
-                              >
-                                <option value="amount">Amount, $</option>
-                                <option value="percent">Percent, %</option>
-                              </Form.Select>
-                            </Col>
-                            <Col xs={12} sm={4}>
-                              <Form.Label className="fw-semibold mb-1">
-                                Value
-                              </Form.Label>
+                      {/* Add item with catalog picker */}
+                      <div className="mt-3">
+                        <div className="fw-semibold mb-1">Add item</div>
+                        <Row className="g-2 align-items-end">
+                          <Col lg={6}>
+                            <Form.Label className="mb-1">
+                              Pick from catalog
+                            </Form.Label>
+                            <Form.Select
+                              value={adding[inq.id]?.pickId || ""}
+                              onChange={(e) =>
+                                handlePickCatalog(inq.id, e.target.value)
+                              }
+                              disabled={busy}
+                            >
+                              <option value="">Choose an item</option>
+                              {catalog.map((r) => (
+                                <option key={r.id} value={r.id}>
+                                  {r.name}
+                                  {r.price != null ? `, ${money(r.price)}` : ""}
+                                </option>
+                              ))}
+                              <option value="__custom__">Custom item</option>
+                            </Form.Select>
+                          </Col>
+
+                          <Col lg={6}>
+                            <Form.Label className="mb-1">Name</Form.Label>
+                            <Form.Control
+                              placeholder="Name"
+                              value={adding[inq.id]?.name || ""}
+                              onChange={(e) =>
+                                setAddingField(inq.id, "name", e.target.value)
+                              }
+                              disabled={busy}
+                            />
+                          </Col>
+
+                          <Col lg={6}>
+                            <Form.Label className="mb-1">
+                              Description
+                            </Form.Label>
+                            <Form.Control
+                              placeholder="Description"
+                              value={adding[inq.id]?.description || ""}
+                              onChange={(e) =>
+                                setAddingField(
+                                  inq.id,
+                                  "description",
+                                  e.target.value
+                                )
+                              }
+                              disabled={busy}
+                            />
+                          </Col>
+
+                          <Col lg={3}>
+                            <Form.Label className="mb-1">Price</Form.Label>
+                            <InputGroup>
+                              <InputGroup.Text>$</InputGroup.Text>
                               <Form.Control
                                 type="text"
                                 inputMode="decimal"
-                                placeholder="0"
-                                value={discountDraft[inq.id]?.value ?? ""}
+                                placeholder="0.00"
+                                value={adding[inq.id]?.price || ""}
                                 onChange={(e) =>
-                                  setDiscountDraft((s) => ({
-                                    ...s,
-                                    [inq.id]: {
-                                      ...(s[inq.id] || {}),
-                                      value: e.target.value,
-                                    },
-                                  }))
-                                }
-                                disabled={busy}
-                              />
-                            </Col>
-                            <Col xs={12} sm={2} className="stack-on-xs">
-                              <Button
-                                size="sm"
-                                className="w-100 text-nowrap"
-                                onClick={() => saveDiscount(inq)}
-                                disabled={busy}
-                              >
-                                Save
-                              </Button>
-                            </Col>
-                          </Row>
-
-                          {/* Taxes and travel */}
-                          <Row className="g-2 mt-2">
-                            <Col xs={12} sm={5}>
-                              <Form.Label className="fw-semibold mb-1">
-                                Tax percent
-                              </Form.Label>
-                              <InputGroup>
-                                <Form.Control
-                                  type="text"
-                                  inputMode="decimal"
-                                  placeholder="0"
-                                  value={taxDraft[inq.id] ?? ""}
-                                  onChange={(e) =>
-                                    setTaxDraft((s) => ({
-                                      ...s,
-                                      [inq.id]: e.target.value,
-                                    }))
-                                  }
-                                  disabled={busy}
-                                />
-                                <InputGroup.Text>%</InputGroup.Text>
-                              </InputGroup>
-                            </Col>
-                            <Col xs={12} sm={2} className="stack-on-xs">
-                              <Button
-                                size="sm"
-                                className="w-100 text-nowrap"
-                                onClick={() => saveTax(inq)}
-                                disabled={busy}
-                              >
-                                Save
-                              </Button>
-                            </Col>
-
-                            <Col xs={12} sm={5}>
-                              <Form.Label className="fw-semibold mb-1">
-                                Travel amount
-                              </Form.Label>
-                              <InputGroup>
-                                <InputGroup.Text>$</InputGroup.Text>
-                                <Form.Control
-                                  type="text"
-                                  inputMode="decimal"
-                                  placeholder="0"
-                                  value={travelDraft[inq.id] ?? ""}
-                                  onChange={(e) =>
-                                    setTravelDraft((s) => ({
-                                      ...s,
-                                      [inq.id]: e.target.value,
-                                    }))
-                                  }
-                                  disabled={busy}
-                                />
-                              </InputGroup>
-                            </Col>
-                            <Col xs={12} sm={2} className="stack-on-xs">
-                              <Button
-                                size="sm"
-                                className="w-100 text-nowrap"
-                                onClick={() => saveTravel(inq)}
-                                disabled={busy}
-                              >
-                                Save
-                              </Button>
-                            </Col>
-                          </Row>
-
-                          {/* Fee */}
-                          <Row className="g-2 mt-2">
-                            <Col xs={12} sm={6}>
-                              <Form.Label className="fw-semibold mb-1">
-                                Processing fee type
-                              </Form.Label>
-                              <Form.Select
-                                value={feeDraft[inq.id]?.type || "amount"}
-                                onChange={(e) =>
-                                  setFeeDraft((s) => ({
-                                    ...s,
-                                    [inq.id]: {
-                                      ...(s[inq.id] || {}),
-                                      type: e.target.value,
-                                    },
-                                  }))
-                                }
-                                disabled={busy}
-                              >
-                                <option value="amount">Amount, $</option>
-                                <option value="percent">Percent, %</option>
-                              </Form.Select>
-                            </Col>
-                            <Col xs={12} sm={4}>
-                              <Form.Label className="fw-semibold mb-1">
-                                Value
-                              </Form.Label>
-                              <Form.Control
-                                type="text"
-                                inputMode="decimal"
-                                placeholder="0"
-                                value={feeDraft[inq.id]?.value ?? ""}
-                                onChange={(e) =>
-                                  setFeeDraft((s) => ({
-                                    ...s,
-                                    [inq.id]: {
-                                      ...(s[inq.id] || {}),
-                                      value: e.target.value,
-                                    },
-                                  }))
-                                }
-                                disabled={busy}
-                              />
-                            </Col>
-                            <Col xs={12} sm={2} className="stack-on-xs">
-                              <Button
-                                size="sm"
-                                className="w-100 text-nowrap"
-                                onClick={() => saveFee(inq)}
-                                disabled={busy}
-                              >
-                                Save
-                              </Button>
-                            </Col>
-                          </Row>
-
-                          {/* Totals */}
-                          <div className="mt-3 border-top pt-2">
-                            <div className="d-flex justify-content-between">
-                              <span>Subtotal</span>
-                              <span>{money(subtotal)}</span>
-                            </div>
-                            {discountApplied > 0 && (
-                              <div className="d-flex justify-content-between">
-                                <span>Discount</span>
-                                <span>{money(discountApplied)}</span>
-                              </div>
-                            )}
-                            {feeApplied > 0 && (
-                              <div className="d-flex justify-content-between">
-                                <span>Processing fee</span>
-                                <span>{money(feeApplied)}</span>
-                              </div>
-                            )}
-                            {travel > 0 && (
-                              <div className="d-flex justify-content-between">
-                                <span>Travel</span>
-                                <span>{money(travel)}</span>
-                              </div>
-                            )}
-
-                            {taxApplied > 0 && (
-                              <div className="d-flex justify-content-between">
-                                <span>Tax</span>
-                                <span>{money(taxApplied)}</span>
-                              </div>
-                            )}
-                            <div className="d-flex justify-content-between fw-semibold mt-1">
-                              <span>Total</span>
-                              <span>{money(total)}</span>
-                            </div>
-                          </div>
-                        </Accordion.Body>
-                      </Accordion.Item>
-                    </Accordion>
-                  </div>
-
-                  {/* Desktop expanded */}
-                  <div className="d-none d-md-block">
-                    <div className="line my-3"></div>
-                    <div className="fw-semibold mb-2">Items</div>
-
-                    {(inq.items || []).map((item, idx) => {
-                      const draft = itemDrafts[inq.id]?.[idx] || {};
-                      const media = Array.isArray(item.media) ? item.media : [];
-                      const cover = media[0];
-                      const lineTotal =
-                        Number(draft.price ?? item.price ?? 0) *
-                        Number(draft.quantity ?? item.quantity ?? 0);
-
-                      return (
-                        <div
-                          key={`${inq.id}-${item.id || idx}`}
-                          className="mb-3"
-                        >
-                          <div className="d-flex align-items-center gap-2 mb-1">
-                            {cover && cover.type !== "video" ? (
-                              <Image
-                                src={cover.url}
-                                alt="thumb"
-                                className="thumb"
-                              />
-                            ) : (
-                              <div
-                                className="thumb d-flex align-items-center justify-content-center bg-light text-muted"
-                                style={{ fontSize: 10 }}
-                              >
-                                {cover ? "video" : "no media"}
-                              </div>
-                            )}
-                            <div className="fw-semibold">{item.name}</div>
-                            <Badge bg="light" text="dark">
-                              {money(item.price)} x {item.quantity}
-                            </Badge>
-                            <div className="ms-auto small text-muted">
-                              Line total: {money(lineTotal)}
-                            </div>
-                          </div>
-
-                          {item.description ? (
-                            <div className="text-muted small mb-2">
-                              {item.description}
-                            </div>
-                          ) : null}
-
-                          <Row className="g-2 align-items-end">
-                            <Col lg={5}>
-                              <Form.Label className="mb-0 small">
-                                Price
-                              </Form.Label>
-                              <InputGroup>
-                                <InputGroup.Text>$</InputGroup.Text>
-                                <Form.Control
-                                  type="text"
-                                  inputMode="decimal"
-                                  placeholder="0.00"
-                                  value={draft.price ?? item.price ?? ""}
-                                  onChange={(e) =>
-                                    setItemDraftField(
-                                      inq.id,
-                                      idx,
-                                      "price",
-                                      e.target.value
-                                    )
-                                  }
-                                  disabled={busy}
-                                />
-                              </InputGroup>
-                            </Col>
-                            <Col lg={3}>
-                              <Form.Label className="mb-0 small">
-                                Quantity
-                              </Form.Label>
-                              <Form.Control
-                                type="text"
-                                inputMode="numeric"
-                                placeholder="0"
-                                value={draft.quantity ?? item.quantity ?? ""}
-                                onChange={(e) =>
-                                  setItemDraftField(
+                                  setAddingField(
                                     inq.id,
-                                    idx,
-                                    "quantity",
+                                    "price",
                                     e.target.value
                                   )
                                 }
                                 disabled={busy}
                               />
-                            </Col>
-                            <Col
-                              lg={4}
-                              className="d-flex gap-2 justify-content-end"
-                            >
-                              <Button
-                                size="sm"
-                                className="text-nowrap"
-                                onClick={() => submitItemRow(inq, idx)}
-                                disabled={busy}
-                              >
-                                Update
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="outline-danger"
-                                className="text-nowrap"
-                                onClick={() => removeItem(inq, idx)}
-                                disabled={busy}
-                              >
-                                Remove
-                              </Button>
-                            </Col>
-                          </Row>
-                        </div>
-                      );
-                    })}
+                            </InputGroup>
+                          </Col>
 
-                    {/* Add item with catalog picker */}
-                    <div className="mt-3">
-                      <div className="fw-semibold mb-1">Add item</div>
+                          <Col lg={2}>
+                            <Form.Label className="mb-1">Qty</Form.Label>
+                            <Form.Control
+                              type="text"
+                              inputMode="numeric"
+                              placeholder="1"
+                              value={adding[inq.id]?.quantity || ""}
+                              onChange={(e) =>
+                                setAddingField(
+                                  inq.id,
+                                  "quantity",
+                                  e.target.value
+                                )
+                              }
+                              disabled={busy}
+                            />
+                          </Col>
+
+                          <Col lg={1} className="d-flex justify-content-end">
+                            <Button
+                              size="sm"
+                              className="text-nowrap mt-4"
+                              onClick={() => addItem(inq)}
+                              disabled={busy || !adding[inq.id]?.name}
+                            >
+                              Add
+                            </Button>
+                          </Col>
+                        </Row>
+                      </div>
+
+                      <div className="line my-3"></div>
+
+                      {/* Charges desktop */}
                       <Row className="g-2 align-items-end">
-                        <Col lg={6}>
-                          <Form.Label className="mb-1">
-                            Pick from catalog
+                        <Col lg={4}>
+                          <Form.Label className="fw-semibold mb-1">
+                            Discount type
                           </Form.Label>
                           <Form.Select
-                            value={adding[inq.id]?.pickId || ""}
+                            value={discountDraft[inq.id]?.type || "amount"}
                             onChange={(e) =>
-                              handlePickCatalog(inq.id, e.target.value)
+                              setDiscountDraft((s) => ({
+                                ...s,
+                                [inq.id]: {
+                                  ...(s[inq.id] || {}),
+                                  type: e.target.value,
+                                },
+                              }))
                             }
                             disabled={busy}
                           >
-                            <option value="">Choose an item</option>
-                            {catalog.map((r) => (
-                              <option key={r.id} value={r.id}>
-                                {r.name}
-                                {r.price != null ? `, ${money(r.price)}` : ""}
-                              </option>
-                            ))}
-                            <option value="__custom__">Custom item</option>
+                            <option value="amount">Amount, $</option>
+                            <option value="percent">Percent, %</option>
                           </Form.Select>
                         </Col>
-
-                        <Col lg={6}>
-                          <Form.Label className="mb-1">Name</Form.Label>
-                          <Form.Control
-                            placeholder="Name"
-                            value={adding[inq.id]?.name || ""}
-                            onChange={(e) =>
-                              setAddingField(inq.id, "name", e.target.value)
-                            }
-                            disabled={busy}
-                          />
-                        </Col>
-
-                        <Col lg={6}>
-                          <Form.Label className="mb-1">Description</Form.Label>
-                          <Form.Control
-                            placeholder="Description"
-                            value={adding[inq.id]?.description || ""}
-                            onChange={(e) =>
-                              setAddingField(
-                                inq.id,
-                                "description",
-                                e.target.value
-                              )
-                            }
-                            disabled={busy}
-                          />
-                        </Col>
-
                         <Col lg={3}>
-                          <Form.Label className="mb-1">Price</Form.Label>
+                          <Form.Label className="fw-semibold mb-1">
+                            Value
+                          </Form.Label>
+                          <Form.Control
+                            type="text"
+                            inputMode="decimal"
+                            placeholder="0"
+                            value={discountDraft[inq.id]?.value ?? ""}
+                            onChange={(e) =>
+                              setDiscountDraft((s) => ({
+                                ...s,
+                                [inq.id]: {
+                                  ...(s[inq.id] || {}),
+                                  value: e.target.value,
+                                },
+                              }))
+                            }
+                            disabled={busy}
+                          />
+                        </Col>
+                        <Col lg={2} className="d-flex justify-content-end">
+                          <Button
+                            size="sm"
+                            className="text-nowrap"
+                            onClick={() => saveDiscount(inq)}
+                            disabled={busy}
+                          >
+                            Save
+                          </Button>
+                        </Col>
+
+                        <Col lg={3} />
+
+                        <Col lg={4}>
+                          <Form.Label className="fw-semibold mb-1">
+                            Tax percent
+                          </Form.Label>
+                          <InputGroup>
+                            <Form.Control
+                              type="text"
+                              inputMode="decimal"
+                              placeholder="0"
+                              value={taxDraft[inq.id] ?? ""}
+                              onChange={(e) =>
+                                setTaxDraft((s) => ({
+                                  ...s,
+                                  [inq.id]: e.target.value,
+                                }))
+                              }
+                              disabled={busy}
+                            />
+                            <InputGroup.Text>%</InputGroup.Text>
+                          </InputGroup>
+                        </Col>
+                        <Col lg={2} className="d-flex justify-content-end">
+                          <Button
+                            size="sm"
+                            className="text-nowrap"
+                            onClick={() => saveTax(inq)}
+                            disabled={busy}
+                          >
+                            Save
+                          </Button>
+                        </Col>
+
+                        <Col lg={4}>
+                          <Form.Label className="fw-semibold mb-1">
+                            Travel amount
+                          </Form.Label>
                           <InputGroup>
                             <InputGroup.Text>$</InputGroup.Text>
                             <Form.Control
                               type="text"
                               inputMode="decimal"
-                              placeholder="0.00"
-                              value={adding[inq.id]?.price || ""}
+                              placeholder="0"
+                              value={travelDraft[inq.id] ?? ""}
                               onChange={(e) =>
-                                setAddingField(inq.id, "price", e.target.value)
+                                setTravelDraft((s) => ({
+                                  ...s,
+                                  [inq.id]: e.target.value,
+                                }))
                               }
                               disabled={busy}
                             />
                           </InputGroup>
                         </Col>
+                        <Col lg={2} className="d-flex justify-content-end">
+                          <Button
+                            size="sm"
+                            className="text-nowrap"
+                            onClick={() => saveTravel(inq)}
+                            disabled={busy}
+                          >
+                            Save
+                          </Button>
+                        </Col>
 
-                        <Col lg={2}>
-                          <Form.Label className="mb-1">Qty</Form.Label>
+                        <Col lg={4}>
+                          <Form.Label className="fw-semibold mb-1">
+                            Processing fee type
+                          </Form.Label>
+                          <Form.Select
+                            value={feeDraft[inq.id]?.type || "amount"}
+                            onChange={(e) =>
+                              setFeeDraft((s) => ({
+                                ...s,
+                                [inq.id]: {
+                                  ...(s[inq.id] || {}),
+                                  type: e.target.value,
+                                },
+                              }))
+                            }
+                            disabled={busy}
+                          >
+                            <option value="amount">Amount, $</option>
+                            <option value="percent">Percent, %</option>
+                          </Form.Select>
+                        </Col>
+                        <Col lg={3}>
+                          <Form.Label className="fw-semibold mb-1">
+                            Value
+                          </Form.Label>
                           <Form.Control
                             type="text"
-                            inputMode="numeric"
-                            placeholder="1"
-                            value={adding[inq.id]?.quantity || ""}
+                            inputMode="decimal"
+                            placeholder="0"
+                            value={feeDraft[inq.id]?.value ?? ""}
                             onChange={(e) =>
-                              setAddingField(inq.id, "quantity", e.target.value)
+                              setFeeDraft((s) => ({
+                                ...s,
+                                [inq.id]: {
+                                  ...(s[inq.id] || {}),
+                                  value: e.target.value,
+                                },
+                              }))
                             }
                             disabled={busy}
                           />
                         </Col>
-
-                        <Col lg={1} className="d-flex justify-content-end">
+                        <Col lg={2} className="d-flex justify-content-end">
                           <Button
                             size="sm"
-                            className="text-nowrap mt-4"
-                            onClick={() => addItem(inq)}
-                            disabled={busy || !adding[inq.id]?.name}
+                            className="text-nowrap"
+                            onClick={() => saveFee(inq)}
+                            disabled={busy}
                           >
-                            Add
+                            Save
                           </Button>
                         </Col>
                       </Row>
-                    </div>
 
-                    <div className="line my-3"></div>
-
-                    {/* Charges desktop */}
-                    <Row className="g-2 align-items-end">
-                      <Col lg={4}>
-                        <Form.Label className="fw-semibold mb-1">
-                          Discount type
-                        </Form.Label>
-                        <Form.Select
-                          value={discountDraft[inq.id]?.type || "amount"}
-                          onChange={(e) =>
-                            setDiscountDraft((s) => ({
-                              ...s,
-                              [inq.id]: {
-                                ...(s[inq.id] || {}),
-                                type: e.target.value,
-                              },
-                            }))
-                          }
-                          disabled={busy}
-                        >
-                          <option value="amount">Amount, $</option>
-                          <option value="percent">Percent, %</option>
-                        </Form.Select>
-                      </Col>
-                      <Col lg={3}>
-                        <Form.Label className="fw-semibold mb-1">
-                          Value
-                        </Form.Label>
-                        <Form.Control
-                          type="text"
-                          inputMode="decimal"
-                          placeholder="0"
-                          value={discountDraft[inq.id]?.value ?? ""}
-                          onChange={(e) =>
-                            setDiscountDraft((s) => ({
-                              ...s,
-                              [inq.id]: {
-                                ...(s[inq.id] || {}),
-                                value: e.target.value,
-                              },
-                            }))
-                          }
-                          disabled={busy}
-                        />
-                      </Col>
-                      <Col lg={2} className="d-flex justify-content-end">
-                        <Button
-                          size="sm"
-                          className="text-nowrap"
-                          onClick={() => saveDiscount(inq)}
-                          disabled={busy}
-                        >
-                          Save
-                        </Button>
-                      </Col>
-
-                      <Col lg={3} />
-
-                      <Col lg={4}>
-                        <Form.Label className="fw-semibold mb-1">
-                          Tax percent
-                        </Form.Label>
-                        <InputGroup>
-                          <Form.Control
-                            type="text"
-                            inputMode="decimal"
-                            placeholder="0"
-                            value={taxDraft[inq.id] ?? ""}
-                            onChange={(e) =>
-                              setTaxDraft((s) => ({
-                                ...s,
-                                [inq.id]: e.target.value,
-                              }))
-                            }
-                            disabled={busy}
-                          />
-                          <InputGroup.Text>%</InputGroup.Text>
-                        </InputGroup>
-                      </Col>
-                      <Col lg={2} className="d-flex justify-content-end">
-                        <Button
-                          size="sm"
-                          className="text-nowrap"
-                          onClick={() => saveTax(inq)}
-                          disabled={busy}
-                        >
-                          Save
-                        </Button>
-                      </Col>
-
-                      <Col lg={4}>
-                        <Form.Label className="fw-semibold mb-1">
-                          Travel amount
-                        </Form.Label>
-                        <InputGroup>
-                          <InputGroup.Text>$</InputGroup.Text>
-                          <Form.Control
-                            type="text"
-                            inputMode="decimal"
-                            placeholder="0"
-                            value={travelDraft[inq.id] ?? ""}
-                            onChange={(e) =>
-                              setTravelDraft((s) => ({
-                                ...s,
-                                [inq.id]: e.target.value,
-                              }))
-                            }
-                            disabled={busy}
-                          />
-                        </InputGroup>
-                      </Col>
-                      <Col lg={2} className="d-flex justify-content-end">
-                        <Button
-                          size="sm"
-                          className="text-nowrap"
-                          onClick={() => saveTravel(inq)}
-                          disabled={busy}
-                        >
-                          Save
-                        </Button>
-                      </Col>
-
-                      <Col lg={4}>
-                        <Form.Label className="fw-semibold mb-1">
-                          Processing fee type
-                        </Form.Label>
-                        <Form.Select
-                          value={feeDraft[inq.id]?.type || "amount"}
-                          onChange={(e) =>
-                            setFeeDraft((s) => ({
-                              ...s,
-                              [inq.id]: {
-                                ...(s[inq.id] || {}),
-                                type: e.target.value,
-                              },
-                            }))
-                          }
-                          disabled={busy}
-                        >
-                          <option value="amount">Amount, $</option>
-                          <option value="percent">Percent, %</option>
-                        </Form.Select>
-                      </Col>
-                      <Col lg={3}>
-                        <Form.Label className="fw-semibold mb-1">
-                          Value
-                        </Form.Label>
-                        <Form.Control
-                          type="text"
-                          inputMode="decimal"
-                          placeholder="0"
-                          value={feeDraft[inq.id]?.value ?? ""}
-                          onChange={(e) =>
-                            setFeeDraft((s) => ({
-                              ...s,
-                              [inq.id]: {
-                                ...(s[inq.id] || {}),
-                                value: e.target.value,
-                              },
-                            }))
-                          }
-                          disabled={busy}
-                        />
-                      </Col>
-                      <Col lg={2} className="d-flex justify-content-end">
-                        <Button
-                          size="sm"
-                          className="text-nowrap"
-                          onClick={() => saveFee(inq)}
-                          disabled={busy}
-                        >
-                          Save
-                        </Button>
-                      </Col>
-                    </Row>
-
-                    {/* Totals */}
-                    <div className="mt-3 text-end">
-                      <div className="small text-muted">
-                        Subtotal: {money(subtotal)}
-                      </div>
-                      {discountApplied > 0 && (
+                      {/* Totals */}
+                      <div className="mt-3 text-end">
                         <div className="small text-muted">
-                          Discount: {money(discountApplied)}
+                          Subtotal: {money(subtotal)}
                         </div>
-                      )}
-                      {feeApplied > 0 && (
+                        {discountApplied > 0 && (
+                          <div className="small text-muted">
+                            Discount: {money(discountApplied)}
+                          </div>
+                        )}
+                        {feeApplied > 0 && (
+                          <div className="small text-muted">
+                            Processing fee: {money(feeApplied)}
+                          </div>
+                        )}
+                        {travel > 0 && (
+                          <div className="small text-muted">
+                            Travel: {money(travel)}
+                          </div>
+                        )}
                         <div className="small text-muted">
-                          Processing fee: {money(feeApplied)}
+                          Net Total:{" "}
+                          {money(baseAfterDiscount + feeApplied + travel)}
                         </div>
-                      )}
-                      {travel > 0 && (
-                        <div className="small text-muted">
-                          Travel: {money(travel)}
+                        {taxApplied > 0 && (
+                          <div className="small text-muted">
+                            Tax: {money(taxApplied)}
+                          </div>
+                        )}
+                        <div className="fw-semibold fs-5">
+                          Total: {money(total)}
                         </div>
-                      )}
-                      <div className="small text-muted">
-                        Net Total:{" "}
-                        {money(baseAfterDiscount + feeApplied + travel)}
-                      </div>
-                      {taxApplied > 0 && (
-                        <div className="small text-muted">
-                          Tax: {money(taxApplied)}
-                        </div>
-                      )}
-                      <div className="fw-semibold fs-5">
-                        Total: {money(total)}
                       </div>
                     </div>
-                  </div>
-                </Card.Body>
+                  </Card.Body>
+                ) : null}
               </Card>
             </Col>
           );
         })}
       </Row>
+
+      {/* Completed section */}
+      <div className="mt-4">
+        <h4 className="mb-2">Completed</h4>
+        <Row xs={1} sm={1} md={1} lg={2} xl={3} className="g-3">
+          {completedList.map((inq) => {
+            const { total } = calcTotals(inq);
+            const dateStr = prettyDateTimeFromTs(inq?.timestamp);
+            return (
+              <Col key={inq.id}>
+                <Card className="shadow-sm h-100 border-0">
+                  <Card.Header
+                    role="button"
+                    onClick={() => toggleExpanded(inq.id)}
+                    className="d-flex justify-content-between align-items-center"
+                  >
+                    <div>
+                      <div className="fw-semibold">{inq.name || "Unknown"}</div>
+                      <div className="small text-muted">{dateStr}</div>
+                    </div>
+                    <div className="d-flex align-items-center gap-2">
+                      <Badge bg="light" text="dark">
+                        {money(total)}
+                      </Badge>
+                      <Badge bg="secondary">{inq.status || "Completed"}</Badge>
+                    </div>
+                  </Card.Header>
+
+                  {expanded[inq.id] ? (
+                    <Card.Body>
+                      <ContactBlock inq={inq} />
+                      <EventSchedule inq={inq} />
+                    </Card.Body>
+                  ) : null}
+                </Card>
+              </Col>
+            );
+          })}
+        </Row>
+      </div>
+
       <ContractModal
         show={showContract}
         onHide={() => setShowContract(false)}
