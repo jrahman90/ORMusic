@@ -68,7 +68,39 @@ export function buildContractHtml(inquiryArg) {
             const price = Number(it?.price || 0);
             const amount = qty * price;
             return `<tr style="border-top:1px solid #edf0f2;">
-              <td style="padding:.5rem;">${esc(it?.name || "Item")}</td>
+              <td style="padding:.5rem;">
+                <div>
+                  <div>${esc(it?.name || "Item")}</div>
+                  ${
+                    it?.description
+                      ? `<div style="color:#6c757d; font-size:12px; line-height:1.45; margin-top:4px;">
+                          ${esc(it.description)}
+                        </div>`
+                      : ""
+                  }
+                  ${
+                    Array.isArray(it?.media) && it.media.length
+                      ? `<div style="display:flex; flex-wrap:wrap; gap:6px; margin-top:8px;">
+                          ${it.media
+                            .filter(
+                              (m) =>
+                                m &&
+                                m.url &&
+                                String(m.type || "image").toLowerCase() !==
+                                  "video"
+                            )
+                            .map(
+                              (m) =>
+                                `<img src="${esc(
+                                  m.url
+                                )}" alt="" style="max-height:90px; width:auto; border:1px solid #eee; border-radius:6px;" />`
+                            )
+                            .join("")}
+                        </div>`
+                      : ""
+                  }
+                </div>
+              </td>
               <td style="padding:.5rem; text-align:right;">${qty}</td>
               <td style="padding:.5rem; text-align:right;">${money(price)}</td>
               <td style="padding:.5rem; text-align:right; font-weight:600;">${money(

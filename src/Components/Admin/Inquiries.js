@@ -1969,8 +1969,88 @@ export default function Inquiries() {
 
                   {expanded[inq.id] ? (
                     <Card.Body>
+                      {/* Admin can change status while in Completed */}
+                      <Form.Group className="mb-3">
+                        <Form.Label className="fw-semibold">Status</Form.Label>
+                        <Form.Select
+                          value={inq.status || "Completed"}
+                          onChange={(e) => saveStatus(inq, e.target.value)}
+                          disabled={Boolean(saving[inq.id])}
+                        >
+                          {statusOptions.map((s) => (
+                            <option key={s} value={s}>
+                              {s}
+                            </option>
+                          ))}
+                        </Form.Select>
+                      </Form.Group>
+
                       <ContactBlock inq={inq} />
                       <EventSchedule inq={inq} />
+
+                      {/* Contracts, with View and Download options */}
+                      <div className="mt-3">
+                        <div className="fw-semibold">Contracts</div>
+                        <div className="mt-2">
+                          {(inq.contracts || []).length === 0 ? (
+                            <div className="text-muted small">
+                              No contracts yet
+                            </div>
+                          ) : (
+                            <ul className="list-unstyled mb-0">
+                              {inq.contracts.map((c) => {
+                                const dlUrl =
+                                  c?.downloadUrl ||
+                                  c?.fileUrl ||
+                                  c?.pdfUrl ||
+                                  c?.url ||
+                                  "";
+                                return (
+                                  <li
+                                    key={c.id}
+                                    className="d-flex align-items-center justify-content-between flex-wrap gap-2 py-1"
+                                  >
+                                    <div className="d-flex align-items-center flex-wrap gap-2">
+                                      <span className="fw-semibold">
+                                        {c.title}
+                                      </span>
+                                      {c.clientSignature ? (
+                                        <Badge bg="success">
+                                          Client signed
+                                        </Badge>
+                                      ) : (
+                                        <Badge bg="warning" text="dark">
+                                          Client pending
+                                        </Badge>
+                                      )}
+                                      {c.adminSignature ? (
+                                        <Badge bg="success">Admin signed</Badge>
+                                      ) : (
+                                        <Badge bg="warning" text="dark">
+                                          Admin pending
+                                        </Badge>
+                                      )}
+                                    </div>
+
+                                    <div className="d-flex gap-2 flex-shrink-0">
+                                      {/* View in Contract Modal */}
+                                      <Button
+                                        size="sm"
+                                        variant="outline-secondary"
+                                        onClick={() =>
+                                          openViewContractAdmin(inq, c, false)
+                                        }
+                                      >
+                                        View
+                                      </Button>
+                                    </div>
+                                  </li>
+                                );
+                              })}
+                            </ul>
+                          )}
+                        </div>
+                      </div>
                     </Card.Body>
                   ) : null}
                 </Card>
