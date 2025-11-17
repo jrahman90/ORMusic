@@ -32,6 +32,66 @@ function App() {
   const db = firestore;
   const location = useLocation();
 
+  // basic SEO config per route
+  const seoConfig = {
+    "/": {
+      title:
+        "OR Music Events | DJ, MC, Lighting and Event Production in New York City",
+      description:
+        "OR Music Events provides professional DJ, MC, lighting, stage design and event production services for weddings, corporate events and private parties in New York City.",
+    },
+    "/contact": {
+      title: "Contact OR Music Events | Book Your DJ and Event Production",
+      description:
+        "Get in touch with OR Music Events to book professional DJ, MC, lighting and event production services for your wedding, corporate event or private party.",
+    },
+    "/DJMC": {
+      title: "DJ and MC Services | OR Music Events New York City",
+      description:
+        "High energy DJ and professional MC services for weddings, corporate events and private parties in New York City and surrounding states.",
+    },
+    "/RentalItems": {
+      title: "Event Rentals | Sound, Lighting and Screens | OR Music Events",
+      description:
+        "Rent speakers, microphones, projectors, screens, lighting and more from OR Music Events for your next event.",
+    },
+    "/MusicVideos": {
+      title: "Music Videos | OR Music Events",
+      description:
+        "Watch music videos and creative projects produced by OR Music Events.",
+    },
+    "/Music": {
+      title: "Music by OR Music Events",
+      description:
+        "Listen to music and mixes by OR Music Events and discover the sounds behind our events.",
+    },
+    "/Cart": {
+      title: "Your Cart | OR Music Events Rentals",
+      description:
+        "Review and update your rental cart for event equipment from OR Music Events.",
+    },
+    "/eventure-terms-conditions": {
+      title: "Eventure Terms and Conditions | OR Music Events",
+      description:
+        "Read the Eventure terms and conditions for using the platform and working with OR Music Events.",
+    },
+  };
+
+  // update title and meta description when route changes
+  useEffect(() => {
+    const seo = seoConfig[location.pathname];
+    if (seo) {
+      document.title = seo.title;
+      const metaDesc = document.querySelector('meta[name="description"]');
+      if (metaDesc) {
+        metaDesc.setAttribute("content", seo.description);
+      }
+    } else {
+      // fallback to a sensible default
+      document.title = "OR Music Events | New York City";
+    }
+  }, [location.pathname]);
+
   // hydrate cart from localStorage once
   const [cartItems, setCartItems] = useState(() => {
     try {
@@ -83,7 +143,6 @@ function App() {
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (user) => {
       if (!user) {
-        // avoid stale state churn
         setUserData((s) => (s !== null ? null : s));
         setIsAdmin((s) => (s !== null ? null : s));
         return;
@@ -112,41 +171,32 @@ function App() {
     <div>
       {location.pathname !== "/eventure-terms-conditions" && <AppNavbar />}
       <Routes>
-        <Route exact path="/" element={<Home />} />
-        <Route exact path="/contact" element={<ContactUs />} />
-        <Route exact path="/DJMC" element={<Djmc />} />
-        <Route exact path="/Downloads" element={<Downloads />} />
-        <Route exact path="/MusicVideos" element={<MusicVideos />} />
-        <Route exact path="/Music" element={<Music />} />
+        <Route path="/" element={<Home />} />
+        <Route path="/contact" element={<ContactUs />} />
+        <Route path="/DJMC" element={<Djmc />} />
+        <Route path="/Downloads" element={<Downloads />} />
+        <Route path="/MusicVideos" element={<MusicVideos />} />
+        <Route path="/Music" element={<Music />} />
         <Route
-          exact
           path="/Cart"
           element={<Cart items={cartItems} setItems={setCartItems} />}
         />
         <Route
-          exact
           path="/RentalItems"
           element={<Rentals addToCart={addToCart} />}
         />
         {isAdmin && (
-          <Route exact path="/rental-items-admin" element={<RentalsAdmin />} />
+          <Route path="/rental-items-admin" element={<RentalsAdmin />} />
         )}
         {isAdmin && (
-          <Route
-            exact
-            path="/music-video-admin"
-            element={<MusicVideoAdmin />}
-          />
+          <Route path="/music-video-admin" element={<MusicVideoAdmin />} />
         )}
-        {isAdmin && <Route exact path="/dj-mc-admin" element={<DjmcAdmin />} />}
+        {isAdmin && <Route path="/dj-mc-admin" element={<DjmcAdmin />} />}
         {isAdmin && (
-          <Route exact path="/eventure-admin" element={<EventureAdmin />} />
+          <Route path="/eventure-admin" element={<EventureAdmin />} />
         )}
-        {isAdmin && (
-          <Route exact path="/inquiries-admin" element={<Inquiries />} />
-        )}
+        {isAdmin && <Route path="/inquiries-admin" element={<Inquiries />} />}
         <Route
-          exact
           path="/eventure-terms-conditions"
           element={<EventureTermsAndConditions />}
         />

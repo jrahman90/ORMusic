@@ -20,6 +20,12 @@ export default function Footer() {
 
   const { setIsLoggedIn, isLoggedIn } = useContext(AuthContext);
 
+  // copyright years
+  const startYear = 2008;
+  const currentYear = new Date().getFullYear();
+  const copyrightYears =
+    currentYear > startYear ? `${startYear}-${currentYear}` : `${startYear}`;
+
   const handleClose = () => {
     setShow(false);
     setShowError(false);
@@ -115,10 +121,9 @@ export default function Footer() {
         )}
         <h3
           align="center"
-          vertical-align="bottom"
           style={{ fontFamily: "sans serif, arial or verdana" }}
         >
-          © 2023 OR Music
+          © {copyrightYears} OR Music Events
         </h3>
       </Container>
 
