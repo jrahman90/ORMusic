@@ -340,8 +340,14 @@ const PreviousInquiries = () => {
                   <div className="fw-semibold mt-3 mb-1">Items</div>
                   <ul className="mb-2">
                     {(inquiry.items || []).map((item, idx) => (
-                      <li key={`${inquiry.id}-m-name-${idx}`}>
-                        {item.name}: {money(item.price)} x {item.quantity}
+                      <li key={`${inquiry.id}-m-name-${idx}`} className="mb-2">
+                        <strong>{item.name}</strong>: {money(item.price)} x{" "}
+                        {item.quantity}
+                        {item.description ? (
+                          <div className="text-muted small mt-1">
+                            {item.description}
+                          </div>
+                        ) : null}
                       </li>
                     ))}
                   </ul>
