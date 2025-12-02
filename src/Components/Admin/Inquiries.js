@@ -261,6 +261,48 @@ function EventScheduleEditor({ inq, onSave, busy }) {
     </div>
   );
 }
+const getHeaderDateLines = (inq) => {
+  const events = Array.isArray(inq?.events) ? inq.events : [];
+
+  // If there are scheduled events, show one line per event
+  if (events.length > 0) {
+    const visible = events.filter(
+      (e) => e && (e.date || e.startTime || e.endTime)
+    );
+
+    if (visible.length === 0) {
+      return prettyDateTimeFromTs(inq?.timestamp);
+    }
+
+    return (
+      <>
+        {visible.map((e, idx) => {
+          const dateLabel = e.date ? prettyDate(e.date) : "Date N/A";
+
+          const start = e.startTime ? to12h(e.startTime) : "";
+          const end = e.endTime ? to12h(e.endTime) : "";
+
+          let timePart = "";
+          if (start && end) {
+            // example: 7 PM - 12 AM
+            timePart = `${start} - ${end}`;
+          } else if (start) {
+            timePart = start;
+          } else if (end) {
+            timePart = end;
+          }
+
+          const label = timePart ? `${dateLabel}, ${timePart}` : dateLabel;
+
+          return <div key={`hdr-${inq.id}-ev-${idx}`}>{label}</div>;
+        })}
+      </>
+    );
+  }
+
+  // No events yet, keep original behavior
+  return prettyDateTimeFromTs(inq?.timestamp);
+};
 
 export default function Inquiries() {
   const [inquiries, setInquiries] = useState([]);
@@ -777,7 +819,8 @@ export default function Inquiries() {
             total,
           } = calcTotals(inq);
 
-          const dateStr = prettyDateTimeFromTs(inq?.timestamp);
+          const dateStr = getHeaderDateLines(inq);
+
           const busy = Boolean(saving[inq.id]);
           const depTotal = sumDeposits(inq);
           const remaining = Math.max(0, total - depTotal);
@@ -1946,7 +1989,8 @@ export default function Inquiries() {
         <Row xs={1} sm={1} md={1} lg={2} xl={3} className="g-3">
           {completedList.map((inq) => {
             const { total } = calcTotals(inq);
-            const dateStr = prettyDateTimeFromTs(inq?.timestamp);
+            const dateStr = getHeaderDateLines(inq);
+
             return (
               <Col key={inq.id}>
                 <Card className="shadow-sm h-100 border-0">
