@@ -20,6 +20,8 @@ import {
   updateDoc,
   doc,
   deleteDoc,
+  addDoc,
+  serverTimestamp,
 } from "firebase/firestore";
 import db from "../../api/firestore/firestore";
 import {
@@ -304,6 +306,32 @@ const getHeaderDateLines = (inq) => {
   return prettyDateTimeFromTs(inq?.timestamp);
 };
 
+function FormModal({ show, onHide, title, children }) {
+  return (
+    <div
+      className={`modal fade ${show ? "show" : ""}`}
+      style={{ display: show ? "block" : "none", background: "rgba(0,0,0,.5)" }}
+      role="dialog"
+      aria-modal={show ? "true" : "false"}
+    >
+      <div className="modal-dialog modal-lg">
+        <div className="modal-content">
+          <div className="modal-header">
+            <div className="modal-title fw-semibold">{title}</div>
+            <button
+              type="button"
+              className="btn-close"
+              onClick={onHide}
+              aria-label="Close"
+            />
+          </div>
+          <div className="modal-body">{children}</div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function Inquiries() {
   const [inquiries, setInquiries] = useState([]);
   const [saving, setSaving] = useState({});
@@ -319,10 +347,31 @@ export default function Inquiries() {
   const [contractInquiry, setContractInquiry] = useState(null);
   const [activeContract, setActiveContract] = useState(null);
 
-  // new: deposits state and expansion state for compact accordion
+  // deposits state and expansion state for compact accordion
   const [depositDraft, setDepositDraft] = useState({});
   const [expanded, setExpanded] = useState({});
   const [loading, setLoading] = useState(true);
+
+  // Manual inquiry creation + user assignment
+  const [users, setUsers] = useState([]);
+  const [showNewInquiry, setShowNewInquiry] = useState(false);
+  const [creatingInquiry, setCreatingInquiry] = useState(false);
+  const [showAssignUser, setShowAssignUser] = useState(false);
+  const [assigningInquiry, setAssigningInquiry] = useState(null); // { id, ...data }
+  const [assignUserSearch, setAssignUserSearch] = useState("");
+  const [assignSelectedUser, setAssignSelectedUser] = useState(null);
+  const [savingUserAssign, setSavingUserAssign] = useState(false);
+
+  const [newInquiryDraft, setNewInquiryDraft] = useState({
+    name: "",
+    email: "",
+    phoneNumber: "",
+    eventDetails: "",
+    status: "Processing",
+  });
+
+  const [userSearch, setUserSearch] = useState("");
+  const [selectedUser, setSelectedUser] = useState(null);
 
   // load inquiries realtime
   useEffect(() => {
@@ -406,6 +455,21 @@ export default function Inquiries() {
         console.error("Realtime inquiries error:", err);
         setLoading(false);
       }
+    );
+    return () => stop();
+  }, []);
+
+  // NEW: load users for search/assignment
+  useEffect(() => {
+    const ref = collection(db, "users");
+    const q = query(ref, orderBy("name", "asc"));
+    const stop = onSnapshot(
+      q,
+      (snap) => {
+        const rows = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+        setUsers(rows);
+      },
+      (err) => console.error("Users load error:", err)
     );
     return () => stop();
   }, []);
@@ -743,14 +807,24 @@ export default function Inquiries() {
   const addItem = async (inq) => {
     const draft = adding[inq.id] || {};
     if (!draft.name) return;
+
+    let media = [];
+    const pickId = draft.pickId || "";
+
+    if (pickId && pickId !== "__custom__") {
+      const picked = catalog.find((r) => r.id === pickId);
+      media = Array.isArray(picked?.media) ? picked.media : [];
+    }
+
     const item = {
       id: draft.id || crypto.randomUUID?.() || String(Date.now()),
       name: draft.name,
       description: draft.description || "",
       price: Number(draft.price || 0),
       quantity: Math.max(1, Number(draft.quantity || 1)),
-      media: [],
+      media,
     };
+
     const items = [...(inq.items || []), item];
     await saveItems(inq, items);
     setAdding((s) => ({ ...s, [inq.id]: {} }));
@@ -789,6 +863,36 @@ export default function Inquiries() {
 
   const toggleExpanded = (id) => setExpanded((m) => ({ ...m, [id]: !m[id] }));
 
+  const filteredUsers = useMemo(() => {
+    const q = String(userSearch || "")
+      .trim()
+      .toLowerCase();
+    if (!q) return [];
+    return users
+      .filter((u) => {
+        const name = String(u?.name || "").toLowerCase();
+        const email = String(u?.email || "").toLowerCase();
+        const phone = String(u?.phoneNumber || "").toLowerCase();
+        return name.includes(q) || email.includes(q) || phone.includes(q);
+      })
+      .slice(0, 8);
+  }, [userSearch, users]);
+
+  const filteredAssignUsers = useMemo(() => {
+    const q = String(assignUserSearch || "")
+      .trim()
+      .toLowerCase();
+    if (!q) return [];
+    return users
+      .filter((u) => {
+        const name = String(u?.name || "").toLowerCase();
+        const email = String(u?.email || "").toLowerCase();
+        const phone = String(u?.phoneNumber || "").toLowerCase();
+        return name.includes(q) || email.includes(q) || phone.includes(q);
+      })
+      .slice(0, 8);
+  }, [assignUserSearch, users]);
+
   if (loading) {
     return (
       <div className="d-flex align-items-center justify-content-center py-5">
@@ -796,6 +900,113 @@ export default function Inquiries() {
       </div>
     );
   }
+  const openNewInquiry = () => {
+    setNewInquiryDraft({
+      name: "",
+      email: "",
+      phoneNumber: "",
+      eventDetails: "",
+      status: "Processing",
+    });
+    setUserSearch("");
+    setSelectedUser(null);
+    setShowNewInquiry(true);
+  };
+
+  const createManualInquiry = async () => {
+    const payload = {
+      name: String(newInquiryDraft.name || "").trim(),
+      email: String(newInquiryDraft.email || "").trim(),
+      phoneNumber: String(newInquiryDraft.phoneNumber || "").trim(),
+      eventDetails: String(newInquiryDraft.eventDetails || "").trim(),
+      status: newInquiryDraft.status || "Processing",
+      timestamp: serverTimestamp(),
+      // keep schema consistent with the rest of your UI
+      items: [],
+      deposits: [],
+      contracts: [],
+      events: [],
+      source: "manual", // optional flag so you can tell it was added by admin
+    };
+
+    // If a user is selected, assign it. If not, leave it blank.
+    if (selectedUser?.id) {
+      payload.userId = selectedUser.id;
+    }
+
+    // Optional: store a little denormalized info for convenience (safe even if user later changes profile)
+    if (selectedUser?.email) payload.userEmail = String(selectedUser.email);
+    if (selectedUser?.name) payload.userName = String(selectedUser.name);
+
+    try {
+      setCreatingInquiry(true);
+      await addDoc(collection(db, "inquiries"), payload);
+      setShowNewInquiry(false);
+    } catch (e) {
+      console.error("Create inquiry failed:", e);
+      alert("Failed to create inquiry. Check console for details.");
+    } finally {
+      setCreatingInquiry(false);
+    }
+  };
+
+  const openAssignUserModal = (inq) => {
+    setAssigningInquiry(inq);
+
+    // If inquiry already has a userId, preselect that user if we have it in users[]
+    const existing = inq?.userId
+      ? users.find((u) => u.id === inq.userId)
+      : null;
+
+    setAssignSelectedUser(
+      existing
+        ? { id: existing.id, name: existing.name, email: existing.email }
+        : null
+    );
+
+    setAssignUserSearch("");
+    setShowAssignUser(true);
+  };
+
+  const saveUserAssignment = async () => {
+    if (!assigningInquiry?.id) return;
+
+    try {
+      setSavingUserAssign(true);
+
+      const ref = doc(db, "inquiries", assigningInquiry.id);
+
+      // If none selected, clear the user fields
+      if (!assignSelectedUser?.id) {
+        await updateDoc(ref, {
+          userId: "",
+          userName: "",
+          userEmail: "",
+        });
+        setShowAssignUser(false);
+        return;
+      }
+
+      // Save assignment
+      await updateDoc(ref, {
+        userId: assignSelectedUser.id,
+        userName: assignSelectedUser.name || "",
+        userEmail: assignSelectedUser.email || "",
+      });
+
+      setShowAssignUser(false);
+    } catch (e) {
+      console.error("User assignment failed:", e);
+      alert("Failed to update user assignment. Check console for details.");
+    } finally {
+      setSavingUserAssign(false);
+    }
+  };
+
+  const clearUserAssignment = async () => {
+    setAssignSelectedUser(null);
+    setAssignUserSearch("");
+  };
 
   return (
     <Container className="py-3">
@@ -806,7 +1017,13 @@ export default function Inquiries() {
       `}</style>
 
       {/* Inquiries, compact accordion cards */}
-      <h4 className="mb-2">Inquiries</h4>
+      <div className="d-flex align-items-center justify-content-between mb-2">
+        <h4 className="mb-0">Inquiries</h4>
+        <Button size="sm" onClick={openNewInquiry}>
+          Add inquiry
+        </Button>
+      </div>
+
       <Row xs={1} sm={1} md={1} lg={2} xl={3} className="g-3">
         {activeList.map((inq) => {
           const {
@@ -855,6 +1072,14 @@ export default function Inquiries() {
                   >
                     {/* Row of actions on top */}
                     <div className="d-flex align-items-center justify-content-end gap-2 mb-2">
+                      <Button
+                        size="sm"
+                        variant="outline-primary"
+                        onClick={() => openAssignUserModal(inq)}
+                      >
+                        Assign user
+                      </Button>
+
                       <Button
                         size="sm"
                         variant="outline-danger"
@@ -2111,6 +2336,283 @@ export default function Inquiries() {
         contract={activeContract}
         mode={contractMode}
       />
+      {/* NEW: Manual inquiry modal */}
+      <FormModal
+        show={showNewInquiry}
+        onHide={() => setShowNewInquiry(false)}
+        title="Add inquiry (manual)"
+      >
+        <div className="mb-3">
+          <div className="fw-semibold mb-1">Assign to a user (optional)</div>
+
+          <InputGroup className="mb-2">
+            <Form.Control
+              placeholder="Search users by name, email, or phone"
+              value={userSearch}
+              onChange={(e) => setUserSearch(e.target.value)}
+              disabled={creatingInquiry}
+            />
+            {selectedUser ? (
+              <Button
+                variant="outline-secondary"
+                onClick={() => setSelectedUser(null)}
+                disabled={creatingInquiry}
+              >
+                Clear
+              </Button>
+            ) : null}
+          </InputGroup>
+
+          {selectedUser ? (
+            <div className="small">
+              <Badge bg="success" className="me-2">
+                Selected
+              </Badge>
+              <span className="fw-semibold">
+                {selectedUser?.name || "User"}
+              </span>
+              {selectedUser?.email ? (
+                <span className="text-muted">, {selectedUser.email}</span>
+              ) : null}
+            </div>
+          ) : userSearch.trim() ? (
+            <div
+              className="border rounded p-2"
+              style={{ maxHeight: 220, overflow: "auto" }}
+            >
+              {filteredUsers.length === 0 ? (
+                <div className="text-muted small">No matches</div>
+              ) : (
+                <div className="d-flex flex-column gap-2">
+                  {filteredUsers.map((u) => (
+                    <Button
+                      key={u.id}
+                      variant="outline-primary"
+                      className="text-start"
+                      onClick={() => {
+                        setSelectedUser({
+                          id: u.id,
+                          name: u.name,
+                          email: u.email,
+                        });
+                        setUserSearch("");
+                      }}
+                      disabled={creatingInquiry}
+                    >
+                      <div className="fw-semibold">
+                        {u?.name || "Unnamed user"}
+                      </div>
+                      <div className="small text-muted">
+                        {u?.email || "No email"}
+                        {u?.phoneNumber ? `, ${u.phoneNumber}` : ""}
+                      </div>
+                    </Button>
+                  ))}
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="text-muted small">
+              Start typing to search the users collection.
+            </div>
+          )}
+        </div>
+
+        <Row className="g-2">
+          <Col xs={12} md={6}>
+            <Form.Label className="mb-1">Name</Form.Label>
+            <Form.Control
+              value={newInquiryDraft.name}
+              onChange={(e) =>
+                setNewInquiryDraft((s) => ({ ...s, name: e.target.value }))
+              }
+              disabled={creatingInquiry}
+            />
+          </Col>
+          <Col xs={12} md={6}>
+            <Form.Label className="mb-1">Email</Form.Label>
+            <Form.Control
+              value={newInquiryDraft.email}
+              onChange={(e) =>
+                setNewInquiryDraft((s) => ({ ...s, email: e.target.value }))
+              }
+              disabled={creatingInquiry}
+            />
+          </Col>
+
+          <Col xs={12} md={6}>
+            <Form.Label className="mb-1">Phone</Form.Label>
+            <Form.Control
+              value={newInquiryDraft.phoneNumber}
+              onChange={(e) =>
+                setNewInquiryDraft((s) => ({
+                  ...s,
+                  phoneNumber: e.target.value,
+                }))
+              }
+              disabled={creatingInquiry}
+            />
+          </Col>
+
+          <Col xs={12} md={6}>
+            <Form.Label className="mb-1">Status</Form.Label>
+            <Form.Select
+              value={newInquiryDraft.status}
+              onChange={(e) =>
+                setNewInquiryDraft((s) => ({ ...s, status: e.target.value }))
+              }
+              disabled={creatingInquiry}
+            >
+              {statusOptions.map((s) => (
+                <option key={s} value={s}>
+                  {s}
+                </option>
+              ))}
+            </Form.Select>
+          </Col>
+
+          <Col xs={12}>
+            <Form.Label className="mb-1">Event details</Form.Label>
+            <Form.Control
+              as="textarea"
+              rows={3}
+              value={newInquiryDraft.eventDetails}
+              onChange={(e) =>
+                setNewInquiryDraft((s) => ({
+                  ...s,
+                  eventDetails: e.target.value,
+                }))
+              }
+              disabled={creatingInquiry}
+            />
+          </Col>
+        </Row>
+
+        <div className="d-flex justify-content-end gap-2 mt-3">
+          <Button
+            variant="outline-secondary"
+            onClick={() => setShowNewInquiry(false)}
+            disabled={creatingInquiry}
+          >
+            Cancel
+          </Button>
+          <Button onClick={createManualInquiry} disabled={creatingInquiry}>
+            {creatingInquiry ? "Creating..." : "Create inquiry"}
+          </Button>
+        </div>
+      </FormModal>
+      <FormModal
+        show={showAssignUser}
+        onHide={() => setShowAssignUser(false)}
+        title="Assign inquiry to a user"
+      >
+        <div className="mb-2 small text-muted">
+          {assigningInquiry?.name
+            ? `Inquiry: ${assigningInquiry.name}`
+            : "Inquiry selected"}
+        </div>
+
+        <div className="mb-3">
+          <div className="fw-semibold mb-1">Search users</div>
+
+          <InputGroup className="mb-2">
+            <Form.Control
+              placeholder="Search users by name, email, or phone"
+              value={assignUserSearch}
+              onChange={(e) => setAssignUserSearch(e.target.value)}
+              disabled={savingUserAssign}
+            />
+            <Button
+              variant="outline-secondary"
+              onClick={clearUserAssignment}
+              disabled={savingUserAssign}
+            >
+              Clear
+            </Button>
+          </InputGroup>
+
+          {assignSelectedUser ? (
+            <div className="small">
+              <Badge bg="success" className="me-2">
+                Selected
+              </Badge>
+              <span className="fw-semibold">
+                {assignSelectedUser?.name || "User"}
+              </span>
+              {assignSelectedUser?.email ? (
+                <span className="text-muted">, {assignSelectedUser.email}</span>
+              ) : null}
+            </div>
+          ) : assignUserSearch.trim() ? (
+            <div
+              className="border rounded p-2"
+              style={{ maxHeight: 220, overflow: "auto" }}
+            >
+              {filteredAssignUsers.length === 0 ? (
+                <div className="text-muted small">No matches</div>
+              ) : (
+                <div className="d-flex flex-column gap-2">
+                  {filteredAssignUsers.map((u) => (
+                    <Button
+                      key={u.id}
+                      variant="outline-primary"
+                      className="text-start"
+                      onClick={() => {
+                        setAssignSelectedUser({
+                          id: u.id,
+                          name: u.name,
+                          email: u.email,
+                        });
+                        setAssignUserSearch("");
+                      }}
+                      disabled={savingUserAssign}
+                    >
+                      <div className="fw-semibold">
+                        {u?.name || "Unnamed user"}
+                      </div>
+                      <div className="small text-muted">
+                        {u?.email || "No email"}
+                        {u?.phoneNumber ? `, ${u.phoneNumber}` : ""}
+                      </div>
+                    </Button>
+                  ))}
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="text-muted small">
+              Type to search your users collection.
+            </div>
+          )}
+        </div>
+
+        <div className="d-flex justify-content-end gap-2">
+          <Button
+            variant="outline-danger"
+            onClick={async () => {
+              // clear assignment immediately and save
+              setAssignSelectedUser(null);
+              setAssignUserSearch("");
+              await saveUserAssignment();
+            }}
+            disabled={savingUserAssign}
+          >
+            Remove user
+          </Button>
+
+          <Button
+            variant="outline-secondary"
+            onClick={() => setShowAssignUser(false)}
+            disabled={savingUserAssign}
+          >
+            Cancel
+          </Button>
+
+          <Button onClick={saveUserAssignment} disabled={savingUserAssign}>
+            {savingUserAssign ? "Saving..." : "Save"}
+          </Button>
+        </div>
+      </FormModal>
     </Container>
   );
 }
