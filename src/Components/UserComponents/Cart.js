@@ -31,6 +31,7 @@ import {
 import db from "../../api/firestore/firestore";
 import PreviousInquiries from "./PreviousInquiries";
 import { to12h, prettyDate } from "../../utils/formatters";
+import emailjs from "@emailjs/browser";
 
 /* ---------- Helpers ---------- */
 const money = (v) =>
@@ -48,6 +49,73 @@ function equalItems(a, b) {
     return false;
   }
 }
+const formatItemsForEmail = (items = []) => {
+  return (items || [])
+    .map((it) => {
+      const qty = Number(it.quantity || 0);
+      const price = Number(it.price || 0);
+      const line = qty * price;
+      return `${it.name} (x${qty}) @ ${money(price)} = ${money(line)}`;
+    })
+    .join("\n");
+};
+
+const formatEventsForEmail = (events = []) => {
+  if (!Array.isArray(events) || events.length === 0)
+    return "No schedule provided.";
+  return events
+    .map(
+      (ev) =>
+        `${ev.type} | ${prettyDate(ev.date)} | ${to12h(ev.startTime)} - ${to12h(
+          ev.endTime
+        )}`
+    )
+    .join("\n");
+};
+
+const sendInquiryEmail = async ({
+  name,
+  email,
+  phoneNumber,
+  eventDetails,
+  items,
+  events,
+  total,
+}) => {
+  // This assumes your EmailJS template uses these fields:
+  // user_name, user_email, user_phone, message
+  // (same naming pattern as ContactUs.js)
+  const message = [
+    "New Inquiry Submitted",
+    "",
+    `Name: ${name || ""}`,
+    `Email: ${email || ""}`,
+    `Phone: ${phoneNumber || ""}`,
+    "",
+    "Event Details:",
+    `${eventDetails || ""}`,
+    "",
+    "Event Schedule:",
+    formatEventsForEmail(events),
+    "",
+    "Items:",
+    formatItemsForEmail(items),
+    "",
+    `Estimated Total: ${money(total)}`,
+  ].join("\n");
+
+  return emailjs.send(
+    "service_pimfhg7",
+    "template_98bu8bi",
+    {
+      user_name: name || "",
+      user_email: email || "",
+      user_phone: phoneNumber || "",
+      message,
+    },
+    "sV1cKQAbOd4PLkl38"
+  );
+};
 
 const Cart = ({ items, setItems }) => {
   const [show, setShow] = useState(false);
@@ -334,8 +402,25 @@ const Cart = ({ items, setItems }) => {
         events,
       });
 
+      // EmailJS notification (same config as ContactUs.js)
+      try {
+        await sendInquiryEmail({
+          name,
+          email,
+          phoneNumber,
+          eventDetails,
+          items,
+          events,
+          total,
+        });
+      } catch (e) {
+        console.error("EmailJS failed to send inquiry email:", e);
+        // We still continue because the inquiry was saved to Firestore already
+      }
+
       clearCartEverywhere();
       setSuccessMessage(true);
+
       setTimeout(() => setSuccessMessage(false), 3000);
     } catch (error) {
       console.error("Error sending inquiry:", error);
