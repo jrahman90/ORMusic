@@ -45,6 +45,12 @@ export default function Footer() {
     return () => unsub();
   }, [setIsLoggedIn, email]);
 
+  useEffect(() => {
+    const openLogin = () => setShow(true);
+    window.addEventListener("auth:open", openLogin);
+    return () => window.removeEventListener("auth:open", openLogin);
+  }, []);
+
   const handleLogin = async (e) => {
     e.preventDefault();
     try {

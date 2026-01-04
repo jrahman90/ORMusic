@@ -10,10 +10,6 @@ import {
   Col,
   Badge,
   ListGroup,
-  Modal,
-  Tabs,
-  Tab,
-  Spinner,
 } from "react-bootstrap";
 import {
   collection,
@@ -21,13 +17,8 @@ import {
   serverTimestamp,
   doc,
   getDoc,
-  setDoc,
 } from "firebase/firestore";
-import {
-  getAuth,
-  signInWithEmailAndPassword,
-  createUserWithEmailAndPassword,
-} from "firebase/auth";
+import { getAuth } from "firebase/auth";
 import db from "../../api/firestore/firestore";
 import PreviousInquiries from "./PreviousInquiries";
 import { to12h, prettyDate } from "../../utils/formatters";
@@ -38,6 +29,7 @@ const money = (v) =>
   new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(
     Number(v || 0)
   );
+
 const emailOk = (v) => /\S+@\S+\.\S+/.test(String(v || "").trim());
 const minLen = (v, n) => String(v || "").trim().length >= n;
 
@@ -49,6 +41,7 @@ function equalItems(a, b) {
     return false;
   }
 }
+
 const formatItemsForEmail = (items = []) => {
   return (items || [])
     .map((it) => {
@@ -82,9 +75,6 @@ const sendInquiryEmail = async ({
   events,
   total,
 }) => {
-  // This assumes your EmailJS template uses these fields:
-  // user_name, user_email, user_phone, message
-  // (same naming pattern as ContactUs.js)
   const message = [
     "New Inquiry Submitted",
     "",
@@ -118,25 +108,8 @@ const sendInquiryEmail = async ({
 };
 
 const Cart = ({ items, setItems }) => {
-  const [show, setShow] = useState(false);
-  const [authTab, setAuthTab] = useState("login"); // "login" or "signup"
   const [successMessage, setSuccessMessage] = useState(false);
   const [isSending, setIsSending] = useState(false);
-
-  // login form
-  const [authEmail, setAuthEmail] = useState("");
-  const [authPassword, setAuthPassword] = useState("");
-  const [authBusy, setAuthBusy] = useState(false);
-  const [authError, setAuthError] = useState("");
-
-  // signup form
-  const [suName, setSuName] = useState("");
-  const [suEmail, setSuEmail] = useState("");
-  const [suPhone, setSuPhone] = useState("");
-  const [suPassword, setSuPassword] = useState("");
-  const [suConfirm, setSuConfirm] = useState("");
-  const [suBusy, setSuBusy] = useState(false);
-  const [suError, setSuError] = useState("");
 
   // contact fields
   const [name, setName] = useState("");
@@ -153,92 +126,7 @@ const Cart = ({ items, setItems }) => {
     endTime: "",
   });
 
-  const [userData, setUserData] = useState({});
   const mountedRef = useRef(false);
-
-  const handleClose = () => setShow(false);
-  const handleShow = () => {
-    setAuthTab("login");
-    setShow(true);
-  };
-
-  /* ---------- Auth handlers ---------- */
-  const handleLogin = async (e) => {
-    e?.preventDefault?.();
-    setAuthBusy(true);
-    setAuthError("");
-    try {
-      const auth = getAuth();
-      await signInWithEmailAndPassword(auth, authEmail, authPassword);
-      setShow(false);
-      setAuthPassword("");
-    } catch (err) {
-      setAuthError(err?.message || "Login failed");
-    } finally {
-      setAuthBusy(false);
-    }
-  };
-
-  const handleSignup = async (e) => {
-    e?.preventDefault?.();
-    setSuBusy(true);
-    setSuError("");
-
-    if (!emailOk(suEmail)) {
-      setSuBusy(false);
-      setSuError("Enter a valid email");
-      return;
-    }
-    if (suPassword.length < 6) {
-      setSuBusy(false);
-      setSuError("Password must be at least 6 characters");
-      return;
-    }
-    if (suPassword !== suConfirm) {
-      setSuBusy(false);
-      setSuError("Passwords do not match");
-      return;
-    }
-
-    try {
-      const auth = getAuth();
-      const { user } = await createUserWithEmailAndPassword(
-        auth,
-        suEmail,
-        suPassword
-      );
-
-      // create profile in Firestore
-      await setDoc(doc(db, "users", user.uid), {
-        name: suName,
-        email: suEmail,
-        phoneNumber: suPhone || "",
-        isAdmin: false,
-      });
-
-      // reflect info in the cart fields for a smooth feel
-      if (!name) setName(suName);
-      if (!email) setEmail(suEmail);
-      if (!phoneNumber && suPhone) setPhoneNumber(suPhone);
-
-      // clear and close
-      setSuName("");
-      setSuEmail("");
-      setSuPhone("");
-      setSuPassword("");
-      setSuConfirm("");
-      setShow(false);
-    } catch (err) {
-      setSuError(err?.message || "Signup failed");
-    } finally {
-      setSuBusy(false);
-    }
-  };
-
-  // prefill login email from contact email
-  useEffect(() => {
-    if (!authEmail) setAuthEmail(email || "");
-  }, [email]); // eslint-disable-line react-hooks/exhaustive-deps
 
   /* ---------- Hydrate cart and contact drafts from localStorage ---------- */
   useEffect(() => {
@@ -292,7 +180,6 @@ const Cart = ({ items, setItems }) => {
     try {
       localStorage.setItem("cartItems", JSON.stringify(next));
     } finally {
-      // announce change to any listeners such as navbar badge
       window.dispatchEvent(new Event("cart:update"));
     }
   };
@@ -375,15 +262,20 @@ const Cart = ({ items, setItems }) => {
     window.dispatchEvent(new Event("cart:update"));
   };
 
+  const openFooterAuthModal = () => {
+    window.dispatchEvent(new Event("auth:open"));
+  };
+
   /* ---------- Submit inquiry ---------- */
   const handleInquiry = async () => {
     if (isSending) return;
+
     const auth = getAuth();
     const user = auth.currentUser;
 
     try {
       if (!user) {
-        handleShow();
+        openFooterAuthModal();
         return;
       }
 
@@ -402,7 +294,7 @@ const Cart = ({ items, setItems }) => {
         events,
       });
 
-      // EmailJS notification (same config as ContactUs.js)
+      // EmailJS notification
       try {
         await sendInquiryEmail({
           name,
@@ -415,12 +307,10 @@ const Cart = ({ items, setItems }) => {
         });
       } catch (e) {
         console.error("EmailJS failed to send inquiry email:", e);
-        // We still continue because the inquiry was saved to Firestore already
       }
 
       clearCartEverywhere();
       setSuccessMessage(true);
-
       setTimeout(() => setSuccessMessage(false), 3000);
     } catch (error) {
       console.error("Error sending inquiry:", error);
@@ -439,7 +329,6 @@ const Cart = ({ items, setItems }) => {
     getDoc(userRef)
       .then((d) => {
         const data = d.data() || {};
-        setUserData(data);
         if (!name && data.name) setName(data.name);
         if (!phoneNumber && data.phoneNumber) setPhoneNumber(data.phoneNumber);
         if (!email && user.email) setEmail(user.email);
@@ -596,14 +485,7 @@ const Cart = ({ items, setItems }) => {
                   <Button
                     variant="outline-primary"
                     onClick={addEventRow}
-                    disabled={
-                      !(
-                        eventDraft.type &&
-                        eventDraft.date &&
-                        eventDraft.startTime &&
-                        eventDraft.endTime
-                      )
-                    }
+                    disabled={!canAddEvent}
                   >
                     Add Event
                   </Button>
@@ -714,6 +596,7 @@ const Cart = ({ items, setItems }) => {
                       <Card.Title className="mb-1">{item.name}</Card.Title>
                       <Badge bg="dark">{money(item.price)}</Badge>
                     </div>
+
                     {item.description ? (
                       <Card.Text className="text-muted mb-2">
                         {item.description}
@@ -801,198 +684,6 @@ const Cart = ({ items, setItems }) => {
 
       <div className="line"></div>
       <PreviousInquiries />
-
-      {/* Unified auth modal with tabs */}
-      <Modal show={show} onHide={handleClose} centered>
-        <Modal.Header closeButton>
-          <Modal.Title>
-            {authTab === "login" ? "Sign in" : "Create account"}
-          </Modal.Title>
-        </Modal.Header>
-
-        <Modal.Body>
-          <Tabs
-            id="auth-tabs"
-            activeKey={authTab}
-            onSelect={(k) => setAuthTab(k || "login")}
-            className="mb-3"
-            justify
-          >
-            {/* Sign in */}
-            <Tab eventKey="login" title="Sign in">
-              <Form id="cartLoginForm" onSubmit={handleLogin}>
-                <Form.Group controlId="cartLoginEmail">
-                  <Form.Label>Email</Form.Label>
-                  <Form.Control
-                    type="email"
-                    placeholder="Enter email"
-                    value={authEmail}
-                    onChange={(e) => setAuthEmail(e.target.value)}
-                    autoComplete="email"
-                    autoFocus
-                    required
-                  />
-                </Form.Group>
-
-                <Form.Group className="mt-2" controlId="cartLoginPassword">
-                  <Form.Label>Password</Form.Label>
-                  <Form.Control
-                    type="password"
-                    placeholder="Enter password"
-                    value={authPassword}
-                    onChange={(e) => setAuthPassword(e.target.value)}
-                    autoComplete="current-password"
-                    required
-                  />
-                </Form.Group>
-
-                {authError ? (
-                  <Alert className="mt-3" variant="danger">
-                    {authError}
-                  </Alert>
-                ) : null}
-
-                <div className="d-flex justify-content-between align-items-center mt-3">
-                  <div className="text-muted small">
-                    No account yet?{" "}
-                    <Button
-                      variant="link"
-                      className="p-0 align-baseline"
-                      onClick={() => setAuthTab("signup")}
-                    >
-                      Create one
-                    </Button>
-                  </div>
-                  <Button variant="primary" type="submit" disabled={authBusy}>
-                    {authBusy ? (
-                      <>
-                        <Spinner
-                          animation="border"
-                          size="sm"
-                          className="me-2"
-                        />{" "}
-                        Signing in...
-                      </>
-                    ) : (
-                      "Sign in"
-                    )}
-                  </Button>
-                </div>
-              </Form>
-            </Tab>
-
-            {/* Sign up */}
-            <Tab eventKey="signup" title="Create account">
-              <Form id="cartSignupForm" onSubmit={handleSignup}>
-                <Row className="g-2">
-                  <Col xs={12}>
-                    <Form.Group controlId="suName">
-                      <Form.Label>Name</Form.Label>
-                      <Form.Control
-                        type="text"
-                        placeholder="Full name"
-                        value={suName}
-                        onChange={(e) => setSuName(e.target.value)}
-                        autoFocus
-                        required
-                      />
-                    </Form.Group>
-                  </Col>
-                  <Col xs={12}>
-                    <Form.Group controlId="suEmail">
-                      <Form.Label>Email</Form.Label>
-                      <Form.Control
-                        type="email"
-                        placeholder="you@example.com"
-                        value={suEmail}
-                        onChange={(e) => setSuEmail(e.target.value)}
-                        required
-                      />
-                    </Form.Group>
-                  </Col>
-                  <Col xs={12}>
-                    <Form.Group controlId="suPhone">
-                      <Form.Label>Phone number</Form.Label>
-                      <Form.Control
-                        type="tel"
-                        placeholder="(999) 999 9999"
-                        value={suPhone}
-                        onChange={(e) => setSuPhone(e.target.value)}
-                      />
-                    </Form.Group>
-                  </Col>
-                  <Col xs={12} md={6}>
-                    <Form.Group controlId="suPassword">
-                      <Form.Label>Password</Form.Label>
-                      <Form.Control
-                        type="password"
-                        placeholder="Enter password"
-                        value={suPassword}
-                        onChange={(e) => setSuPassword(e.target.value)}
-                        required
-                      />
-                    </Form.Group>
-                  </Col>
-                  <Col xs={12} md={6}>
-                    <Form.Group controlId="suConfirm">
-                      <Form.Label>Confirm password</Form.Label>
-                      <Form.Control
-                        type="password"
-                        placeholder="Confirm password"
-                        value={suConfirm}
-                        onChange={(e) => setSuConfirm(e.target.value)}
-                        required
-                      />
-                    </Form.Group>
-                  </Col>
-                </Row>
-
-                {suError ? (
-                  <Alert className="mt-3" variant="danger">
-                    {suError}
-                  </Alert>
-                ) : null}
-
-                <div className="d-flex justify-content-between align-items-center mt-3">
-                  <div className="text-muted small">
-                    Already have an account?{" "}
-                    <Button
-                      variant="link"
-                      className="p-0 align-baseline"
-                      onClick={() => {
-                        setAuthTab("login");
-                        setAuthEmail(suEmail || authEmail);
-                      }}
-                    >
-                      Sign in
-                    </Button>
-                  </div>
-                  <Button variant="primary" type="submit" disabled={suBusy}>
-                    {suBusy ? (
-                      <>
-                        <Spinner
-                          animation="border"
-                          size="sm"
-                          className="me-2"
-                        />{" "}
-                        Creating...
-                      </>
-                    ) : (
-                      "Create account"
-                    )}
-                  </Button>
-                </div>
-              </Form>
-            </Tab>
-          </Tabs>
-        </Modal.Body>
-
-        <Modal.Footer>
-          <Button variant="secondary" onClick={handleClose}>
-            Close
-          </Button>
-        </Modal.Footer>
-      </Modal>
     </Container>
   );
 };
