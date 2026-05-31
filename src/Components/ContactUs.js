@@ -47,6 +47,14 @@ export default function ContactUs() {
       className="justify-content-center align-items-center"
       style={{ padding: 20 }}
     >
+      <header className="page-intro">
+        <h1>Contact OR Music Events</h1>
+        <p>
+          Reach out for general questions, partnerships, support, or help
+          planning your next event in New York City and the tristate area.
+        </p>
+      </header>
+
       {/* Professional notice about proper flow for event requests */}
       <Alert variant="light" className="border mb-3">
         <div className="fw-semibold">Before you send a message:</div>

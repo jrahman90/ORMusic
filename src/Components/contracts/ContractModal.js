@@ -1,6 +1,16 @@
 // src/components/contracts/ContractModal.jsx
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Modal, Button, Form, Alert, Row, Col, Badge } from "react-bootstrap";
+import {
+  Modal,
+  Button,
+  Form,
+  Alert,
+  Row,
+  Col,
+  Badge,
+  Toast,
+  ToastContainer,
+} from "react-bootstrap";
 import { serverTimestamp, doc, updateDoc } from "firebase/firestore";
 import db from "../../api/firestore/firestore";
 import SignaturePad from "./SignaturePad";
@@ -45,12 +55,13 @@ export default function ContractModal({
     if (!show) return;
     setTitle(contract?.title || "Event Services Agreement");
     setHtml(contract?.html || buildContractHtml(inquiry ?? {}));
-  }, [show, inquiry?.id, contract?.id]);
+  }, [show, inquiry, contract?.id, contract?.title, contract?.html]);
 
   // Signing flow
   const [agree, setAgree] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [showAgreeToast, setShowAgreeToast] = useState(false);
 
   const contracts = Array.isArray(inquiry?.contracts) ? inquiry.contracts : [];
   const clientDisplayName = inquiry?.name || "Client";
@@ -61,6 +72,13 @@ export default function ContractModal({
   }, [contract, mode]);
 
   const handleClose = (changed = false) => onHide?.(changed);
+
+  useEffect(() => {
+    if (!show) return;
+    setAgree(false);
+    setError("");
+    setShowAgreeToast(false);
+  }, [show, contract?.id, mode]);
 
   // ---------- Firestore ops ----------
   const saveNew = async () => {
@@ -84,6 +102,7 @@ export default function ContractModal({
       contracts: next,
       updatedAt: serverTimestamp(),
     });
+    return true;
   };
 
   const signAndSave = async () => {
@@ -91,13 +110,13 @@ export default function ContractModal({
     if (!contract?.id) throw new Error("Missing contract id");
 
     if (!agree) {
-      setError("Please confirm you have read and agree.");
-      return;
+      setShowAgreeToast(true);
+      return false;
     }
     const dataUrl = sigRef.current?.getDataUrl?.();
     if (!dataUrl) {
       setError("Please add your signature.");
-      return;
+      return false;
     }
     const now = Date.now();
 
@@ -112,6 +131,7 @@ export default function ContractModal({
       contracts: next,
       updatedAt: serverTimestamp(),
     });
+    return true;
   };
 
   // Admin can remove ONLY their own signature (clients cannot remove theirs)
@@ -130,15 +150,24 @@ export default function ContractModal({
 
   // Primary CTA (create or sign)
   const handlePrimary = async () => {
+    if (contract && !agree) {
+      setError("");
+      setShowAgreeToast(true);
+      return;
+    }
+
     setBusy(true);
     setError("");
     try {
+      let saved = false;
       if (!contract) {
-        await saveNew();
+        saved = await saveNew();
       } else {
-        await signAndSave();
+        saved = await signAndSave();
       }
-      handleClose(true);
+      if (saved) {
+        handleClose(true);
+      }
     } catch (e) {
       setError(e?.message || "Failed to save.");
     } finally {
@@ -244,6 +273,7 @@ export default function ContractModal({
 
   const adminSigned = Boolean(contract?.adminSignature);
   const clientSigned = Boolean(contract?.clientSignature);
+  const currentActorSigned = isAdminMode(mode) ? adminSigned : clientSigned;
 
   return (
     <Modal
@@ -259,6 +289,23 @@ export default function ContractModal({
       </Modal.Header>
 
       <Modal.Body className="contract-body">
+        <ToastContainer position="top-end" className="p-3">
+          <Toast
+            bg="warning"
+            show={showAgreeToast}
+            onClose={() => setShowAgreeToast(false)}
+            delay={3500}
+            autohide
+          >
+            <Toast.Header>
+              <strong className="me-auto">Accept agreement</strong>
+            </Toast.Header>
+            <Toast.Body>
+              Please check the agreement checkbox before saving your signature.
+            </Toast.Body>
+          </Toast>
+        </ToastContainer>
+
         {/* Read-only body always visible so PDF has content */}
         <div style={{ padding: 8 }}>
           <h3 className="mb-3">{contract?.title || title}</h3>
@@ -363,7 +410,10 @@ export default function ContractModal({
                     className="mt-2"
                     type="checkbox"
                     checked={agree}
-                    onChange={(e) => setAgree(e.target.checked)}
+                    onChange={(e) => {
+                      setAgree(e.target.checked);
+                      if (e.target.checked) setShowAgreeToast(false);
+                    }}
                     label="I have read the agreement and I agree"
                   />
                 </>
@@ -378,7 +428,10 @@ export default function ContractModal({
                   className="mt-2"
                   type="checkbox"
                   checked={agree}
-                  onChange={(e) => setAgree(e.target.checked)}
+                  onChange={(e) => {
+                    setAgree(e.target.checked);
+                    if (e.target.checked) setShowAgreeToast(false);
+                  }}
                   label="I have read the agreement and I agree"
                 />
               </>
@@ -424,9 +477,11 @@ export default function ContractModal({
         >
           Close
         </Button>
-        <Button variant="primary" onClick={handlePrimary} disabled={busy}>
-          {contract ? "Save signature" : "Create contract"}
-        </Button>
+        {(!contract || !currentActorSigned) && (
+          <Button variant="primary" onClick={handlePrimary} disabled={busy}>
+            {contract ? "Save signature" : "Create contract"}
+          </Button>
+        )}
       </Modal.Footer>
     </Modal>
   );

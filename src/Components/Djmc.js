@@ -22,6 +22,10 @@ const DjmcAdmin = () => {
   return (
     <Container className='my-3'>
       <h1 className='heading-text'>Meet The Team!</h1>
+      <p className="page-intro-text text-center">
+        Get to know the OR Music Events team behind our DJ, MC, hosting, and
+        event production experiences.
+      </p>
       <Row>
         {artists.map((artist, index) => (
             <Row key={artist.id} className={index % 2 === 0 ? 'flex-row' : 'flex-row-reverse'}>

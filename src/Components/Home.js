@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
-import Card from "react-bootstrap/Card";
+import { Button, Container, Row, Col } from "react-bootstrap";
+import { Link } from "react-router-dom";
 import Pictures from "./SubElements/Pictures";
 import "./Css/components.css";
 
@@ -28,8 +29,8 @@ export default function Home() {
           <div style={styles.modalContent}>
             <p style={styles.modalText}>
               Welcome to the updated OR Music Events website! Now, you can
-              easily create a profile by clicking on the login button in the
-              footer and conveniently send inquiries through the cart.
+              easily create a profile from the login button in the navbar and
+              conveniently send inquiries through the cart.
             </p>
             <button style={styles.closeButton} onClick={handleCloseModal}>
               Close
@@ -38,37 +39,67 @@ export default function Home() {
         </div>
       )}
 
-      {/* Main Content */}
-      <Card className="bg-dark text-white header mt-3">
-        <Card.ImgOverlay className="home-card">
-          <Card.Title>
-            <img className="mb-3 home-logo" src="ormusiclogo.png" alt="" />
-          </Card.Title>
-          <Card.Text className="home-text">Your Event Specialists</Card.Text>
-        </Card.ImgOverlay>
-      </Card>
+      <section className="home-hero">
+        <Container className="home-hero-inner">
+          <img className="home-logo" src="ormusiclogo.png" alt="OR Music Events" />
+          <h1>OR Music Events</h1>
+          <p>
+            DJ, MC, lighting, staging, and event production for celebrations
+            that need to feel alive from the first song to the last toast.
+          </p>
+          <div className="home-hero-actions">
+            <Button as={Link} to="/RentalItems" size="lg">
+              Build Your Event Package
+            </Button>
+            <Button as={Link} to="/contact" variant="outline-light" size="lg">
+              Ask a Question
+            </Button>
+          </div>
+        </Container>
+      </section>
 
-      <Card className="bg-dark text-white mt-3 celebrate-with-us">
-        <Card.ImgOverlay className="celebrate-with-us">
-          <Card.Title className="header-text">Celebrate With Us!</Card.Title>
-          <Card.Text className="paragraphs">
-            OR Music Events produces some of the best events in the tristate
-            area. With many years of experience in DJ/MC and Event Management,
-            we create unforgettable events – from corporate gatherings to
-            weddings and concerts. Whether you need DJ/MC, photography,
-            videography, decor, or lighting, we've got you covered. For those
-            who want it all, full packages are available. Let us be your next
-            event management company!
-          </Card.Text>
-        </Card.ImgOverlay>
-      </Card>
+      <section className="home-band">
+        <Container>
+          <Row className="g-4 align-items-center">
+            <Col lg={5}>
+              <h2>Celebrate With Us</h2>
+              <p>
+                We produce weddings, corporate gatherings, private parties, and
+                concerts across the tristate area with DJ/MC talent, lighting,
+                decor, staging, photography, and video support.
+              </p>
+            </Col>
+            <Col lg={7}>
+              <div className="service-highlights">
+                <div>
+                  <strong>Entertainment</strong>
+                  <span>DJ, MC, playlists, hosting, crowd energy</span>
+                </div>
+                <div>
+                  <strong>Production</strong>
+                  <span>Lighting, screens, stages, sound, event flow</span>
+                </div>
+                <div>
+                  <strong>Full Packages</strong>
+                  <span>Bundled services tailored to the event size</span>
+                </div>
+              </div>
+            </Col>
+          </Row>
+        </Container>
+      </section>
 
-      <Card className="bg-dark mt-3 our-services text-white">
-        <Card.ImgOverlay className="our-services">
-          <Card.Title className="header-text mb-3">Our Services</Card.Title>
+      <section className="home-services">
+        <Container>
+          <div className="section-heading">
+            <h2>Services That Set the Room</h2>
+            <Button as={Link} to="/RentalItems" variant="outline-primary">
+              Browse Services
+            </Button>
+          </div>
           <Pictures />
-        </Card.ImgOverlay>
-      </Card>
+        </Container>
+      </section>
     </div>
   );
 }
@@ -88,6 +119,7 @@ const styles = {
   },
   modalContent: {
     /* Glassmorphic styling */
+    boxSizing: "border-box",
     backgroundColor: "rgba(255, 255, 255, 0.2)",
     backdropFilter: "blur(10px)",
     border: "1px solid rgba(255, 255, 255, 0.3)",

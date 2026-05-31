@@ -13,6 +13,115 @@ const esc = (s) =>
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;");
 
+const normalizeEvents = (events = []) =>
+  (Array.isArray(events) ? events : []).map((ev, idx) => ({
+    ...ev,
+    id: ev?.id || `event-${idx}`,
+  }));
+
+const normalizeAllocations = (item = {}, events = []) => {
+  const eventIds = new Set(events.map((ev) => ev.id));
+  const totalQty = Math.max(0, Number(item?.quantity || 0));
+  const raw = Array.isArray(item?.eventAllocations)
+    ? item.eventAllocations
+    : [];
+  const allocations = raw
+    .map((row) => ({
+      eventId: row?.eventId || "",
+      quantity: Math.max(0, Number(row?.quantity || 0)),
+    }))
+    .filter((row) => row.quantity > 0 && eventIds.has(row.eventId));
+
+  if (allocations.length === 0 && item?.eventId && eventIds.has(item.eventId)) {
+    return [{ eventId: item.eventId, quantity: totalQty }];
+  }
+
+  const capped = [];
+  let used = 0;
+  allocations.forEach((row) => {
+    const remaining = Math.max(0, totalQty - used);
+    const quantity = Math.min(row.quantity, remaining);
+    if (quantity > 0) {
+      capped.push({ ...row, quantity });
+      used += quantity;
+    }
+  });
+  return capped;
+};
+
+const eventTime = (ev) =>
+  ev?.startTime || ev?.endTime
+    ? `${to12h(ev?.startTime || "00:00")} - ${to12h(
+        ev?.endTime || "00:00"
+      )}`
+    : "Time TBD";
+
+const serviceMediaHtml = (it) =>
+  Array.isArray(it?.media) && it.media.length
+    ? `<div style="display:flex; flex-wrap:wrap; gap:6px; margin-top:8px;">
+        ${it.media
+          .filter(
+            (m) =>
+              m &&
+              m.url &&
+              String(m.type || "image").toLowerCase() !== "video"
+          )
+          .map(
+            (m) =>
+              `<img src="${esc(
+                m.url
+              )}" alt="" style="max-height:90px; width:auto; border:1px solid #eee; border-radius:6px;" />`
+          )
+          .join("")}
+      </div>`
+    : "";
+
+const serviceRowsHtml = (items = []) =>
+  items.length > 0
+    ? items
+        .map((it) => {
+          const qty = Math.max(0, Number(it?.quantity || 0));
+          const price = Number(it?.price || 0);
+          const amount = qty * price;
+          return `<tr style="border-top:1px solid #edf0f2;">
+            <td style="padding:.65rem 14px;">
+              <div style="font-weight:600;">${esc(it?.name || "Item")}</div>
+              ${
+                it?.description
+                  ? `<div style="color:#6c757d; font-size:12px; line-height:1.45; margin-top:4px;">
+                      ${esc(it.description)}
+                    </div>`
+                  : ""
+              }
+              ${serviceMediaHtml(it)}
+            </td>
+            <td style="padding:.65rem 14px; text-align:right;">${qty}</td>
+            <td style="padding:.65rem 14px; text-align:right;">${money(
+              price
+            )}</td>
+            <td style="padding:.65rem 14px; text-align:right; font-weight:700;">${money(
+              amount
+            )}</td>
+          </tr>`;
+        })
+        .join("")
+    : `<tr style="border-top:1px solid #edf0f2;">
+         <td colspan="4" style="padding:.7rem 14px; color:#6c757d;">No services assigned to this event</td>
+       </tr>`;
+
+const servicesTableHtml = (items = []) => `
+  <table style="width:100%; border-collapse:collapse; font-size:15px;">
+    <thead style="background:#fcfcfd;">
+      <tr>
+        <th style="text-align:left; padding:.6rem 14px; color:#6c757d; font-weight:600;">Service</th>
+        <th style="text-align:right; padding:.6rem 14px; color:#6c757d; font-weight:600; width:80px;">Qty</th>
+        <th style="text-align:right; padding:.6rem 14px; color:#6c757d; font-weight:600; width:120px;">Unit</th>
+        <th style="text-align:right; padding:.6rem 14px; color:#6c757d; font-weight:600; width:140px;">Amount</th>
+      </tr>
+    </thead>
+    <tbody>${serviceRowsHtml(items)}</tbody>
+  </table>`;
+
 /**
  * Build a clean, print-friendly HTML body for a contract using inquiry data.
  * - Nice spacing, cards, and readable tables
@@ -26,7 +135,7 @@ export function buildContractHtml(inquiryArg) {
   const clientEmail = inquiry?.email || "";
   const clientPhone = inquiry?.phoneNumber || "";
 
-  const events = Array.isArray(inquiry?.events) ? inquiry.events : [];
+  const events = normalizeEvents(inquiry?.events);
   const items = Array.isArray(inquiry?.items) ? inquiry.items : [];
 
   // Whether any event has a venue field
@@ -38,12 +147,7 @@ export function buildContractHtml(inquiryArg) {
       ? events
           .map((ev) => {
             const d = ev?.date ? prettyDate(ev.date) : "—";
-            const t =
-              ev?.startTime || ev?.endTime
-                ? `${to12h(ev?.startTime || "00:00")} – ${to12h(
-                    ev?.endTime || "00:00"
-                  )}`
-                : "—";
+            const t = eventTime(ev);
             const v = ev?.venue ? esc(ev.venue) : "—";
             return `<tr style="border-top:1px solid #edf0f2;">
               <td style="padding:.5rem;">${esc(ev?.type || "Event")}</td>
@@ -59,59 +163,64 @@ export function buildContractHtml(inquiryArg) {
            }" style="padding:.6rem; color:#6c757d;">No events listed</td>
          </tr>`;
 
-  // Items/services rows (show per-unit and line amount)
-  const itemRows =
-    items.length > 0
-      ? items
-          .map((it) => {
-            const qty = Math.max(0, Number(it?.quantity || 0));
-            const price = Number(it?.price || 0);
-            const amount = qty * price;
-            return `<tr style="border-top:1px solid #edf0f2;">
-              <td style="padding:.5rem;">
-                <div>
-                  <div>${esc(it?.name || "Item")}</div>
-                  ${
-                    it?.description
-                      ? `<div style="color:#6c757d; font-size:12px; line-height:1.45; margin-top:4px;">
-                          ${esc(it.description)}
-                        </div>`
-                      : ""
-                  }
-                  ${
-                    Array.isArray(it?.media) && it.media.length
-                      ? `<div style="display:flex; flex-wrap:wrap; gap:6px; margin-top:8px;">
-                          ${it.media
-                            .filter(
-                              (m) =>
-                                m &&
-                                m.url &&
-                                String(m.type || "image").toLowerCase() !==
-                                  "video"
-                            )
-                            .map(
-                              (m) =>
-                                `<img src="${esc(
-                                  m.url
-                                )}" alt="" style="max-height:90px; width:auto; border:1px solid #eee; border-radius:6px;" />`
-                            )
-                            .join("")}
-                        </div>`
-                      : ""
-                  }
+  const eventIds = new Set(events.map((ev) => ev.id));
+  const splitItems = items.reduce(
+    (acc, item) => {
+      const totalQty = Math.max(0, Number(item?.quantity || 0));
+      const allocations = normalizeAllocations(item, events);
+      const assigned = allocations.reduce((sum, row) => sum + row.quantity, 0);
+      allocations.forEach((row) => {
+        if (!acc.byEvent[row.eventId]) acc.byEvent[row.eventId] = [];
+        acc.byEvent[row.eventId].push({ ...item, quantity: row.quantity });
+      });
+      const remaining = Math.max(0, totalQty - assigned);
+      if (remaining > 0) acc.unassigned.push({ ...item, quantity: remaining });
+      return acc;
+    },
+    { byEvent: {}, unassigned: [] }
+  );
+  const unassignedItems = splitItems.unassigned.filter(
+    (it) => !it?.eventId || !eventIds.has(it.eventId) || it.quantity > 0
+  );
+  const servicesByEventHtml =
+    events.length > 0
+      ? [
+          ...events.map((ev) => {
+            const eventItems = splitItems.byEvent[ev.id] || [];
+            const eventSubtotal = eventItems.reduce(
+              (sum, it) =>
+                sum +
+                Number(it?.price || 0) * Math.max(0, Number(it?.quantity || 0)),
+              0
+            );
+            return `<div style="border:1px solid #e9ecef; border-radius:12px; overflow:hidden; background:#fff; margin-bottom:12px;">
+              <div style="padding:11px 14px; border-bottom:1px solid #edf0f2; background:#f8f9fa;">
+                <div style="font-weight:800;">${esc(ev?.type || "Event")}</div>
+                <div style="color:#6c757d; font-size:13px;">
+                  ${esc(ev?.date ? prettyDate(ev.date) : "Date TBD")} · ${esc(
+              eventTime(ev)
+            )}${ev?.venue ? ` · ${esc(ev.venue)}` : ""}
                 </div>
-              </td>
-              <td style="padding:.5rem; text-align:right;">${qty}</td>
-              <td style="padding:.5rem; text-align:right;">${money(price)}</td>
-              <td style="padding:.5rem; text-align:right; font-weight:600;">${money(
-                amount
-              )}</td>
-            </tr>`;
-          })
-          .join("")
-      : `<tr style="border-top:1px solid #edf0f2;">
-           <td colspan="4" style="padding:.6rem; color:#6c757d;">No items listed</td>
-         </tr>`;
+              </div>
+              ${servicesTableHtml(eventItems)}
+              <div style="display:flex; justify-content:flex-end; padding:.65rem 14px; border-top:1px solid #edf0f2; background:#fcfcfd; font-weight:700;">
+                Event subtotal: ${money(eventSubtotal)}
+              </div>
+            </div>`;
+          }),
+          unassignedItems.length > 0
+            ? `<div style="border:1px solid #e9ecef; border-radius:12px; overflow:hidden; background:#fff; margin-bottom:12px;">
+                <div style="padding:11px 14px; border-bottom:1px solid #edf0f2; background:#f8f9fa;">
+                  <div style="font-weight:800;">General / unassigned services</div>
+                  <div style="color:#6c757d; font-size:13px;">These services are not tied to one specific event date.</div>
+                </div>
+                ${servicesTableHtml(unassignedItems)}
+              </div>`
+            : "",
+        ].join("")
+      : `<div style="border:1px solid #e9ecef; border-radius:12px; overflow:hidden; background:#fff;">
+          ${servicesTableHtml(items)}
+        </div>`;
 
   // Totals (null-safe)
   const subtotal = items.reduce(
@@ -222,29 +331,12 @@ export function buildContractHtml(inquiryArg) {
       </table>
     </div>
 
-    <!-- Items/Services -->
-    <div style="margin-top:14px; border:1px solid #e9ecef; border-radius:12px; overflow:hidden; background:#fff;">
-      <div style="padding:10px 14px; font-weight:700; border-bottom:1px solid #edf0f2; background:#f8f9fa;">
-        Equipment and services
+    <!-- Items/Services grouped by event -->
+    <div style="margin-top:14px;">
+      <div style="font-size:18px; font-weight:800; margin-bottom:8px;">
+        Equipment and services by event
       </div>
-      <table style="width:100%; border-collapse:collapse; font-size:15px;">
-        <thead style="background:#fcfcfd;">
-          <tr>
-            <th style="text-align:left; padding:.6rem 14px; color:#6c757d; font-weight:600;">Item</th>
-            <th style="text-align:right; padding:.6rem 14px; color:#6c757d; font-weight:600; width:90px;">Qty</th>
-            <th style="text-align:right; padding:.6rem 14px; color:#6c757d; font-weight:600; width:120px;">Unit</th>
-            <th style="text-align:right; padding:.6rem 14px; color:#6c757d; font-weight:600; width:140px;">Amount</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${itemRows
-            .replaceAll(/<td /g, "<td ")
-            .replaceAll(
-              /style="padding:\.5rem; /g,
-              'style="padding:.6rem 14px; '
-            )}
-        </tbody>
-      </table>
+      ${servicesByEventHtml}
     </div>
 
     <!-- Totals -->

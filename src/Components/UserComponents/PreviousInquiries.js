@@ -1,4 +1,4 @@
-// src/components/cart/PreviousInquiries.jsx
+// src/components/user/PreviousInquiries.jsx
 import React, { useState, useEffect } from "react";
 import { Table, Badge, Card, Row, Col, ListGroup } from "react-bootstrap";
 import { collection, query, orderBy, onSnapshot } from "firebase/firestore";
@@ -16,6 +16,69 @@ const money = (v) =>
     Number(v || 0)
   );
 
+const normalizeEvents = (events = []) =>
+  (Array.isArray(events) ? events : []).map((ev, idx) => ({
+    ...ev,
+    id: ev?.id || `event-${idx}`,
+  }));
+
+const eventLabel = (ev) => {
+  if (!ev) return "Not assigned to a specific event";
+  const date = ev.date ? prettyDate(ev.date) : "Date N/A";
+  const time =
+    ev.startTime || ev.endTime
+      ? `, ${ev.startTime ? to12h(ev.startTime) : "Start N/A"} - ${
+          ev.endTime ? to12h(ev.endTime) : "End N/A"
+        }`
+      : "";
+  const venue = ev.venue ? ` at ${ev.venue}` : "";
+  return `${ev.type || "Event"} on ${date}${time}${venue}`;
+};
+
+const normalizeAllocations = (item = {}, events = []) => {
+  const eventIds = new Set(events.map((ev) => ev.id));
+  const totalQty = Math.max(0, Number(item?.quantity || 0));
+  const raw = Array.isArray(item?.eventAllocations)
+    ? item.eventAllocations
+    : [];
+  const allocations = raw
+    .map((row) => ({
+      eventId: row?.eventId || "",
+      quantity: Math.max(0, Number(row?.quantity || 0)),
+    }))
+    .filter((row) => row.quantity > 0 && eventIds.has(row.eventId));
+
+  if (allocations.length === 0 && item?.eventId && eventIds.has(item.eventId)) {
+    return [{ eventId: item.eventId, quantity: totalQty }];
+  }
+
+  const capped = [];
+  let used = 0;
+  allocations.forEach((row) => {
+    const remaining = Math.max(0, totalQty - used);
+    const quantity = Math.min(row.quantity, remaining);
+    if (quantity > 0) {
+      capped.push({ ...row, quantity });
+      used += quantity;
+    }
+  });
+  return capped;
+};
+
+const itemEventLabel = (inquiry, item) => {
+  const events = normalizeEvents(inquiry?.events);
+  const eventMap = new Map(events.map((ev) => [ev.id, ev]));
+  const allocations = normalizeAllocations(item, events);
+  const assigned = allocations.reduce((sum, row) => sum + row.quantity, 0);
+  const totalQty = Math.max(0, Number(item?.quantity || 0));
+  const lines = allocations.map(
+    (row) => `${row.quantity} to ${eventLabel(eventMap.get(row.eventId))}`
+  );
+  const remaining = totalQty - assigned;
+  if (remaining > 0) lines.push(`${remaining} unassigned/general`);
+  return lines.length ? lines.join("; ") : "Not assigned to a specific event";
+};
+
 const StatusBadge = ({ status }) => {
   const s = (status || "No Status").toLowerCase();
   const color = s.includes("processing")
@@ -28,6 +91,52 @@ const StatusBadge = ({ status }) => {
     ? "warning"
     : "info";
   return <Badge bg={color}>{status || "No Status"}</Badge>;
+};
+
+const statusFlow = ["Processing", "Pending", "Approved", "Confirmed", "Completed"];
+
+const InquiryTimeline = ({ inquiry }) => {
+  const status = inquiry?.status || "Processing";
+  const currentIdx = Math.max(
+    0,
+    statusFlow.findIndex((s) => s.toLowerCase() === status.toLowerCase())
+  );
+  const hasContract = (inquiry?.contracts || []).length > 0;
+  const signedContract = (inquiry?.contracts || []).some(
+    (c) => c.clientSignature && c.adminSignature
+  );
+  const hasDeposit = sumDeposits(inquiry) > 0;
+
+  const steps = statusFlow.map((label, idx) => ({
+    label,
+    done: idx <= currentIdx,
+  }));
+
+  return (
+    <div className="status-timeline mt-3" aria-label="Inquiry progress">
+      {steps.map((step) => (
+        <div
+          key={step.label}
+          className={`status-step ${step.done ? "is-done" : ""}`}
+        >
+          <span />
+          {step.label}
+        </div>
+      ))}
+      <div className={`status-step ${hasContract ? "is-done" : ""}`}>
+        <span />
+        Contract sent
+      </div>
+      <div className={`status-step ${signedContract ? "is-done" : ""}`}>
+        <span />
+        Contract signed
+      </div>
+      <div className={`status-step ${hasDeposit ? "is-done" : ""}`}>
+        <span />
+        Deposit logged
+      </div>
+    </div>
+  );
 };
 
 // math matches admin, deposits are not included in totals
@@ -126,7 +235,7 @@ const ContactBlock = ({ inquiry }) => {
 };
 
 const ScheduleBlock = ({ inquiry }) => {
-  const events = Array.isArray(inquiry?.events) ? inquiry.events : [];
+  const events = normalizeEvents(inquiry?.events);
   if (events.length === 0) return null;
   return (
     <div className="mt-2">
@@ -140,6 +249,9 @@ const ScheduleBlock = ({ inquiry }) => {
               {e?.startTime ? to12h(e.startTime) : "Start N/A"} to{" "}
               {e?.endTime ? to12h(e.endTime) : "End N/A"}
             </div>
+            {e?.venue ? (
+              <div className="text-muted small">Venue: {e.venue}</div>
+            ) : null}
           </ListGroup.Item>
         ))}
       </ListGroup>
@@ -307,6 +419,7 @@ const PreviousInquiries = () => {
                   </div>
                   <ContactBlock inquiry={inquiry} />
                   <ScheduleBlock inquiry={inquiry} />
+                  <InquiryTimeline inquiry={inquiry} />
 
                   {/* Contracts for this inquiry */}
                   <div className="fw-semibold mt-3 mb-1">Contracts</div>
@@ -348,6 +461,9 @@ const PreviousInquiries = () => {
                             {item.description}
                           </div>
                         ) : null}
+                        <div className="text-muted small mt-1">
+                          Event: {itemEventLabel(inquiry, item)}
+                        </div>
                       </li>
                     ))}
                   </ul>
@@ -494,11 +610,14 @@ const PreviousInquiries = () => {
                             {e?.date ? prettyDate(e.date) : "N/A"} from{" "}
                             {e?.startTime ? to12h(e.startTime) : "N/A"} to{" "}
                             {e?.endTime ? to12h(e.endTime) : "N/A"}
+                            {e?.venue ? ` at ${e.venue}` : ""}
                           </li>
                         ))}
                       </ul>
                     </div>
                   ) : null}
+
+                  <InquiryTimeline inquiry={inquiry} />
 
                   {(inquiry.contracts || []).length > 0 ? (
                     <div className="mt-2">
@@ -534,13 +653,16 @@ const PreviousInquiries = () => {
                   {(inquiry.items || []).map((item, idx) => (
                     <li key={`${inquiry.id}-m-name-${idx}`} className="mb-2">
                       <strong>{item.name}</strong>: {money(item.price)}
-                      {item.description ? (
-                        <div className="text-muted small mt-1">
-                          {item.description}
-                        </div>
-                      ) : null}
-                    </li>
-                  ))}
+                    {item.description ? (
+                      <div className="text-muted small mt-1">
+                        {item.description}
+                      </div>
+                    ) : null}
+                    <div className="text-muted small mt-1">
+                      Event: {itemEventLabel(inquiry, item)}
+                    </div>
+                  </li>
+                ))}
                 </ul>
 
                 {/* Qty */}

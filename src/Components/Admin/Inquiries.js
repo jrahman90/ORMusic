@@ -37,6 +37,72 @@ const money = (v) =>
     Number(v || 0)
   );
 
+const makeEventId = () =>
+  crypto.randomUUID?.() || `event-${Date.now()}-${Math.random()}`;
+
+const normalizeEvents = (events = []) =>
+  (Array.isArray(events) ? events : []).map((ev, idx) => ({
+    ...ev,
+    id: ev?.id || `event-${idx}`,
+  }));
+
+const eventLabel = (ev) => {
+  if (!ev) return "Unassigned";
+  const date = ev.date ? prettyDate(ev.date) : "Date N/A";
+  const time =
+    ev.startTime || ev.endTime
+      ? `, ${ev.startTime ? to12h(ev.startTime) : "Start N/A"} - ${
+          ev.endTime ? to12h(ev.endTime) : "End N/A"
+        }`
+      : "";
+  const venue = ev.venue ? ` at ${ev.venue}` : "";
+  return `${ev.type || "Event"} on ${date}${time}${venue}`;
+};
+
+const itemEventLabel = (inq, item) => {
+  const events = normalizeEvents(inq?.events);
+  const eventMap = new Map(events.map((ev) => [ev.id, ev]));
+  const allocations = normalizeAllocations(item, events);
+  const assigned = allocations.reduce((sum, row) => sum + row.quantity, 0);
+  const totalQty = Math.max(0, Number(item?.quantity || 0));
+  const lines = allocations.map(
+    (row) => `${row.quantity} to ${eventLabel(eventMap.get(row.eventId))}`
+  );
+  const remaining = totalQty - assigned;
+  if (remaining > 0) lines.push(`${remaining} unassigned/general`);
+  return lines.length ? lines.join("; ") : "Not assigned to a specific event";
+};
+
+const normalizeAllocations = (item = {}, events = []) => {
+  const eventIds = new Set(events.map((ev) => ev.id));
+  const totalQty = Math.max(0, Number(item?.quantity || 0));
+  const raw = Array.isArray(item?.eventAllocations)
+    ? item.eventAllocations
+    : [];
+  const allocations = raw
+    .map((row) => ({
+      eventId: row?.eventId || "",
+      quantity: Math.max(0, Number(row?.quantity || 0)),
+    }))
+    .filter((row) => row.quantity > 0 && eventIds.has(row.eventId));
+
+  if (allocations.length === 0 && item?.eventId && eventIds.has(item.eventId)) {
+    return [{ eventId: item.eventId, quantity: totalQty }];
+  }
+
+  const capped = [];
+  let used = 0;
+  allocations.forEach((row) => {
+    const remaining = Math.max(0, totalQty - used);
+    const quantity = Math.min(row.quantity, remaining);
+    if (quantity > 0) {
+      capped.push({ ...row, quantity });
+      used += quantity;
+    }
+  });
+  return capped;
+};
+
 const statusOptions = [
   "Processing",
   "Pending",
@@ -78,7 +144,7 @@ function ContactBlock({ inq }) {
 }
 
 function EventSchedule({ inq }) {
-  const events = Array.isArray(inq?.events) ? inq.events : [];
+  const events = normalizeEvents(inq?.events);
   if (events.length === 0) return null;
   return (
     <>
@@ -89,9 +155,7 @@ function EventSchedule({ inq }) {
             <Card.Body className="py-2">
               <div className="fw-semibold">{e?.type || "Event"}</div>
               <div className="small text-muted">
-                {e?.date ? prettyDate(e.date) : "Date N/A"} from{" "}
-                {e?.startTime ? to12h(e.startTime) : "Start N/A"} to{" "}
-                {e?.endTime ? to12h(e.endTime) : "End N/A"}
+                {eventLabel(e)}
               </div>
             </Card.Body>
           </Card>
@@ -103,18 +167,17 @@ function EventSchedule({ inq }) {
 
 // Admin can edit schedule before contracts exist
 function EventScheduleEditor({ inq, onSave, busy }) {
-  const [rows, setRows] = useState(
-    Array.isArray(inq?.events) ? inq.events : []
-  );
+  const [rows, setRows] = useState(normalizeEvents(inq?.events));
   const [draft, setDraft] = useState({
     type: "",
+    venue: "",
     date: "",
     startTime: "",
     endTime: "",
   });
 
   useEffect(() => {
-    setRows(Array.isArray(inq?.events) ? inq.events : []);
+    setRows(normalizeEvents(inq?.events));
   }, [inq?.events]);
 
   const canAdd =
@@ -125,8 +188,8 @@ function EventScheduleEditor({ inq, onSave, busy }) {
 
   const addRow = () => {
     if (!canAdd) return;
-    setRows((r) => [...r, { ...draft }]);
-    setDraft({ type: "", date: "", startTime: "", endTime: "" });
+    setRows((r) => [...r, { ...draft, id: makeEventId() }]);
+    setDraft({ type: "", venue: "", date: "", startTime: "", endTime: "" });
   };
 
   const removeRow = (idx) => setRows(rows.filter((_, i) => i !== idx));
@@ -155,7 +218,16 @@ function EventScheduleEditor({ inq, onSave, busy }) {
                       disabled={busy}
                     />
                   </Col>
-                  <Col xs={6} md={3}>
+                  <Col xs={12} md={3}>
+                    <Form.Label className="mb-1 small">Venue</Form.Label>
+                    <Form.Control
+                      value={e.venue || ""}
+                      placeholder="Venue name or address"
+                      onChange={(ev) => changeRow(i, "venue", ev.target.value)}
+                      disabled={busy}
+                    />
+                  </Col>
+                  <Col xs={6} md={2}>
                     <Form.Label className="mb-1 small">Date</Form.Label>
                     <Form.Control
                       type="date"
@@ -164,7 +236,7 @@ function EventScheduleEditor({ inq, onSave, busy }) {
                       disabled={busy}
                     />
                   </Col>
-                  <Col xs={3} md={3}>
+                  <Col xs={3} md={2}>
                     <Form.Label className="mb-1 small">Start</Form.Label>
                     <Form.Control
                       type="time"
@@ -175,7 +247,7 @@ function EventScheduleEditor({ inq, onSave, busy }) {
                       disabled={busy}
                     />
                   </Col>
-                  <Col xs={3} md={3}>
+                  <Col xs={3} md={2}>
                     <Form.Label className="mb-1 small">End</Form.Label>
                     <Form.Control
                       type="time"
@@ -214,7 +286,16 @@ function EventScheduleEditor({ inq, onSave, busy }) {
             disabled={busy}
           />
         </Col>
-        <Col xs={6} md={3}>
+        <Col xs={12} md={3}>
+          <Form.Label className="mb-1 small">Venue</Form.Label>
+          <Form.Control
+            value={draft.venue}
+            placeholder="Venue name or address"
+            onChange={(e) => setDraft((s) => ({ ...s, venue: e.target.value }))}
+            disabled={busy}
+          />
+        </Col>
+        <Col xs={6} md={2}>
           <Form.Label className="mb-1 small">Date</Form.Label>
           <Form.Control
             type="date"
@@ -223,7 +304,7 @@ function EventScheduleEditor({ inq, onSave, busy }) {
             disabled={busy}
           />
         </Col>
-        <Col xs={3} md={3}>
+        <Col xs={3} md={2}>
           <Form.Label className="mb-1 small">Start</Form.Label>
           <Form.Control
             type="time"
@@ -234,7 +315,7 @@ function EventScheduleEditor({ inq, onSave, busy }) {
             disabled={busy}
           />
         </Col>
-        <Col xs={3} md={3}>
+        <Col xs={3} md={2}>
           <Form.Label className="mb-1 small">End</Form.Label>
           <Form.Control
             type="time"
@@ -294,7 +375,9 @@ const getHeaderDateLines = (inq) => {
             timePart = end;
           }
 
-          const label = timePart ? `${dateLabel}, ${timePart}` : dateLabel;
+          const label = `${timePart ? `${dateLabel}, ${timePart}` : dateLabel}${
+            e.venue ? `, ${e.venue}` : ""
+          }`;
 
           return <div key={`hdr-${inq.id}-ev-${idx}`}>{label}</div>;
         })}
@@ -372,6 +455,8 @@ export default function Inquiries() {
 
   const [userSearch, setUserSearch] = useState("");
   const [selectedUser, setSelectedUser] = useState(null);
+  const [adminStatusFilter, setAdminStatusFilter] = useState("Active");
+  const [adminSearch, setAdminSearch] = useState("");
 
   // load inquiries realtime
   useEffect(() => {
@@ -768,6 +853,7 @@ export default function Inquiries() {
   const saveItems = async (inq, nextItems) => {
     try {
       setSavingFlag(inq.id, true);
+      const eventIds = new Set(normalizeEvents(inq.events).map((ev) => ev.id));
       const clean = nextItems.map((it) => ({
         id: it.id,
         name: it.name,
@@ -775,6 +861,8 @@ export default function Inquiries() {
         price: Number(it.price || 0),
         quantity: Math.max(0, Number(it.quantity || 0)),
         media: Array.isArray(it.media) ? it.media : [],
+        eventId: it.eventId && eventIds.has(it.eventId) ? it.eventId : "",
+        eventAllocations: normalizeAllocations(it, normalizeEvents(inq.events)),
       }));
       await updateDoc(doc(db, "inquiries", inq.id), { items: clean });
     } catch (e) {
@@ -790,6 +878,20 @@ export default function Inquiries() {
     const next = { ...items[idx] };
     next.price = Number(draft?.price || 0);
     next.quantity = Math.max(0, Number(draft?.quantity || 0));
+    if (draft?.eventId != null) {
+      next.eventId = draft.eventId;
+      next.eventAllocations = draft.eventId
+        ? [{ eventId: draft.eventId, quantity: next.quantity }]
+        : [];
+    }
+    if (draft?.allocations) {
+      next.eventAllocations = Object.entries(draft.allocations)
+        .map(([eventId, quantity]) => ({
+          eventId,
+          quantity: Math.max(0, Number(quantity || 0)),
+        }))
+        .filter((row) => row.quantity > 0);
+    }
     items[idx] = next;
     await saveItems(inq, items);
   };
@@ -823,6 +925,15 @@ export default function Inquiries() {
       price: Number(draft.price || 0),
       quantity: Math.max(1, Number(draft.quantity || 1)),
       media,
+      eventId: draft.eventId || "",
+      eventAllocations: draft.eventId
+        ? [
+            {
+              eventId: draft.eventId,
+              quantity: Math.max(1, Number(draft.quantity || 1)),
+            },
+          ]
+        : [],
     };
 
     const items = [...(inq.items || []), item];
@@ -833,7 +944,27 @@ export default function Inquiries() {
   const saveEvents = async (inq, rows) => {
     try {
       setSavingFlag(inq.id, true);
-      await updateDoc(doc(db, "inquiries", inq.id), { events: rows });
+      const cleanRows = normalizeEvents(rows).map((row) => ({
+        id: row.id || makeEventId(),
+        type: row.type || "",
+        venue: row.venue || "",
+        date: row.date || "",
+        startTime: row.startTime || "",
+        endTime: row.endTime || "",
+      }));
+      const eventIds = new Set(cleanRows.map((row) => row.id));
+      const cleanItems = (Array.isArray(inq.items) ? inq.items : []).map(
+        (item) => ({
+          ...item,
+          eventId:
+            item.eventId && eventIds.has(item.eventId) ? item.eventId : "",
+          eventAllocations: normalizeAllocations(item, cleanRows),
+        })
+      );
+      await updateDoc(doc(db, "inquiries", inq.id), {
+        events: cleanRows,
+        items: cleanItems,
+      });
     } catch (e) {
       console.error("Events update failed:", e);
     } finally {
@@ -852,10 +983,39 @@ export default function Inquiries() {
   );
 
   // compact accordion requirement and Completed section
-  const activeList = useMemo(
-    () => list.filter((inq) => (inq.status || "Processing") !== "Completed"),
-    [list]
-  );
+  const statusCounts = useMemo(() => {
+    const counts = { Active: 0, All: list.length };
+    statusOptions.forEach((status) => {
+      counts[status] = 0;
+    });
+    list.forEach((inq) => {
+      const status = inq.status || "Processing";
+      counts[status] = (counts[status] || 0) + 1;
+      if (status !== "Completed") counts.Active += 1;
+    });
+    return counts;
+  }, [list]);
+
+  const activeList = useMemo(() => {
+    const q = String(adminSearch || "").trim().toLowerCase();
+    return list.filter((inq) => {
+      const status = inq.status || "Processing";
+      const matchesStatus =
+        adminStatusFilter === "All" ||
+        (adminStatusFilter === "Active"
+          ? status !== "Completed"
+          : status === adminStatusFilter);
+      if (!matchesStatus) return false;
+      if (!q) return true;
+      const itemText = (Array.isArray(inq.items) ? inq.items : [])
+        .map((it) => `${it.name || ""} ${it.description || ""}`)
+        .join(" ");
+      const haystack = `${inq.name || ""} ${inq.email || ""} ${
+        inq.phoneNumber || ""
+      } ${inq.eventDetails || ""} ${itemText}`.toLowerCase();
+      return haystack.includes(q);
+    });
+  }, [list, adminSearch, adminStatusFilter]);
   const completedList = useMemo(
     () => list.filter((inq) => (inq.status || "Processing") === "Completed"),
     [list]
@@ -1024,6 +1184,46 @@ export default function Inquiries() {
         </Button>
       </div>
 
+      <Card className="mb-3 border-0 shadow-sm admin-command-bar">
+        <Card.Body>
+          <Row className="g-3 align-items-center">
+            <Col lg={5}>
+              <Form.Control
+                type="search"
+                placeholder="Search name, email, phone, notes, or items"
+                value={adminSearch}
+                onChange={(e) => setAdminSearch(e.target.value)}
+              />
+            </Col>
+            <Col lg={7}>
+              <div className="admin-status-filters">
+                {["Active", "Processing", "Pending", "Approved", "Confirmed", "Completed", "All"].map(
+                  (status) => (
+                    <Button
+                      key={status}
+                      size="sm"
+                      variant={
+                        adminStatusFilter === status ? "primary" : "outline-primary"
+                      }
+                      onClick={() => setAdminStatusFilter(status)}
+                    >
+                      {status}
+                      <Badge
+                        bg={adminStatusFilter === status ? "light" : "secondary"}
+                        text={adminStatusFilter === status ? "dark" : undefined}
+                        className="ms-2"
+                      >
+                        {statusCounts[status] || 0}
+                      </Badge>
+                    </Button>
+                  )
+                )}
+              </div>
+            </Col>
+          </Row>
+        </Card.Body>
+      </Card>
+
       <Row xs={1} sm={1} md={1} lg={2} xl={3} className="g-3">
         {activeList.map((inq) => {
           const {
@@ -1041,7 +1241,6 @@ export default function Inquiries() {
           const busy = Boolean(saving[inq.id]);
           const depTotal = sumDeposits(inq);
           const remaining = Math.max(0, total - depTotal);
-          const add = adding[inq.id] || {};
 
           return (
             <Col key={inq.id}>
@@ -1305,6 +1504,7 @@ export default function Inquiries() {
                           <Accordion.Body className="pt-3">
                             {(inq.items || []).map((item, idx) => {
                               const draft = itemDrafts[inq.id]?.[idx] || {};
+                              const eventRows = normalizeEvents(inq.events);
                               const media = Array.isArray(item.media)
                                 ? item.media
                                 : [];
@@ -1312,6 +1512,15 @@ export default function Inquiries() {
                               const lineTotal =
                                 Number(draft.price ?? item.price ?? 0) *
                                 Number(draft.quantity ?? item.quantity ?? 0);
+                              const totalQty = Math.max(
+                                0,
+                                Number(draft.quantity ?? item.quantity ?? 0)
+                              );
+                              const allocations = normalizeAllocations(
+                                item,
+                                eventRows
+                              );
+                              const draftAllocations = draft.allocations || {};
 
                               return (
                                 <div
@@ -1346,8 +1555,89 @@ export default function Inquiries() {
                                       {item.description}
                                     </div>
                                   ) : null}
+                                  <div className="text-muted small mt-1">
+                                    Event: {itemEventLabel(inq, item)}
+                                  </div>
 
                                   <Row className="g-2 mt-2">
+                                    {eventRows.length > 0 ? (
+                                      <Col xs={12}>
+                                        <Form.Label className="mb-0 small">
+                                          {totalQty > 1
+                                            ? "Quantity by event"
+                                            : "Event"}
+                                        </Form.Label>
+                                        {totalQty > 1 ? (
+                                          <Row className="g-2">
+                                            {eventRows.map((ev) => {
+                                              const fallback =
+                                                allocations.find(
+                                                  (row) =>
+                                                    row.eventId === ev.id
+                                                )?.quantity || "";
+                                              return (
+                                                <Col xs={12} key={ev.id}>
+                                                  <div className="small text-muted">
+                                                    {eventLabel(ev)}
+                                                  </div>
+                                                  <Form.Control
+                                                    type="number"
+                                                    min="0"
+                                                    max={totalQty}
+                                                    inputMode="numeric"
+                                                    value={
+                                                      draftAllocations[ev.id] ??
+                                                      fallback
+                                                    }
+                                                    placeholder="0"
+                                                    onChange={(e) =>
+                                                      setItemDraftField(
+                                                        inq.id,
+                                                        idx,
+                                                        "allocations",
+                                                        {
+                                                          ...draftAllocations,
+                                                          [ev.id]:
+                                                            e.target.value,
+                                                        }
+                                                      )
+                                                    }
+                                                    disabled={busy}
+                                                  />
+                                                </Col>
+                                              );
+                                            })}
+                                          </Row>
+                                        ) : (
+                                          <Form.Select
+                                            value={
+                                              draft.eventId ??
+                                              item.eventId ??
+                                              allocations[0]?.eventId ??
+                                              ""
+                                            }
+                                            onChange={(e) =>
+                                              setItemDraftField(
+                                                inq.id,
+                                                idx,
+                                                "eventId",
+                                                e.target.value
+                                              )
+                                            }
+                                            disabled={busy}
+                                          >
+                                            <option value="">
+                                              Applies generally / unassigned
+                                            </option>
+                                            {eventRows.map((ev) => (
+                                              <option key={ev.id} value={ev.id}>
+                                                {eventLabel(ev)}
+                                              </option>
+                                            ))}
+                                          </Form.Select>
+                                        )}
+                                      </Col>
+                                    ) : null}
                                     <Col xs={6}>
                                       <Form.Label className="mb-0 small">
                                         Price
@@ -1520,6 +1810,30 @@ export default function Inquiries() {
                                     disabled={busy}
                                   />
                                 </Col>
+                                {normalizeEvents(inq.events).length > 0 ? (
+                                  <Col xs={12}>
+                                    <Form.Select
+                                      value={adding[inq.id]?.eventId || ""}
+                                      onChange={(e) =>
+                                        setAddingField(
+                                          inq.id,
+                                          "eventId",
+                                          e.target.value
+                                        )
+                                      }
+                                      disabled={busy}
+                                    >
+                                      <option value="">
+                                        Applies generally / unassigned
+                                      </option>
+                                      {normalizeEvents(inq.events).map((ev) => (
+                                        <option key={ev.id} value={ev.id}>
+                                          {eventLabel(ev)}
+                                        </option>
+                                      ))}
+                                    </Form.Select>
+                                  </Col>
+                                ) : null}
                                 <Col xs={12}>
                                   <Button
                                     className="w-100"
@@ -1767,6 +2081,7 @@ export default function Inquiries() {
 
                       {(inq.items || []).map((item, idx) => {
                         const draft = itemDrafts[inq.id]?.[idx] || {};
+                        const eventRows = normalizeEvents(inq.events);
                         const media = Array.isArray(item.media)
                           ? item.media
                           : [];
@@ -1774,6 +2089,15 @@ export default function Inquiries() {
                         const lineTotal =
                           Number(draft.price ?? item.price ?? 0) *
                           Number(draft.quantity ?? item.quantity ?? 0);
+                        const totalQty = Math.max(
+                          0,
+                          Number(draft.quantity ?? item.quantity ?? 0)
+                        );
+                        const allocations = normalizeAllocations(
+                          item,
+                          eventRows
+                        );
+                        const draftAllocations = draft.allocations || {};
 
                         return (
                           <div
@@ -1809,8 +2133,87 @@ export default function Inquiries() {
                                 {item.description}
                               </div>
                             ) : null}
+                            <div className="text-muted small mb-2">
+                              Event: {itemEventLabel(inq, item)}
+                            </div>
 
                             <Row className="g-2 align-items-end">
+                              {eventRows.length > 0 ? (
+                                <Col lg={12}>
+                                  <Form.Label className="mb-0 small">
+                                    {totalQty > 1
+                                      ? "Quantity by event"
+                                      : "Event"}
+                                  </Form.Label>
+                                  {totalQty > 1 ? (
+                                    <Row className="g-2">
+                                      {eventRows.map((ev) => {
+                                        const fallback =
+                                          allocations.find(
+                                            (row) => row.eventId === ev.id
+                                          )?.quantity || "";
+                                        return (
+                                          <Col md={6} key={ev.id}>
+                                            <div className="small text-muted">
+                                              {eventLabel(ev)}
+                                            </div>
+                                            <Form.Control
+                                              type="number"
+                                              min="0"
+                                              max={totalQty}
+                                              inputMode="numeric"
+                                              value={
+                                                draftAllocations[ev.id] ??
+                                                fallback
+                                              }
+                                              placeholder="0"
+                                              onChange={(e) =>
+                                                setItemDraftField(
+                                                  inq.id,
+                                                  idx,
+                                                  "allocations",
+                                                  {
+                                                    ...draftAllocations,
+                                                    [ev.id]: e.target.value,
+                                                  }
+                                                )
+                                              }
+                                              disabled={busy}
+                                            />
+                                          </Col>
+                                        );
+                                      })}
+                                    </Row>
+                                  ) : (
+                                    <Form.Select
+                                      value={
+                                        draft.eventId ??
+                                        item.eventId ??
+                                        allocations[0]?.eventId ??
+                                        ""
+                                      }
+                                      onChange={(e) =>
+                                        setItemDraftField(
+                                          inq.id,
+                                          idx,
+                                          "eventId",
+                                          e.target.value
+                                        )
+                                      }
+                                      disabled={busy}
+                                    >
+                                      <option value="">
+                                        Applies generally / unassigned
+                                      </option>
+                                      {eventRows.map((ev) => (
+                                        <option key={ev.id} value={ev.id}>
+                                          {eventLabel(ev)}
+                                        </option>
+                                      ))}
+                                    </Form.Select>
+                                  )}
+                                </Col>
+                              ) : null}
                               <Col lg={5}>
                                 <Form.Label className="mb-0 small">
                                   Price
@@ -1975,6 +2378,32 @@ export default function Inquiries() {
                               disabled={busy}
                             />
                           </Col>
+
+                          {normalizeEvents(inq.events).length > 0 ? (
+                            <Col lg={11}>
+                              <Form.Label className="mb-1">Event</Form.Label>
+                              <Form.Select
+                                value={adding[inq.id]?.eventId || ""}
+                                onChange={(e) =>
+                                  setAddingField(
+                                    inq.id,
+                                    "eventId",
+                                    e.target.value
+                                  )
+                                }
+                                disabled={busy}
+                              >
+                                <option value="">
+                                  Applies generally / unassigned
+                                </option>
+                                {normalizeEvents(inq.events).map((ev) => (
+                                  <option key={ev.id} value={ev.id}>
+                                    {eventLabel(ev)}
+                                  </option>
+                                ))}
+                              </Form.Select>
+                            </Col>
+                          ) : null}
 
                           <Col lg={1} className="d-flex justify-content-end">
                             <Button
@@ -2267,55 +2696,44 @@ export default function Inquiries() {
                             </div>
                           ) : (
                             <ul className="list-unstyled mb-0">
-                              {inq.contracts.map((c) => {
-                                const dlUrl =
-                                  c?.downloadUrl ||
-                                  c?.fileUrl ||
-                                  c?.pdfUrl ||
-                                  c?.url ||
-                                  "";
-                                return (
-                                  <li
-                                    key={c.id}
-                                    className="d-flex align-items-center justify-content-between flex-wrap gap-2 py-1"
-                                  >
-                                    <div className="d-flex align-items-center flex-wrap gap-2">
-                                      <span className="fw-semibold">
-                                        {c.title}
-                                      </span>
-                                      {c.clientSignature ? (
-                                        <Badge bg="success">
-                                          Client signed
-                                        </Badge>
-                                      ) : (
-                                        <Badge bg="warning" text="dark">
-                                          Client pending
-                                        </Badge>
-                                      )}
-                                      {c.adminSignature ? (
-                                        <Badge bg="success">Admin signed</Badge>
-                                      ) : (
-                                        <Badge bg="warning" text="dark">
-                                          Admin pending
-                                        </Badge>
-                                      )}
-                                    </div>
+                              {inq.contracts.map((c) => (
+                                <li
+                                  key={c.id}
+                                  className="d-flex align-items-center justify-content-between flex-wrap gap-2 py-1"
+                                >
+                                  <div className="d-flex align-items-center flex-wrap gap-2">
+                                    <span className="fw-semibold">
+                                      {c.title}
+                                    </span>
+                                    {c.clientSignature ? (
+                                      <Badge bg="success">Client signed</Badge>
+                                    ) : (
+                                      <Badge bg="warning" text="dark">
+                                        Client pending
+                                      </Badge>
+                                    )}
+                                    {c.adminSignature ? (
+                                      <Badge bg="success">Admin signed</Badge>
+                                    ) : (
+                                      <Badge bg="warning" text="dark">
+                                        Admin pending
+                                      </Badge>
+                                    )}
+                                  </div>
 
-                                    <div className="d-flex gap-2 flex-shrink-0">
-                                      {/* View in Contract Modal */}
-                                      <Button
-                                        size="sm"
-                                        variant="outline-secondary"
-                                        onClick={() =>
-                                          openViewContractAdmin(inq, c, false)
-                                        }
-                                      >
-                                        View
-                                      </Button>
-                                    </div>
-                                  </li>
-                                );
-                              })}
+                                  <div className="d-flex gap-2 flex-shrink-0">
+                                    <Button
+                                      size="sm"
+                                      variant="outline-secondary"
+                                      onClick={() =>
+                                        openViewContractAdmin(inq, c, false)
+                                      }
+                                    >
+                                      View
+                                    </Button>
+                                  </div>
+                                </li>
+                              ))}
                             </ul>
                           )}
                         </div>

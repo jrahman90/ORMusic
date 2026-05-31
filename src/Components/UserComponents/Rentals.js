@@ -8,8 +8,11 @@ import {
   Badge,
   Carousel,
   Ratio,
+  Form,
+  ButtonGroup,
 } from "react-bootstrap";
 import { collection, getDocs } from "firebase/firestore";
+import { Link } from "react-router-dom";
 import db from "../../api/firestore/firestore";
 
 const money = (v) =>
@@ -66,17 +69,18 @@ function Snack({ show, onClose, text = "Added to cart" }) {
   const timers = useRef({ t1: null, t2: null });
 
   useEffect(() => {
+    const currentTimers = timers.current;
     // clear any running timers
-    clearTimeout(timers.current.t1);
-    clearTimeout(timers.current.t2);
+    clearTimeout(currentTimers.t1);
+    clearTimeout(currentTimers.t2);
 
     if (show) {
       // enter on next frame for smooth transition
       requestAnimationFrame(() => setVisible(true));
       // stay visible for 1s, then animate out, then call onClose after 180ms
-      timers.current.t1 = setTimeout(() => {
+      currentTimers.t1 = setTimeout(() => {
         setVisible(false);
-        timers.current.t2 = setTimeout(() => {
+        currentTimers.t2 = setTimeout(() => {
           onClose?.();
         }, 200); // match CSS transition
       }, 2000);
@@ -85,8 +89,8 @@ function Snack({ show, onClose, text = "Added to cart" }) {
     }
 
     return () => {
-      clearTimeout(timers.current.t1);
-      clearTimeout(timers.current.t2);
+      clearTimeout(currentTimers.t1);
+      clearTimeout(currentTimers.t2);
     };
   }, [show, onClose]);
 
@@ -203,6 +207,9 @@ const Rentals = ({ addToCart }) => {
   const [rentals, setRentals] = useState([]);
   const [addedToCart, setAddedToCart] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
+  const [category, setCategory] = useState("all");
+  const [cartCount, setCartCount] = useState(0);
 
   useEffect(() => {
     const fetchRentals = async () => {
@@ -222,6 +229,22 @@ const Rentals = ({ addToCart }) => {
     };
 
     fetchRentals();
+  }, []);
+
+  useEffect(() => {
+    const readCart = () => {
+      try {
+        const raw = localStorage.getItem("cartItems");
+        const arr = raw ? JSON.parse(raw) : [];
+        const total = arr.reduce((sum, it) => sum + Number(it.quantity || 0), 0);
+        setCartCount(total);
+      } catch {
+        setCartCount(0);
+      }
+    };
+    readCart();
+    window.addEventListener("cart:update", readCart);
+    return () => window.removeEventListener("cart:update", readCart);
   }, []);
 
   const addToCartLocal = (item) => {
@@ -261,8 +284,18 @@ const Rentals = ({ addToCart }) => {
     // Snack will auto hide and call onClose to set false
   };
 
+  const normalizedQuery = search.trim().toLowerCase();
+  const visibleRentals = rentals.filter((r) => {
+    const matchesCategory =
+      category === "all" ||
+      (Array.isArray(r.categories) && r.categories.includes(category));
+    const haystack = `${r.name || ""} ${r.description || ""}`.toLowerCase();
+    const matchesSearch = !normalizedQuery || haystack.includes(normalizedQuery);
+    return matchesCategory && matchesSearch;
+  });
+
   const itemsWith = (cat) =>
-    rentals.filter((r) =>
+    visibleRentals.filter((r) =>
       Array.isArray(r.categories) ? r.categories.includes(cat) : false
     );
 
@@ -270,7 +303,7 @@ const Rentals = ({ addToCart }) => {
   const rentalsSection = itemsWith("addons"); // Rentals section
 
   const nothingToShow =
-    !loading && packages.length === 0 && rentalsSection.length === 0;
+    !loading && visibleRentals.length === 0;
 
   return (
     <Container className="py-3">
@@ -280,6 +313,15 @@ const Rentals = ({ addToCart }) => {
         onClose={() => setAddedToCart(false)}
         text="Added to cart"
       />
+
+      <header className="page-intro">
+        <h1>Event Rentals and Production Services</h1>
+        <p>
+          Build your event package with DJ/MC services, sound, lighting,
+          staging, screens, decor support, and add-ons for weddings, corporate
+          events, concerts, and private parties.
+        </p>
+      </header>
 
       <div className="d-flex justify-content-center my-3">
         <div
@@ -292,6 +334,39 @@ const Rentals = ({ addToCart }) => {
             and confirmed.
           </p>
         </div>
+      </div>
+
+      <div className="services-toolbar mb-3">
+        <Form.Control
+          type="search"
+          placeholder="Search services, lighting, screens, packages..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          aria-label="Search services"
+        />
+        <ButtonGroup aria-label="Service categories">
+          {[
+            ["all", "All"],
+            ["packages", "Packages"],
+            ["addons", "Rentals"],
+          ].map(([id, label]) => (
+            <Button
+              key={id}
+              variant={category === id ? "primary" : "outline-primary"}
+              onClick={() => setCategory(id)}
+            >
+              {label}
+            </Button>
+          ))}
+        </ButtonGroup>
+        <Button
+          as={Link}
+          to="/Cart"
+          variant={cartCount > 0 ? "success" : "outline-secondary"}
+          className="mini-cart-button"
+        >
+          Cart {cartCount > 0 ? `(${cartCount})` : ""}
+        </Button>
       </div>
 
       {loading ? (
