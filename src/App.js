@@ -14,6 +14,7 @@ import Music from "./Components/Music";
 import Footer from "./Components/Footer";
 import MusicVideoAdmin from "./Components/Admin/MusicVideoAdmin";
 import Cart from "./Components/UserComponents/Cart";
+import UserInquiries from "./Components/UserComponents/UserInquiries";
 import RentalsAdmin from "./Components/Admin/RentalsAdmin";
 import Rentals from "./Components/UserComponents/Rentals";
 import DjmcAdmin from "./Components/Admin/DjmcAdmin";
@@ -25,70 +26,138 @@ import Inquiries from "./Components/Admin/Inquiries";
 import EventureTermsAndConditions from "./Components/EventureTerms";
 import EventureAdmin from "./Components/Admin/EventureAdmin";
 
+const SEO_CONFIG = {
+  "/": {
+    title:
+      "OR Music Events | DJ, MC, Lighting and Event Production in New York City",
+    description:
+      "OR Music Events provides professional DJ, MC, lighting, stage design and event production services for weddings, corporate events and private parties in New York City.",
+    path: "/",
+  },
+  "/contact": {
+    title: "Contact OR Music Events | Book Your DJ and Event Production",
+    description:
+      "Get in touch with OR Music Events to book professional DJ, MC, lighting and event production services for your wedding, corporate event or private party.",
+    path: "/contact",
+  },
+  "/DJMC": {
+    title: "Team | OR Music Events New York City",
+    description:
+      "Meet the OR Music Events team behind weddings, corporate events and private parties in New York City and surrounding states.",
+    path: "/DJMC",
+  },
+  "/RentalItems": {
+    title: "Event Rentals | Sound, Lighting and Screens | OR Music Events",
+    description:
+      "Rent speakers, microphones, projectors, screens, lighting and more from OR Music Events for your next event.",
+    path: "/RentalItems",
+  },
+  "/MusicVideos": {
+    title: "Music Videos | OR Music Events",
+    description:
+      "Watch music videos and creative projects produced by OR Music Events.",
+    path: "/MusicVideos",
+  },
+  "/Music": {
+    title: "Music by OR Music Events",
+    description:
+      "Listen to music and mixes by OR Music Events and discover the sounds behind our events.",
+    path: "/Music",
+  },
+  "/Cart": {
+    title: "Your Cart | OR Music Events Rentals",
+    description:
+      "Review and update your rental cart for event equipment from OR Music Events.",
+    path: "/Cart",
+    robots: "noindex, nofollow",
+  },
+  "/inquiries": {
+    title: "Your Inquiries | OR Music Events",
+    description:
+      "Review your OR Music Events inquiries, contracts, deposits, and status updates.",
+    path: "/inquiries",
+    robots: "noindex, nofollow",
+  },
+  "/eventure-terms-conditions": {
+    title: "Eventure Terms and Conditions | OR Music Events",
+    description:
+      "Read the Eventure terms and conditions for using the platform and working with OR Music Events.",
+    path: "/eventure-terms-conditions",
+    robots: "noindex, nofollow",
+  },
+};
+
+const SITE_URL = "https://ormusicevents.com";
+
+const upsertMeta = ({ selector, attrs }) => {
+  let el = document.head.querySelector(selector);
+  if (!el) {
+    el = document.createElement("meta");
+    document.head.appendChild(el);
+  }
+  Object.entries(attrs).forEach(([key, value]) => el.setAttribute(key, value));
+};
+
+const upsertCanonical = (href) => {
+  let el = document.head.querySelector('link[rel="canonical"]');
+  if (!el) {
+    el = document.createElement("link");
+    el.setAttribute("rel", "canonical");
+    document.head.appendChild(el);
+  }
+  el.setAttribute("href", href);
+};
+
 function App() {
   const [isAdmin, setIsAdmin] = useState(null);
-  const [userData, setUserData] = useState(null);
+  const [, setUserData] = useState(null);
   const auth = getAuth();
   const db = firestore;
   const location = useLocation();
 
-  // basic SEO config per route
-  const seoConfig = {
-    "/": {
-      title:
-        "OR Music Events | DJ, MC, Lighting and Event Production in New York City",
-      description:
-        "OR Music Events provides professional DJ, MC, lighting, stage design and event production services for weddings, corporate events and private parties in New York City.",
-    },
-    "/contact": {
-      title: "Contact OR Music Events | Book Your DJ and Event Production",
-      description:
-        "Get in touch with OR Music Events to book professional DJ, MC, lighting and event production services for your wedding, corporate event or private party.",
-    },
-    "/DJMC": {
-      title: "DJ and MC Services | OR Music Events New York City",
-      description:
-        "High energy DJ and professional MC services for weddings, corporate events and private parties in New York City and surrounding states.",
-    },
-    "/RentalItems": {
-      title: "Event Rentals | Sound, Lighting and Screens | OR Music Events",
-      description:
-        "Rent speakers, microphones, projectors, screens, lighting and more from OR Music Events for your next event.",
-    },
-    "/MusicVideos": {
-      title: "Music Videos | OR Music Events",
-      description:
-        "Watch music videos and creative projects produced by OR Music Events.",
-    },
-    "/Music": {
-      title: "Music by OR Music Events",
-      description:
-        "Listen to music and mixes by OR Music Events and discover the sounds behind our events.",
-    },
-    "/Cart": {
-      title: "Your Cart | OR Music Events Rentals",
-      description:
-        "Review and update your rental cart for event equipment from OR Music Events.",
-    },
-    "/eventure-terms-conditions": {
-      title: "Eventure Terms and Conditions | OR Music Events",
-      description:
-        "Read the Eventure terms and conditions for using the platform and working with OR Music Events.",
-    },
-  };
-
   // update title and meta description when route changes
   useEffect(() => {
-    const seo = seoConfig[location.pathname];
+    const isAdminRoute = location.pathname.includes("-admin");
+    const seo = SEO_CONFIG[location.pathname] || {
+      title: "OR Music Events | New York City",
+      description:
+        "Professional DJ, MC, lighting, staging and event production services from OR Music Events.",
+      path: location.pathname,
+      robots: isAdminRoute ? "noindex, nofollow" : "index, follow",
+    };
+
     if (seo) {
       document.title = seo.title;
-      const metaDesc = document.querySelector('meta[name="description"]');
-      if (metaDesc) {
-        metaDesc.setAttribute("content", seo.description);
-      }
-    } else {
-      // fallback to a sensible default
-      document.title = "OR Music Events | New York City";
+      const canonicalUrl = `${SITE_URL}${seo.path || location.pathname}`;
+      upsertCanonical(canonicalUrl);
+      upsertMeta({
+        selector: 'meta[name="description"]',
+        attrs: { name: "description", content: seo.description },
+      });
+      upsertMeta({
+        selector: 'meta[name="robots"]',
+        attrs: { name: "robots", content: seo.robots || "index, follow" },
+      });
+      upsertMeta({
+        selector: 'meta[property="og:title"]',
+        attrs: { property: "og:title", content: seo.title },
+      });
+      upsertMeta({
+        selector: 'meta[property="og:description"]',
+        attrs: { property: "og:description", content: seo.description },
+      });
+      upsertMeta({
+        selector: 'meta[property="og:url"]',
+        attrs: { property: "og:url", content: canonicalUrl },
+      });
+      upsertMeta({
+        selector: 'meta[name="twitter:title"]',
+        attrs: { name: "twitter:title", content: seo.title },
+      });
+      upsertMeta({
+        selector: 'meta[name="twitter:description"]',
+        attrs: { name: "twitter:description", content: seo.description },
+      });
     }
   }, [location.pathname]);
 
@@ -181,6 +250,7 @@ function App() {
           path="/Cart"
           element={<Cart items={cartItems} setItems={setCartItems} />}
         />
+        <Route path="/inquiries" element={<UserInquiries />} />
         <Route
           path="/RentalItems"
           element={<Rentals addToCart={addToCart} />}
