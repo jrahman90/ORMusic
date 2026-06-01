@@ -28,6 +28,7 @@ import {
   Settings,
   ShoppingCart,
   UserRound,
+  UsersRound,
 } from "lucide-react";
 import firestore from "../api/firestore/firestore";
 import AccountModal from "./AccountModal";
@@ -398,6 +399,14 @@ function AppNavbar() {
         >
           <Package size={22} />
           <span>Services</span>
+        </Link>
+        <Link
+          to="/DJMC"
+          className={`mobile-tab ${isActivePath("/DJMC") ? "is-active" : ""}`}
+          onClick={handleNavItemClick}
+        >
+          <UsersRound size={22} />
+          <span>Team</span>
         </Link>
         <Link
           to="/Cart"

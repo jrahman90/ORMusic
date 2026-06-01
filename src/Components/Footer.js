@@ -18,9 +18,6 @@ export default function Footer() {
           <Link className="footer-mobile-only" to="/MusicVideos">
             Music Videos
           </Link>
-          <Link className="footer-mobile-only" to="/DJMC">
-            Team
-          </Link>
         </nav>
         <a
           href="https://www.facebook.com/ormusicevents"

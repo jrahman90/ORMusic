@@ -186,10 +186,12 @@ function EventScheduleEditor({ inq, onSave, busy }) {
     draft.startTime &&
     draft.endTime;
 
-  const addRow = () => {
+  const addRow = async () => {
     if (!canAdd) return;
-    setRows((r) => [...r, { ...draft, id: makeEventId() }]);
+    const next = [...rows, { ...draft, id: makeEventId() }];
+    setRows(next);
     setDraft({ type: "", venue: "", date: "", startTime: "", endTime: "" });
+    await onSave(next);
   };
 
   const removeRow = (idx) => setRows(rows.filter((_, i) => i !== idx));
