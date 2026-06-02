@@ -461,6 +461,14 @@ ul {
     gap: .5rem;
 }
 
+.inquiry-header-summary {
+    display: flex;
+    align-items: center;
+    gap: .5rem;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+}
+
 .event-picker-trigger {
     width: 100%;
     min-height: 44px;
@@ -637,6 +645,12 @@ ul {
 }
 
 @media (max-width:576px) {
+    html,
+    body,
+    #root {
+        max-width: 100%;
+        overflow-x: hidden;
+    }
     .celebrate-with-us {
         font-size:small;
     }
@@ -666,6 +680,51 @@ ul {
     }
     .admin-status-filters {
         justify-content: flex-start;
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        width: 100%;
+    }
+    .admin-status-filters .btn {
+        min-width: 0;
+        width: 100%;
+        padding-left: .45rem;
+        padding-right: .45rem;
+        white-space: normal;
+    }
+    .admin-status-filters .badge {
+        margin-left: .35rem !important;
+    }
+    .admin-inquiries-titlebar {
+        align-items: flex-start !important;
+        gap: .75rem;
+    }
+    .admin-inquiries-titlebar .btn {
+        flex: 0 0 auto;
+        max-width: 46%;
+        white-space: normal;
+    }
+    .inquiry-card-header {
+        align-items: stretch !important;
+        flex-direction: column;
+        gap: .5rem;
+    }
+    .inquiry-header-main {
+        min-width: 0;
+        width: 100%;
+    }
+    .inquiry-header-main .text-muted {
+        overflow-wrap: anywhere;
+    }
+    .inquiry-header-summary {
+        align-items: flex-start;
+        flex-direction: row;
+        gap: .35rem;
+        justify-content: flex-start;
+        width: 100%;
+    }
+    .inquiry-header-summary .badge {
+        max-width: 100%;
+        white-space: normal;
     }
 }
 @media (max-width: 1080px){

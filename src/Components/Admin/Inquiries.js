@@ -1179,7 +1179,7 @@ export default function Inquiries() {
       `}</style>
 
       {/* Inquiries, compact accordion cards */}
-      <div className="d-flex align-items-center justify-content-between mb-2">
+      <div className="admin-inquiries-titlebar d-flex align-items-center justify-content-between mb-2">
         <h4 className="mb-0">Inquiries</h4>
         <Button size="sm" onClick={openNewInquiry}>
           Add inquiry
@@ -1251,15 +1251,21 @@ export default function Inquiries() {
                 <Card.Header
                   role="button"
                   onClick={() => toggleExpanded(inq.id)}
-                  className="d-flex justify-content-between align-items-center"
+                  className="inquiry-card-header d-flex justify-content-between align-items-center"
                 >
-                  <div>
+                  <div className="inquiry-header-main">
                     <div className="fw-semibold">{inq.name || "Unknown"}</div>
                     <div className="small text-muted">{dateStr}</div>
                   </div>
-                  <div className="d-flex align-items-center gap-2">
+                  <div className="inquiry-header-summary">
                     <Badge bg="light" text="dark">
-                      {money(total)}
+                      Total {money(total)}
+                    </Badge>
+                    <Badge
+                      bg={remaining > 0 ? "warning" : "success"}
+                      text={remaining > 0 ? "dark" : undefined}
+                    >
+                      Due {money(remaining)}
                     </Badge>
                     <Badge bg="secondary">{inq.status || "Processing"}</Badge>
                   </div>
@@ -2646,6 +2652,8 @@ export default function Inquiries() {
           {completedList.map((inq) => {
             const { total } = calcTotals(inq);
             const dateStr = getHeaderDateLines(inq);
+            const depTotal = sumDeposits(inq);
+            const remaining = Math.max(0, total - depTotal);
 
             return (
               <Col key={inq.id}>
@@ -2653,15 +2661,21 @@ export default function Inquiries() {
                   <Card.Header
                     role="button"
                     onClick={() => toggleExpanded(inq.id)}
-                    className="d-flex justify-content-between align-items-center"
+                    className="inquiry-card-header d-flex justify-content-between align-items-center"
                   >
-                    <div>
+                    <div className="inquiry-header-main">
                       <div className="fw-semibold">{inq.name || "Unknown"}</div>
                       <div className="small text-muted">{dateStr}</div>
                     </div>
-                    <div className="d-flex align-items-center gap-2">
+                    <div className="inquiry-header-summary">
                       <Badge bg="light" text="dark">
-                        {money(total)}
+                        Total {money(total)}
+                      </Badge>
+                      <Badge
+                        bg={remaining > 0 ? "warning" : "success"}
+                        text={remaining > 0 ? "dark" : undefined}
+                      >
+                        Due {money(remaining)}
                       </Badge>
                       <Badge bg="secondary">{inq.status || "Completed"}</Badge>
                     </div>
