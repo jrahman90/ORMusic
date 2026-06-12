@@ -443,34 +443,6 @@ export default function ItineraryEditorPage() {
       sections: (current.sections || []).filter((_, i) => i !== sectionIndex),
     }));
 
-  const renameField = (sectionIndex, fieldIndex, nextValue) => {
-    const nextName = nextValue.trim();
-    if (!nextName) return;
-    updateSection(sectionIndex, (section) => {
-      const fields = [...(section.fields || [])];
-      const oldName = fields[fieldIndex];
-      fields[fieldIndex] = nextName;
-      const items = (section.items || []).map((item) => {
-        const copy = { ...item, [nextName]: item[oldName] || "" };
-        delete copy[oldName];
-        return copy;
-      });
-      return { ...section, fields, items };
-    });
-  };
-
-  const addField = (sectionIndex) =>
-    updateSection(sectionIndex, (section) => {
-      const fields = [...(section.fields || [])];
-      const field = `field${fields.length + 1}`;
-      fields.push(field);
-      const items = (section.items || []).map((item) => ({
-        ...item,
-        [field]: "",
-      }));
-      return { ...section, fields, items };
-    });
-
   const deleteField = (sectionIndex, fieldIndex) =>
     updateSection(sectionIndex, (section) => {
       const fields = [...(section.fields || [])];
@@ -498,10 +470,10 @@ export default function ItineraryEditorPage() {
       items: (section.items || []).filter((_, i) => i !== rowIndex),
     }));
 
-  const updateCell = (sectionIndex, rowIndex, field, value) =>
+  const updateRow = (sectionIndex, rowIndex, nextRow) =>
     updateSection(sectionIndex, (section) => {
       const items = [...(section.items || [])];
-      items[rowIndex] = { ...(items[rowIndex] || {}), [field]: value };
+      items[rowIndex] = { ...(items[rowIndex] || {}), ...nextRow };
       return { ...section, items };
     });
 
@@ -660,18 +632,10 @@ export default function ItineraryEditorPage() {
           onAddSection={addSection}
           onDeleteSection={deleteSection}
           onSectionSchema={updateSectionSchema}
-          onSectionTitle={(sectionIndex, value) =>
-            updateSection(sectionIndex, (section) => ({
-              ...section,
-              title: value,
-            }))
-          }
-          onAddField={addField}
-          onRenameField={renameField}
           onDeleteField={deleteField}
           onAddRow={addRow}
           onDeleteRow={deleteRow}
-          onCell={updateCell}
+          onRow={updateRow}
           onImportText={importSectionText}
         />
       )}
@@ -694,19 +658,17 @@ function ItineraryEditor({
   onAddSection,
   onDeleteSection,
   onSectionSchema,
-  onSectionTitle,
-  onAddField,
-  onRenameField,
   onDeleteField,
   onAddRow,
   onDeleteRow,
-  onCell,
+  onRow,
   onImportText,
 }) {
   const date = Array.isArray(itinerary?.date) ? itinerary.date[0] || {} : {};
   const [editingFields, setEditingFields] = useState({});
   const [editingInfo, setEditingInfo] = useState(false);
   const [editingRows, setEditingRows] = useState({});
+  const [rowDrafts, setRowDrafts] = useState({});
   const [confirmDelete, setConfirmDelete] = useState(null);
   const [showImport, setShowImport] = useState(false);
   const [collapsedSections, setCollapsedSections] = useState({});
@@ -715,6 +677,14 @@ function ItineraryEditor({
   const rowKey = (sectionIndex, rowIndex) => `${sectionIndex}-${rowIndex}`;
   const sectionKey = (section, sectionIndex) =>
     `${section?.title || "section"}-${sectionIndex}`;
+
+  const makeRowDraft = (row, fields = []) => {
+    const draft = {};
+    fields.forEach((field) => {
+      draft[field] = row?.[field] || "";
+    });
+    return draft;
+  };
 
   const makeSectionDraft = (section) => ({
     title: section?.title || "",
@@ -771,15 +741,56 @@ function ItineraryEditor({
     }));
   };
 
-  const toggleRowEditing = (sectionIndex, rowIndex) => {
+  const startRowEditing = (section, sectionIndex, rowIndex) => {
     const key = rowKey(sectionIndex, rowIndex);
-    setEditingRows((current) => ({ ...current, [key]: !current[key] }));
+    setRowDrafts((current) => ({
+      ...current,
+      [key]: makeRowDraft(
+        section?.items?.[rowIndex],
+        Array.isArray(section?.fields) ? section.fields : []
+      ),
+    }));
+    setEditingRows((current) => ({ ...current, [key]: true }));
   };
 
-  const handleAddRow = (sectionIndex, nextRowIndex) => {
+  const finishRowEditing = (section, sectionIndex, rowIndex) => {
+    const key = rowKey(sectionIndex, rowIndex);
+    const fields = Array.isArray(section?.fields) ? section.fields : [];
+    const draft =
+      rowDrafts[key] || makeRowDraft(section?.items?.[rowIndex], fields);
+    const nextRow = {};
+    fields.forEach((field) => {
+      nextRow[field] = draft[field] || "";
+    });
+    onRow(sectionIndex, rowIndex, nextRow);
+    setEditingRows((current) => ({ ...current, [key]: false }));
+  };
+
+  const updateRowDraft = (section, sectionIndex, rowIndex, field, value) => {
+    const key = rowKey(sectionIndex, rowIndex);
+    setRowDrafts((current) => ({
+      ...current,
+      [key]: {
+        ...(current[key] ||
+          makeRowDraft(
+            section?.items?.[rowIndex],
+            Array.isArray(section?.fields) ? section.fields : []
+          )),
+        [field]: value,
+      },
+    }));
+  };
+
+  const handleAddRow = (section, sectionIndex, nextRowIndex) => {
+    const fields = Array.isArray(section?.fields) ? section.fields : [];
+    const blankRow = makeRowDraft({}, fields);
     setEditingRows((current) => ({
       ...current,
       [rowKey(sectionIndex, nextRowIndex)]: true,
+    }));
+    setRowDrafts((current) => ({
+      ...current,
+      [rowKey(sectionIndex, nextRowIndex)]: blankRow,
     }));
     onAddRow(sectionIndex);
   };
@@ -1002,22 +1013,38 @@ function ItineraryEditor({
 
                     <div className="itinerary-row-list">
                       {(section.items || []).map((row, rowIndex) => {
-                        const isEditingRow = Boolean(
-                          editingRows[rowKey(sectionIndex, rowIndex)]
-                        );
+                        const currentRowKey = rowKey(sectionIndex, rowIndex);
+                        const isEditingRow = Boolean(editingRows[currentRowKey]);
+                        const rowDraft =
+                          rowDrafts[currentRowKey] ||
+                          makeRowDraft(row, section.fields || []);
 
                         return (
                           <Card key={rowIndex} className="itinerary-row-card">
-                            <Card.Body>
+                            <Card.Body
+                              onBlur={(e) => {
+                                if (
+                                  isEditingRow &&
+                                  !e.currentTarget.contains(e.relatedTarget)
+                                ) {
+                                  finishRowEditing(
+                                    section,
+                                    sectionIndex,
+                                    rowIndex
+                                  );
+                                }
+                              }}
+                            >
                               <div className="itinerary-row-grid">
                                 {(section.fields || []).map((field) =>
                                   isEditingRow ? (
                                     <Form.Group key={field}>
                                       <Form.Label>{field}</Form.Label>
                                       <Form.Control
-                                        value={row[field] || ""}
+                                        value={rowDraft[field] || ""}
                                         onChange={(e) =>
-                                          onCell(
+                                          updateRowDraft(
+                                            section,
                                             sectionIndex,
                                             rowIndex,
                                             field,
@@ -1043,7 +1070,17 @@ function ItineraryEditor({
                                       : "outline-secondary"
                                   }
                                   onClick={() =>
-                                    toggleRowEditing(sectionIndex, rowIndex)
+                                    isEditingRow
+                                      ? finishRowEditing(
+                                          section,
+                                          sectionIndex,
+                                          rowIndex
+                                        )
+                                      : startRowEditing(
+                                          section,
+                                          sectionIndex,
+                                          rowIndex
+                                        )
                                   }
                                 >
                                   {isEditingRow ? "Done editing" : "Edit row"}
@@ -1076,7 +1113,11 @@ function ItineraryEditor({
                       variant="outline-primary"
                       className="mt-3"
                       onClick={() =>
-                        handleAddRow(sectionIndex, (section.items || []).length)
+                        handleAddRow(
+                          section,
+                          sectionIndex,
+                          (section.items || []).length
+                        )
                       }
                     >
                       + Add Row
