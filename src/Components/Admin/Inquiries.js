@@ -31,6 +31,7 @@ import {
   prettyDateTimeMMDDYY, // new formatter for deposits
 } from "../../utils/formatters";
 import ContractModal from "../contracts/ContractModal";
+import InquiryItineraries from "../Itineraries/InquiryItineraries";
 
 const money = (v) =>
   new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(
@@ -1323,6 +1324,7 @@ export default function Inquiries() {
                       busy={busy}
                       onSave={(rows) => saveEvents(inq, rows)}
                     />
+                    <InquiryItineraries inquiry={inq} mode="admin" />
 
                     {/* Deposits section, not used in contracts or totals */}
                     <div className="mt-4">
@@ -2701,6 +2703,7 @@ export default function Inquiries() {
 
                       <ContactBlock inq={inq} />
                       <EventSchedule inq={inq} />
+                      <InquiryItineraries inquiry={inq} mode="admin" />
 
                       {/* Contracts, with View and Download options */}
                       <div className="mt-3">

@@ -10,6 +10,7 @@ import {
   prettyDateTimeMMDDYY,
 } from "../../utils/formatters";
 import ContractModal from "../contracts/ContractModal";
+import InquiryItineraries from "../Itineraries/InquiryItineraries";
 
 const money = (v) =>
   new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(
@@ -420,6 +421,7 @@ const PreviousInquiries = () => {
                   <ContactBlock inquiry={inquiry} />
                   <ScheduleBlock inquiry={inquiry} />
                   <InquiryTimeline inquiry={inquiry} />
+                  <InquiryItineraries inquiry={inquiry} mode="customer" />
 
                   {/* Contracts for this inquiry */}
                   <div className="fw-semibold mt-3 mb-1">Contracts</div>
@@ -618,6 +620,7 @@ const PreviousInquiries = () => {
                   ) : null}
 
                   <InquiryTimeline inquiry={inquiry} />
+                  <InquiryItineraries inquiry={inquiry} mode="customer" />
 
                   {(inquiry.contracts || []).length > 0 ? (
                     <div className="mt-2">

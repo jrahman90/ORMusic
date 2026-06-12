@@ -25,6 +25,8 @@ import firestore from "./api/firestore/firestore";
 import Inquiries from "./Components/Admin/Inquiries";
 import EventureTermsAndConditions from "./Components/EventureTerms";
 import EventureAdmin from "./Components/Admin/EventureAdmin";
+import ItineraryEditorPage from "./Components/Itineraries/ItineraryEditorPage";
+import ItineraryPrintPage from "./Components/Itineraries/ItineraryPrintPage";
 
 const SEO_CONFIG = {
   "/": {
@@ -78,6 +80,27 @@ const SEO_CONFIG = {
     path: "/inquiries",
     robots: "noindex, nofollow",
   },
+  "/inquiries/:inquiryId/events/:eventId/itinerary": {
+    title: "Event Itinerary | OR Music Events",
+    description:
+      "Create and edit your OR Music Events itinerary for a confirmed event.",
+    path: "/inquiries",
+    robots: "noindex, nofollow",
+  },
+  "/inquiries/:inquiryId/events/:eventId/itinerary/print": {
+    title: "Printable Event Itinerary | OR Music Events",
+    description:
+      "View, print, or save a PDF copy of your OR Music Events itinerary.",
+    path: "/inquiries",
+    robots: "noindex, nofollow",
+  },
+  "/itinerary/public/:inquiryId/:eventId/:token": {
+    title: "Live Event Itinerary | OR Music Events",
+    description:
+      "View the current public itinerary for an OR Music Events event.",
+    path: "/itinerary/public",
+    robots: "noindex, nofollow",
+  },
   "/eventure-terms-conditions": {
     title: "Eventure Terms and Conditions | OR Music Events",
     description:
@@ -118,12 +141,20 @@ function App() {
   // update title and meta description when route changes
   useEffect(() => {
     const isAdminRoute = location.pathname.includes("-admin");
+    const isItineraryRoute =
+      (location.pathname.includes("/events/") &&
+        (location.pathname.endsWith("/itinerary") ||
+          location.pathname.endsWith("/itinerary/print"))) ||
+      location.pathname.startsWith("/itinerary/public/");
     const seo = SEO_CONFIG[location.pathname] || {
-      title: "OR Music Events | New York City",
-      description:
-        "Professional DJ, MC, lighting, staging and event production services from OR Music Events.",
+      title: isItineraryRoute
+        ? "Event Itinerary | OR Music Events"
+        : "OR Music Events | New York City",
+      description: isItineraryRoute
+        ? "Create and edit your OR Music Events itinerary for a confirmed event."
+        : "Professional DJ, MC, lighting, staging and event production services from OR Music Events.",
       path: location.pathname,
-      robots: isAdminRoute ? "noindex, nofollow" : "index, follow",
+      robots: isAdminRoute || isItineraryRoute ? "noindex, nofollow" : "index, follow",
     };
 
     if (seo) {
@@ -160,6 +191,11 @@ function App() {
       });
     }
   }, [location.pathname]);
+
+  const hideSiteChrome =
+    location.pathname === "/eventure-terms-conditions" ||
+    location.pathname.endsWith("/itinerary/print") ||
+    location.pathname.startsWith("/itinerary/public/");
 
   // hydrate cart from localStorage once
   const [cartItems, setCartItems] = useState(() => {
@@ -238,7 +274,7 @@ function App() {
 
   return (
     <div>
-      {location.pathname !== "/eventure-terms-conditions" && <AppNavbar />}
+      {!hideSiteChrome && <AppNavbar />}
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/contact" element={<ContactUs />} />
@@ -251,6 +287,18 @@ function App() {
           element={<Cart items={cartItems} setItems={setCartItems} />}
         />
         <Route path="/inquiries" element={<UserInquiries />} />
+        <Route
+          path="/inquiries/:inquiryId/events/:eventId/itinerary"
+          element={<ItineraryEditorPage />}
+        />
+        <Route
+          path="/inquiries/:inquiryId/events/:eventId/itinerary/print"
+          element={<ItineraryPrintPage />}
+        />
+        <Route
+          path="/itinerary/public/:inquiryId/:eventId/:token"
+          element={<ItineraryPrintPage publicView />}
+        />
         <Route
           path="/RentalItems"
           element={<Rentals addToCart={addToCart} />}
@@ -272,7 +320,7 @@ function App() {
         />
         <Route path="/*" element={<PageNotFound />} />
       </Routes>
-      {location.pathname !== "/eventure-terms-conditions" && (
+      {!hideSiteChrome && (
         <div>
           <div className="line"></div>
           <Footer />
