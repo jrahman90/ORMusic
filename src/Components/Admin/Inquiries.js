@@ -948,6 +948,7 @@ export default function Inquiries() {
     try {
       setSavingFlag(inq.id, true);
       const cleanRows = normalizeEvents(rows).map((row) => ({
+        ...row,
         id: row.id || makeEventId(),
         type: row.type || "",
         venue: row.venue || "",

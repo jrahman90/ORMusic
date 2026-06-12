@@ -395,6 +395,39 @@ export default function ItineraryEditorPage() {
       return { ...current, sections };
     });
 
+  const updateSectionSchema = (sectionIndex, nextTitle, nextFields) =>
+    updateSection(sectionIndex, (section) => {
+      const oldFields = Array.isArray(section.fields) ? section.fields : [];
+      const seen = new Set();
+      const fields = (Array.isArray(nextFields) ? nextFields : oldFields)
+        .map((field) => String(field || "").trim())
+        .filter(Boolean)
+        .map((field, index) => {
+          let candidate = field;
+          while (seen.has(normalizeSectionTitle(candidate))) {
+            candidate = `${field} ${index + 1}`;
+          }
+          seen.add(normalizeSectionTitle(candidate));
+          return candidate;
+        });
+      const safeFields = fields.length ? fields : oldFields;
+      const items = (section.items || []).map((item) => {
+        const nextItem = {};
+        safeFields.forEach((field, index) => {
+          const oldField = oldFields[index];
+          nextItem[field] =
+            item?.[oldField] != null ? item[oldField] : item?.[field] || "";
+        });
+        return nextItem;
+      });
+      return {
+        ...section,
+        title: String(nextTitle || "").trim() || section.title || "Section",
+        fields: safeFields,
+        items,
+      };
+    });
+
   const addSection = () =>
     updateItinerary((current) => ({
       ...current,
@@ -626,6 +659,7 @@ export default function ItineraryEditorPage() {
           onDate={updateDate}
           onAddSection={addSection}
           onDeleteSection={deleteSection}
+          onSectionSchema={updateSectionSchema}
           onSectionTitle={(sectionIndex, value) =>
             updateSection(sectionIndex, (section) => ({
               ...section,
@@ -659,6 +693,7 @@ function ItineraryEditor({
   onDate,
   onAddSection,
   onDeleteSection,
+  onSectionSchema,
   onSectionTitle,
   onAddField,
   onRenameField,
@@ -675,21 +710,65 @@ function ItineraryEditor({
   const [confirmDelete, setConfirmDelete] = useState(null);
   const [showImport, setShowImport] = useState(false);
   const [collapsedSections, setCollapsedSections] = useState({});
+  const [sectionDrafts, setSectionDrafts] = useState({});
 
   const rowKey = (sectionIndex, rowIndex) => `${sectionIndex}-${rowIndex}`;
   const sectionKey = (section, sectionIndex) =>
     `${section?.title || "section"}-${sectionIndex}`;
 
-  const toggleFieldEditing = (sectionIndex) => {
-    setEditingFields((current) => ({
-      ...current,
-      [sectionIndex]: !current[sectionIndex],
-    }));
+  const makeSectionDraft = (section) => ({
+    title: section?.title || "",
+    fields: Array.isArray(section?.fields) ? [...section.fields] : [],
+  });
+
+  const getSectionDraft = (section, sectionIndex) =>
+    sectionDrafts[sectionIndex] || makeSectionDraft(section);
+
+  const updateSectionDraft = (sectionIndex, updater) => {
+    setSectionDrafts((current) => {
+      const sections = Array.isArray(itinerary.sections) ? itinerary.sections : [];
+      const existing = current[sectionIndex] || makeSectionDraft(sections[sectionIndex]);
+      return { ...current, [sectionIndex]: updater(existing) };
+    });
   };
 
-  const handleAddField = (sectionIndex) => {
+  const startSectionEditing = (section, sectionIndex) => {
+    setSectionDrafts((current) => ({
+      ...current,
+      [sectionIndex]: makeSectionDraft(section),
+    }));
     setEditingFields((current) => ({ ...current, [sectionIndex]: true }));
-    onAddField(sectionIndex);
+  };
+
+  const finishSectionEditing = (section, sectionIndex) => {
+    const draft = getSectionDraft(section, sectionIndex);
+    onSectionSchema(sectionIndex, draft.title, draft.fields);
+    setEditingFields((current) => ({ ...current, [sectionIndex]: false }));
+  };
+
+  const toggleFieldEditing = (section, sectionIndex) => {
+    if (editingFields[sectionIndex]) {
+      finishSectionEditing(section, sectionIndex);
+    } else {
+      startSectionEditing(section, sectionIndex);
+    }
+  };
+
+  const handleAddField = (section, sectionIndex) => {
+    const draft = getSectionDraft(section, sectionIndex);
+    const field = `field${draft.fields.length + 1}`;
+    updateSectionDraft(sectionIndex, (current) => ({
+      ...current,
+      fields: [...current.fields, field],
+    }));
+    setEditingFields((current) => ({ ...current, [sectionIndex]: true }));
+  };
+
+  const handleDeleteFieldDraft = (section, sectionIndex, fieldIndex) => {
+    updateSectionDraft(sectionIndex, (current) => ({
+      ...current,
+      fields: current.fields.filter((_, index) => index !== fieldIndex),
+    }));
   };
 
   const toggleRowEditing = (sectionIndex, rowIndex) => {
@@ -800,22 +879,30 @@ function ItineraryEditor({
       <div className="itinerary-section-list">
         {(itinerary.sections || []).map((section, sectionIndex) => {
           const isEditingFields = Boolean(editingFields[sectionIndex]);
+          const draft = getSectionDraft(section, sectionIndex);
+          const visibleFields = isEditingFields
+            ? draft.fields
+            : section.fields || [];
           const isCollapsed = Boolean(
             collapsedSections[sectionKey(section, sectionIndex)]
           );
 
           return (
             <Card
-              key={`${section.title}-${sectionIndex}`}
+              key={`section-${sectionIndex}`}
               className="itinerary-editor-card"
             >
               <Card.Body>
                 <div className="itinerary-section-heading">
                   <Form.Control
-                    value={section.title || ""}
+                    value={isEditingFields ? draft.title : section.title || ""}
                     className="itinerary-section-title"
+                    readOnly={!isEditingFields}
                     onChange={(e) =>
-                      onSectionTitle(sectionIndex, e.target.value)
+                      updateSectionDraft(sectionIndex, (current) => ({
+                        ...current,
+                        title: e.target.value,
+                      }))
                     }
                   />
                   <div className="itinerary-section-actions">
@@ -830,14 +917,14 @@ function ItineraryEditor({
                     <Button
                       size="sm"
                       variant="outline-secondary"
-                      onClick={() => toggleFieldEditing(sectionIndex)}
+                      onClick={() => toggleFieldEditing(section, sectionIndex)}
                     >
                       {isEditingFields ? "Done editing fields" : "Edit fields"}
                     </Button>
                     <Button
                       size="sm"
                       variant="outline-primary"
-                      onClick={() => handleAddField(sectionIndex)}
+                      onClick={() => handleAddField(section, sectionIndex)}
                     >
                       + Field
                     </Button>
@@ -867,17 +954,17 @@ function ItineraryEditor({
                 ) : (
                   <>
                     <div className="itinerary-field-strip">
-                      {(section.fields || []).map((field, fieldIndex) =>
+                      {visibleFields.map((field, fieldIndex) =>
                         isEditingFields ? (
                           <InputGroup key={`${field}-${fieldIndex}`} size="sm">
                             <Form.Control
                               value={field}
                               onChange={(e) =>
-                                onRenameField(
-                                  sectionIndex,
-                                  fieldIndex,
-                                  e.target.value
-                                )
+                                updateSectionDraft(sectionIndex, (current) => {
+                                  const fields = [...current.fields];
+                                  fields[fieldIndex] = e.target.value;
+                                  return { ...current, fields };
+                                })
                               }
                             />
                             <Button
@@ -888,7 +975,11 @@ function ItineraryEditor({
                                   message: `This will delete the "${field}" field from every row in this section.`,
                                   confirmText: "Delete field",
                                   onConfirm: () =>
-                                    onDeleteField(sectionIndex, fieldIndex),
+                                    handleDeleteFieldDraft(
+                                      section,
+                                      sectionIndex,
+                                      fieldIndex
+                                    ),
                                 })
                               }
                             >
