@@ -956,7 +956,10 @@ function ItineraryEditor({
                     <div className="itinerary-field-strip">
                       {visibleFields.map((field, fieldIndex) =>
                         isEditingFields ? (
-                          <InputGroup key={`${field}-${fieldIndex}`} size="sm">
+                          <InputGroup
+                            key={`field-draft-${sectionIndex}-${fieldIndex}`}
+                            size="sm"
+                          >
                             <Form.Control
                               value={field}
                               onChange={(e) =>
@@ -988,7 +991,7 @@ function ItineraryEditor({
                           </InputGroup>
                         ) : (
                           <span
-                            key={`${field}-${fieldIndex}`}
+                            key={`field-chip-${sectionIndex}-${fieldIndex}`}
                             className="itinerary-field-chip"
                           >
                             {field}
