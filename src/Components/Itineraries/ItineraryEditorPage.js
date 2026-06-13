@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   Alert,
   Badge,
@@ -257,6 +257,22 @@ const cleanItinerary = (itinerary = {}) => ({
   updatedAt: Date.now(),
 });
 
+const moveItem = (list = [], fromIndex, toIndex) => {
+  const next = [...list];
+  if (
+    fromIndex === toIndex ||
+    fromIndex < 0 ||
+    toIndex < 0 ||
+    fromIndex >= next.length ||
+    toIndex >= next.length
+  ) {
+    return next;
+  }
+  const [item] = next.splice(fromIndex, 1);
+  next.splice(toIndex, 0, item);
+  return next;
+};
+
 export default function ItineraryEditorPage() {
   const { inquiryId, eventId } = useParams();
   const [authState, setAuthState] = useState({
@@ -379,14 +395,19 @@ export default function ItineraryEditorPage() {
       ),
     }));
 
-  const updateTopLevel = (key, value) =>
-    updateItinerary((current) => ({ ...current, [key]: value }));
-
-  const updateDate = (key, value) =>
-    updateItinerary((current) => {
-      const existing = Array.isArray(current.date) ? current.date[0] || {} : {};
-      return { ...current, date: [{ ...existing, [key]: value }] };
-    });
+  const updateInfo = (nextInfo) =>
+    updateItinerary((current) => ({
+      ...current,
+      name: nextInfo.name || "",
+      eventType: nextInfo.eventType || "",
+      date: [
+        {
+          month: nextInfo.month || "",
+          day: nextInfo.day || "",
+          year: nextInfo.year || "",
+        },
+      ],
+    }));
 
   const updateSection = (sectionIndex, updater) =>
     updateItinerary((current) => {
@@ -416,7 +437,7 @@ export default function ItineraryEditorPage() {
         safeFields.forEach((field, index) => {
           const oldField = oldFields[index];
           nextItem[field] =
-            item?.[oldField] != null ? item[oldField] : item?.[field] || "";
+            item?.[field] != null ? item[field] : item?.[oldField] || "";
         });
         return nextItem;
       });
@@ -441,6 +462,12 @@ export default function ItineraryEditorPage() {
     updateItinerary((current) => ({
       ...current,
       sections: (current.sections || []).filter((_, i) => i !== sectionIndex),
+    }));
+
+  const reorderSections = (fromIndex, toIndex) =>
+    updateItinerary((current) => ({
+      ...current,
+      sections: moveItem(current.sections || [], fromIndex, toIndex),
     }));
 
   const deleteField = (sectionIndex, fieldIndex) =>
@@ -476,6 +503,12 @@ export default function ItineraryEditorPage() {
       items[rowIndex] = { ...(items[rowIndex] || {}), ...nextRow };
       return { ...section, items };
     });
+
+  const reorderRows = (sectionIndex, fromIndex, toIndex) =>
+    updateSection(sectionIndex, (section) => ({
+      ...section,
+      items: moveItem(section.items || [], fromIndex, toIndex),
+    }));
 
   const importSectionText = (importConfig) =>
     updateItinerary((current) => {
@@ -627,14 +660,15 @@ export default function ItineraryEditorPage() {
       ) : (
         <ItineraryEditor
           itinerary={itinerary}
-          onTopLevel={updateTopLevel}
-          onDate={updateDate}
+          onInfo={updateInfo}
           onAddSection={addSection}
           onDeleteSection={deleteSection}
+          onReorderSections={reorderSections}
           onSectionSchema={updateSectionSchema}
           onDeleteField={deleteField}
           onAddRow={addRow}
           onDeleteRow={deleteRow}
+          onReorderRows={reorderRows}
           onRow={updateRow}
           onImportText={importSectionText}
         />
@@ -653,26 +687,34 @@ export default function ItineraryEditorPage() {
 
 function ItineraryEditor({
   itinerary,
-  onTopLevel,
-  onDate,
+  onInfo,
   onAddSection,
   onDeleteSection,
+  onReorderSections,
   onSectionSchema,
   onDeleteField,
   onAddRow,
   onDeleteRow,
+  onReorderRows,
   onRow,
   onImportText,
 }) {
   const date = Array.isArray(itinerary?.date) ? itinerary.date[0] || {} : {};
   const [editingFields, setEditingFields] = useState({});
   const [editingInfo, setEditingInfo] = useState(false);
+  const [infoDraft, setInfoDraft] = useState(null);
   const [editingRows, setEditingRows] = useState({});
   const [rowDrafts, setRowDrafts] = useState({});
+  const rowDraftsRef = useRef({});
   const [confirmDelete, setConfirmDelete] = useState(null);
   const [showImport, setShowImport] = useState(false);
   const [collapsedSections, setCollapsedSections] = useState({});
   const [sectionDrafts, setSectionDrafts] = useState({});
+  const [reorderingSections, setReorderingSections] = useState(false);
+  const [reorderingRows, setReorderingRows] = useState({});
+  const [draggingSectionIndex, setDraggingSectionIndex] = useState(null);
+  const [draggingRow, setDraggingRow] = useState(null);
+  const touchDragRef = useRef(null);
 
   const rowKey = (sectionIndex, rowIndex) => `${sectionIndex}-${rowIndex}`;
   const sectionKey = (section, sectionIndex) =>
@@ -684,6 +726,31 @@ function ItineraryEditor({
       draft[field] = row?.[field] || "";
     });
     return draft;
+  };
+
+  const setRowDraftStore = (updater) => {
+    const next =
+      typeof updater === "function" ? updater(rowDraftsRef.current) : updater;
+    rowDraftsRef.current = next;
+    setRowDrafts(next);
+  };
+
+  const makeInfoDraft = () => ({
+    name: itinerary.name || "",
+    eventType: itinerary.eventType || "",
+    month: date.month || "",
+    day: date.day || "",
+    year: date.year || "",
+  });
+
+  const startInfoEditing = () => {
+    setInfoDraft(makeInfoDraft());
+    setEditingInfo(true);
+  };
+
+  const finishInfoEditing = () => {
+    onInfo(infoDraft || makeInfoDraft());
+    setEditingInfo(false);
   };
 
   const makeSectionDraft = (section) => ({
@@ -743,7 +810,7 @@ function ItineraryEditor({
 
   const startRowEditing = (section, sectionIndex, rowIndex) => {
     const key = rowKey(sectionIndex, rowIndex);
-    setRowDrafts((current) => ({
+    setRowDraftStore((current) => ({
       ...current,
       [key]: makeRowDraft(
         section?.items?.[rowIndex],
@@ -757,7 +824,8 @@ function ItineraryEditor({
     const key = rowKey(sectionIndex, rowIndex);
     const fields = Array.isArray(section?.fields) ? section.fields : [];
     const draft =
-      rowDrafts[key] || makeRowDraft(section?.items?.[rowIndex], fields);
+      rowDraftsRef.current[key] ||
+      makeRowDraft(section?.items?.[rowIndex], fields);
     const nextRow = {};
     fields.forEach((field) => {
       nextRow[field] = draft[field] || "";
@@ -768,7 +836,7 @@ function ItineraryEditor({
 
   const updateRowDraft = (section, sectionIndex, rowIndex, field, value) => {
     const key = rowKey(sectionIndex, rowIndex);
-    setRowDrafts((current) => ({
+    setRowDraftStore((current) => ({
       ...current,
       [key]: {
         ...(current[key] ||
@@ -788,7 +856,7 @@ function ItineraryEditor({
       ...current,
       [rowKey(sectionIndex, nextRowIndex)]: true,
     }));
-    setRowDrafts((current) => ({
+    setRowDraftStore((current) => ({
       ...current,
       [rowKey(sectionIndex, nextRowIndex)]: blankRow,
     }));
@@ -801,6 +869,94 @@ function ItineraryEditor({
       ...current,
       [key]: !current[key],
     }));
+  };
+
+  const toggleSectionReorder = () => {
+    setReorderingSections((current) => !current);
+    setDraggingSectionIndex(null);
+  };
+
+  const toggleRowReorder = (sectionIndex) => {
+    setReorderingRows((current) => ({
+      ...current,
+      [sectionIndex]: !current[sectionIndex],
+    }));
+    setDraggingRow(null);
+  };
+
+  const dropSection = (toIndex) => {
+    if (
+      draggingSectionIndex != null &&
+      draggingSectionIndex !== toIndex
+    ) {
+      onReorderSections(draggingSectionIndex, toIndex);
+    }
+    setDraggingSectionIndex(null);
+  };
+
+  const dropRow = (sectionIndex, toIndex) => {
+    if (
+      draggingRow &&
+      draggingRow.sectionIndex === sectionIndex &&
+      draggingRow.rowIndex !== toIndex
+    ) {
+      onReorderRows(sectionIndex, draggingRow.rowIndex, toIndex);
+    }
+    setDraggingRow(null);
+  };
+
+  const startTouchSectionDrag = (sectionIndex) => {
+    if (!reorderingSections) return;
+    touchDragRef.current = {
+      type: "section",
+      fromIndex: sectionIndex,
+      toIndex: sectionIndex,
+    };
+    setDraggingSectionIndex(sectionIndex);
+  };
+
+  const startTouchRowDrag = (sectionIndex, rowIndex) => {
+    if (!reorderingRows[sectionIndex]) return;
+    touchDragRef.current = {
+      type: "row",
+      sectionIndex,
+      fromIndex: rowIndex,
+      toIndex: rowIndex,
+    };
+    setDraggingRow({ sectionIndex, rowIndex });
+  };
+
+  const moveTouchDrag = (e) => {
+    const drag = touchDragRef.current;
+    const touch = e.touches?.[0];
+    if (!drag || !touch) return;
+    const target = document.elementFromPoint(touch.clientX, touch.clientY);
+    if (!target) return;
+    if (drag.type === "section") {
+      const sectionTarget = target.closest("[data-itinerary-section-index]");
+      if (!sectionTarget) return;
+      drag.toIndex = Number(sectionTarget.dataset.itinerarySectionIndex);
+    } else {
+      const rowTarget = target.closest("[data-itinerary-row-index]");
+      if (!rowTarget) return;
+      const sectionIndex = Number(rowTarget.dataset.itineraryRowSectionIndex);
+      if (sectionIndex !== drag.sectionIndex) return;
+      drag.toIndex = Number(rowTarget.dataset.itineraryRowIndex);
+    }
+  };
+
+  const endTouchDrag = () => {
+    const drag = touchDragRef.current;
+    if (!drag) return;
+    if (drag.type === "section" && drag.fromIndex !== drag.toIndex) {
+      onReorderSections(drag.fromIndex, drag.toIndex);
+    }
+    if (drag.type === "row" && drag.fromIndex !== drag.toIndex) {
+      onReorderRows(drag.sectionIndex, drag.fromIndex, drag.toIndex);
+    }
+    touchDragRef.current = null;
+    setDraggingSectionIndex(null);
+    setDraggingRow(null);
   };
 
   const requestDelete = (config) => setConfirmDelete(config);
@@ -825,7 +981,7 @@ function ItineraryEditor({
             <Button
               size="sm"
               variant={editingInfo ? "primary" : "outline-secondary"}
-              onClick={() => setEditingInfo((value) => !value)}
+              onClick={editingInfo ? finishInfoEditing : startInfoEditing}
             >
               {editingInfo ? "Done editing info" : "Edit info"}
             </Button>
@@ -836,32 +992,57 @@ function ItineraryEditor({
               <Form.Group>
                 <Form.Label>Name</Form.Label>
                 <Form.Control
-                  value={itinerary.name || ""}
-                  onChange={(e) => onTopLevel("name", e.target.value)}
+                  value={infoDraft?.name || ""}
+                  onChange={(e) =>
+                    setInfoDraft((current) => ({
+                      ...(current || makeInfoDraft()),
+                      name: e.target.value,
+                    }))
+                  }
                 />
               </Form.Group>
               <Form.Group>
                 <Form.Label>Event type</Form.Label>
                 <Form.Control
-                  value={itinerary.eventType || ""}
-                  onChange={(e) => onTopLevel("eventType", e.target.value)}
+                  value={infoDraft?.eventType || ""}
+                  onChange={(e) =>
+                    setInfoDraft((current) => ({
+                      ...(current || makeInfoDraft()),
+                      eventType: e.target.value,
+                    }))
+                  }
                 />
               </Form.Group>
               <InputGroup>
                 <InputGroup.Text>MM</InputGroup.Text>
                 <Form.Control
-                  value={date.month || ""}
-                  onChange={(e) => onDate("month", e.target.value)}
+                  value={infoDraft?.month || ""}
+                  onChange={(e) =>
+                    setInfoDraft((current) => ({
+                      ...(current || makeInfoDraft()),
+                      month: e.target.value,
+                    }))
+                  }
                 />
                 <InputGroup.Text>DD</InputGroup.Text>
                 <Form.Control
-                  value={date.day || ""}
-                  onChange={(e) => onDate("day", e.target.value)}
+                  value={infoDraft?.day || ""}
+                  onChange={(e) =>
+                    setInfoDraft((current) => ({
+                      ...(current || makeInfoDraft()),
+                      day: e.target.value,
+                    }))
+                  }
                 />
                 <InputGroup.Text>YYYY</InputGroup.Text>
                 <Form.Control
-                  value={date.year || ""}
-                  onChange={(e) => onDate("year", e.target.value)}
+                  value={infoDraft?.year || ""}
+                  onChange={(e) =>
+                    setInfoDraft((current) => ({
+                      ...(current || makeInfoDraft()),
+                      year: e.target.value,
+                    }))
+                  }
                 />
               </InputGroup>
             </div>
@@ -887,6 +1068,18 @@ function ItineraryEditor({
         </Card.Body>
       </Card>
 
+      <div className="itinerary-editor-toolbar">
+        <Button
+          size="sm"
+          variant={reorderingSections ? "primary" : "outline-secondary"}
+          onClick={toggleSectionReorder}
+        >
+          {reorderingSections
+            ? "Done rearranging sections"
+            : "Rearrange sections"}
+        </Button>
+      </div>
+
       <div className="itinerary-section-list">
         {(itinerary.sections || []).map((section, sectionIndex) => {
           const isEditingFields = Boolean(editingFields[sectionIndex]);
@@ -897,11 +1090,39 @@ function ItineraryEditor({
           const isCollapsed = Boolean(
             collapsedSections[sectionKey(section, sectionIndex)]
           );
+          const isReorderingRows = Boolean(reorderingRows[sectionIndex]);
 
           return (
             <Card
               key={`section-${sectionIndex}`}
-              className="itinerary-editor-card"
+              data-itinerary-section-index={sectionIndex}
+              className={`itinerary-editor-card ${
+                reorderingSections ? "itinerary-drag-card" : ""
+              } ${
+                draggingSectionIndex === sectionIndex ? "is-dragging" : ""
+              }`}
+              draggable={reorderingSections}
+              onDragStart={(e) => {
+                if (!reorderingSections) return;
+                setDraggingSectionIndex(sectionIndex);
+                e.dataTransfer.effectAllowed = "move";
+              }}
+              onDragOver={(e) => {
+                if (reorderingSections) e.preventDefault();
+              }}
+              onDrop={(e) => {
+                if (!reorderingSections) return;
+                e.preventDefault();
+                dropSection(sectionIndex);
+              }}
+              onDragEnd={() => setDraggingSectionIndex(null)}
+              onTouchStart={(e) => {
+                if (e.target.closest("[data-itinerary-row-index]")) return;
+                startTouchSectionDrag(sectionIndex);
+              }}
+              onTouchMove={moveTouchDrag}
+              onTouchEnd={endTouchDrag}
+              onTouchCancel={endTouchDrag}
             >
               <Card.Body>
                 <div className="itinerary-section-heading">
@@ -924,6 +1145,15 @@ function ItineraryEditor({
                       aria-expanded={!isCollapsed}
                     >
                       {isCollapsed ? "Expand" : "Collapse"}
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant={isReorderingRows ? "primary" : "outline-secondary"}
+                      onClick={() => toggleRowReorder(sectionIndex)}
+                    >
+                      {isReorderingRows
+                        ? "Done rearranging rows"
+                        : "Rearrange rows"}
                     </Button>
                     <Button
                       size="sm"
@@ -964,6 +1194,11 @@ function ItineraryEditor({
                   </div>
                 ) : (
                   <>
+                    {reorderingSections ? (
+                      <div className="itinerary-reorder-hint">
+                        Drag this section to a new position.
+                      </div>
+                    ) : null}
                     <div className="itinerary-field-strip">
                       {visibleFields.map((field, fieldIndex) =>
                         isEditingFields ? (
@@ -1011,6 +1246,12 @@ function ItineraryEditor({
                       )}
                     </div>
 
+                    {isReorderingRows ? (
+                      <div className="itinerary-reorder-hint">
+                        Drag rows inside this section to reorder them.
+                      </div>
+                    ) : null}
+
                     <div className="itinerary-row-list">
                       {(section.items || []).map((row, rowIndex) => {
                         const currentRowKey = rowKey(sectionIndex, rowIndex);
@@ -1020,7 +1261,41 @@ function ItineraryEditor({
                           makeRowDraft(row, section.fields || []);
 
                         return (
-                          <Card key={rowIndex} className="itinerary-row-card">
+                          <Card
+                            key={rowIndex}
+                            data-itinerary-row-section-index={sectionIndex}
+                            data-itinerary-row-index={rowIndex}
+                            className={`itinerary-row-card ${
+                              isReorderingRows ? "itinerary-drag-card" : ""
+                            } ${
+                              draggingRow?.sectionIndex === sectionIndex &&
+                              draggingRow?.rowIndex === rowIndex
+                                ? "is-dragging"
+                                : ""
+                            }`}
+                            draggable={isReorderingRows}
+                            onDragStart={(e) => {
+                              if (!isReorderingRows) return;
+                              setDraggingRow({ sectionIndex, rowIndex });
+                              e.dataTransfer.effectAllowed = "move";
+                            }}
+                            onDragOver={(e) => {
+                              if (isReorderingRows) e.preventDefault();
+                            }}
+                            onDrop={(e) => {
+                              if (!isReorderingRows) return;
+                              e.preventDefault();
+                              dropRow(sectionIndex, rowIndex);
+                            }}
+                            onDragEnd={() => setDraggingRow(null)}
+                            onTouchStart={(e) => {
+                              e.stopPropagation();
+                              startTouchRowDrag(sectionIndex, rowIndex);
+                            }}
+                            onTouchMove={moveTouchDrag}
+                            onTouchEnd={endTouchDrag}
+                            onTouchCancel={endTouchDrag}
+                          >
                             <Card.Body
                               onBlur={(e) => {
                                 if (

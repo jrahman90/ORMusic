@@ -636,6 +636,38 @@ ul {
     gap: .75rem;
 }
 
+.itinerary-editor-toolbar {
+    display: flex;
+    justify-content: flex-end;
+    gap: .5rem;
+    margin-top: 1rem;
+}
+
+.itinerary-drag-card {
+    cursor: grab;
+    touch-action: none;
+    user-select: none;
+}
+
+.itinerary-drag-card:active {
+    cursor: grabbing;
+}
+
+.itinerary-drag-card.is-dragging {
+    opacity: .55;
+}
+
+.itinerary-reorder-hint {
+    background: #eef2ff;
+    border: 1px dashed #818cf8;
+    border-radius: 8px;
+    color: #3730a3;
+    font-size: .85rem;
+    font-weight: 750;
+    margin-top: .85rem;
+    padding: .55rem .7rem;
+}
+
 .itinerary-section-title {
     font-size: 1.1rem;
     font-weight: 800;
@@ -751,6 +783,23 @@ ul {
     flex-wrap: wrap;
     gap: .5rem;
     justify-content: flex-end;
+}
+
+.itinerary-print-picker-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .5rem;
+    margin-bottom: .75rem;
+}
+
+.itinerary-print-picker-list {
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    display: grid;
+    gap: .5rem;
+    max-height: 320px;
+    overflow: auto;
+    padding: .85rem;
 }
 
 .itinerary-public-banner {
@@ -1172,6 +1221,7 @@ ul {
         white-space: normal;
     }
     .itinerary-info-heading,
+    .itinerary-editor-toolbar,
     .itinerary-launch-card,
     .itinerary-page-header,
     .itinerary-print-hero,
@@ -1228,6 +1278,7 @@ ul {
     .itinerary-page-actions,
     .itinerary-page-header .badge,
     .itinerary-page-actions .btn,
+    .itinerary-editor-toolbar .btn,
     .itinerary-info-heading .btn,
     .itinerary-section-actions .btn,
     .itinerary-launch-card .btn {
@@ -1242,8 +1293,14 @@ ul {
 
 @media print {
     @page {
-        margin: .45in;
+        margin: .45in .45in .65in;
         size: letter;
+        @bottom-center {
+            color: #64748b;
+            content: counter(page) " of " counter(pages);
+            font-family: Arial, sans-serif;
+            font-size: 9pt;
+        }
     }
     html,
     body,
@@ -1305,12 +1362,20 @@ ul {
     }
     .itinerary-print-section {
         overflow: visible;
-        page-break-inside: avoid;
-    }
-    .itinerary-print-section table {
+        break-inside: auto;
         page-break-inside: auto;
     }
+    .itinerary-print-section table {
+        break-inside: auto;
+        page-break-inside: auto;
+    }
+    .itinerary-print-section h2,
+    .itinerary-print-section thead {
+        break-after: avoid;
+        page-break-after: avoid;
+    }
     .itinerary-print-section tr {
+        break-inside: avoid;
         page-break-inside: avoid;
         page-break-after: auto;
     }

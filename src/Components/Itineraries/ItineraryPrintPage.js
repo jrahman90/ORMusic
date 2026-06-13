@@ -1,5 +1,12 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Alert, Button, Container, Spinner } from "react-bootstrap";
+import {
+  Alert,
+  Button,
+  Container,
+  Form,
+  Modal,
+  Spinner,
+} from "react-bootstrap";
 import { doc, getDoc, onSnapshot, serverTimestamp, updateDoc } from "firebase/firestore";
 import { getAuth, onAuthStateChanged } from "firebase/auth";
 import { Link, useParams } from "react-router-dom";
@@ -64,6 +71,9 @@ export default function ItineraryPrintPage({ publicView = false }) {
   const [loadingInquiry, setLoadingInquiry] = useState(true);
   const [error, setError] = useState("");
   const [qrCode, setQrCode] = useState("");
+  const [showPrintOptions, setShowPrintOptions] = useState(false);
+  const [printIntent, setPrintIntent] = useState("print");
+  const [selectedSectionIndexes, setSelectedSectionIndexes] = useState([]);
 
   useEffect(() => {
     if (publicView) return undefined;
@@ -115,6 +125,11 @@ export default function ItineraryPrintPage({ publicView = false }) {
   const events = useMemo(() => normalizeEvents(inquiry?.events), [inquiry]);
   const event = events.find((row) => row.id === eventId);
   const itinerary = event?.itinerary;
+  const sections = useMemo(
+    () => (Array.isArray(itinerary?.sections) ? itinerary.sections : []),
+    [itinerary]
+  );
+  const sectionCount = sections.length;
   const canAccess =
     publicView
       ? Boolean(itinerary?.publicToken && token === itinerary.publicToken)
@@ -182,8 +197,33 @@ export default function ItineraryPrintPage({ publicView = false }) {
     };
   }, [publicUrl]);
 
-  const printPdf = () => {
-    window.print();
+  useEffect(() => {
+    setSelectedSectionIndexes((current) => {
+      const allIndexes = Array.from({ length: sectionCount }, (_, index) => index);
+      const validCurrent = current.filter((index) => index < sectionCount);
+      return validCurrent.length === current.length && current.length > 0
+        ? validCurrent
+        : allIndexes;
+    });
+  }, [sectionCount]);
+
+  const openPrintOptions = (intent) => {
+    setPrintIntent(intent);
+    setShowPrintOptions(true);
+  };
+
+  const toggleSectionSelection = (sectionIndex) => {
+    setSelectedSectionIndexes((current) =>
+      current.includes(sectionIndex)
+        ? current.filter((index) => index !== sectionIndex)
+        : [...current, sectionIndex].sort((a, b) => a - b)
+    );
+  };
+
+  const confirmPrint = () => {
+    if (selectedSectionIndexes.length === 0) return;
+    setShowPrintOptions(false);
+    window.setTimeout(() => window.print(), 100);
   };
 
   if (authState.loading || loadingInquiry) {
@@ -235,7 +275,9 @@ export default function ItineraryPrintPage({ publicView = false }) {
     );
   }
 
-  const sections = Array.isArray(itinerary.sections) ? itinerary.sections : [];
+  const printableSections = sections.filter((_, index) =>
+    selectedSectionIndexes.includes(index)
+  );
 
   return (
     <div className="itinerary-print-shell">
@@ -245,10 +287,16 @@ export default function ItineraryPrintPage({ publicView = false }) {
           Back to editor
         </Button>
         <div className="itinerary-print-toolbar-actions">
-          <Button variant="outline-primary" onClick={printPdf}>
+          <Button
+            variant="outline-primary"
+            onClick={() => openPrintOptions("print")}
+          >
             Print
           </Button>
-          <Button variant="primary" onClick={printPdf}>
+          <Button
+            variant="primary"
+            onClick={() => openPrintOptions("download")}
+          >
             Download PDF
           </Button>
         </div>
@@ -307,11 +355,12 @@ export default function ItineraryPrintPage({ publicView = false }) {
           </div>
         </section>
 
-        {sections.map((section, sectionIndex) => {
+        {printableSections.map((section, visibleIndex) => {
+          const sectionIndex = sections.indexOf(section);
           const fields = Array.isArray(section.fields) ? section.fields : [];
           const rows = Array.isArray(section.items) ? section.items : [];
           return (
-            <section className="itinerary-print-section" key={`${section.title}-${sectionIndex}`}>
+            <section className="itinerary-print-section" key={`${section.title}-${sectionIndex}-${visibleIndex}`}>
               <h2>{section.title || "Itinerary Section"}</h2>
               {fields.length === 0 ? (
                 <p className="itinerary-print-empty">No fields in this section.</p>
@@ -341,6 +390,74 @@ export default function ItineraryPrintPage({ publicView = false }) {
           );
         })}
       </main>
+
+      <Modal
+        show={showPrintOptions}
+        onHide={() => setShowPrintOptions(false)}
+        centered
+      >
+        <Modal.Header closeButton>
+          <Modal.Title>
+            {printIntent === "download" ? "Download PDF" : "Print itinerary"}
+          </Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <p className="text-muted">
+            Choose which sections to include. Event details, QR code, and the
+            watermark will always be included.
+          </p>
+          <div className="itinerary-print-picker-actions">
+            <Button
+              size="sm"
+              variant="outline-secondary"
+              onClick={() =>
+                setSelectedSectionIndexes(sections.map((_, index) => index))
+              }
+            >
+              Select all
+            </Button>
+            <Button
+              size="sm"
+              variant="outline-secondary"
+              onClick={() => setSelectedSectionIndexes([])}
+            >
+              Clear all
+            </Button>
+          </div>
+          <div className="itinerary-print-picker-list">
+            {sections.map((section, sectionIndex) => (
+              <Form.Check
+                key={`${section.title || "section"}-${sectionIndex}`}
+                type="checkbox"
+                id={`print-section-${sectionIndex}`}
+                label={section.title || `Section ${sectionIndex + 1}`}
+                checked={selectedSectionIndexes.includes(sectionIndex)}
+                onChange={() => toggleSectionSelection(sectionIndex)}
+              />
+            ))}
+          </div>
+          {selectedSectionIndexes.length === 0 ? (
+            <Alert variant="warning" className="mt-3 mb-0">
+              Select at least one section before continuing.
+            </Alert>
+          ) : null}
+        </Modal.Body>
+        <Modal.Footer>
+          <Button
+            variant="outline-secondary"
+            onClick={() => setShowPrintOptions(false)}
+          >
+            Cancel
+          </Button>
+          <Button
+            variant="primary"
+            onClick={confirmPrint}
+            disabled={selectedSectionIndexes.length === 0}
+          >
+            {printIntent === "download" ? "Continue to PDF" : "Continue to print"}
+          </Button>
+        </Modal.Footer>
+      </Modal>
     </div>
   );
 }
