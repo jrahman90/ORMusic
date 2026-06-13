@@ -699,6 +699,9 @@ function ItineraryEditor({
   onRow,
   onImportText,
 }) {
+  const rowKey = (sectionIndex, rowIndex) => `${sectionIndex}-${rowIndex}`;
+  const sectionKey = (section, sectionIndex) =>
+    `${section?.title || "section"}-${sectionIndex}`;
   const date = Array.isArray(itinerary?.date) ? itinerary.date[0] || {} : {};
   const [editingFields, setEditingFields] = useState({});
   const [editingInfo, setEditingInfo] = useState(false);
@@ -708,17 +711,20 @@ function ItineraryEditor({
   const rowDraftsRef = useRef({});
   const [confirmDelete, setConfirmDelete] = useState(null);
   const [showImport, setShowImport] = useState(false);
-  const [collapsedSections, setCollapsedSections] = useState({});
+  const [collapsedSections, setCollapsedSections] = useState(() =>
+    Object.fromEntries(
+      (itinerary.sections || []).map((section, sectionIndex) => [
+        sectionKey(section, sectionIndex),
+        true,
+      ])
+    )
+  );
   const [sectionDrafts, setSectionDrafts] = useState({});
   const [reorderingSections, setReorderingSections] = useState(false);
   const [reorderingRows, setReorderingRows] = useState({});
   const [draggingSectionIndex, setDraggingSectionIndex] = useState(null);
   const [draggingRow, setDraggingRow] = useState(null);
   const touchDragRef = useRef(null);
-
-  const rowKey = (sectionIndex, rowIndex) => `${sectionIndex}-${rowIndex}`;
-  const sectionKey = (section, sectionIndex) =>
-    `${section?.title || "section"}-${sectionIndex}`;
 
   const makeRowDraft = (row, fields = []) => {
     const draft = {};
@@ -1146,29 +1152,39 @@ function ItineraryEditor({
                     >
                       {isCollapsed ? "Expand" : "Collapse"}
                     </Button>
-                    <Button
-                      size="sm"
-                      variant={isReorderingRows ? "primary" : "outline-secondary"}
-                      onClick={() => toggleRowReorder(sectionIndex)}
-                    >
-                      {isReorderingRows
-                        ? "Done rearranging rows"
-                        : "Rearrange rows"}
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="outline-secondary"
-                      onClick={() => toggleFieldEditing(section, sectionIndex)}
-                    >
-                      {isEditingFields ? "Done editing fields" : "Edit fields"}
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="outline-primary"
-                      onClick={() => handleAddField(section, sectionIndex)}
-                    >
-                      + Field
-                    </Button>
+                    {!isCollapsed ? (
+                      <>
+                        <Button
+                          size="sm"
+                          variant={
+                            isReorderingRows ? "primary" : "outline-secondary"
+                          }
+                          onClick={() => toggleRowReorder(sectionIndex)}
+                        >
+                          {isReorderingRows
+                            ? "Done rearranging rows"
+                            : "Rearrange rows"}
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline-secondary"
+                          onClick={() =>
+                            toggleFieldEditing(section, sectionIndex)
+                          }
+                        >
+                          {isEditingFields
+                            ? "Done editing fields"
+                            : "Edit fields"}
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline-primary"
+                          onClick={() => handleAddField(section, sectionIndex)}
+                        >
+                          + Field
+                        </Button>
+                      </>
+                    ) : null}
                     <Button
                       size="sm"
                       variant="outline-danger"

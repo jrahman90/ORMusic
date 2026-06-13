@@ -996,6 +996,41 @@ ul {
     background: #f8fafc;
 }
 
+.itinerary-print-check-header,
+.itinerary-print-check-cell {
+    text-align: center;
+    width: 58px;
+}
+
+.itinerary-print-check-cell .form-check {
+    align-items: center;
+    display: flex;
+    justify-content: center;
+    margin: 0;
+    min-height: 22px;
+    padding: 0;
+}
+
+.itinerary-print-check-cell .form-check-input {
+    cursor: pointer;
+    float: none;
+    margin: 0;
+}
+
+.itinerary-print-check-cell .form-check-input:disabled {
+    opacity: .75;
+}
+
+.itinerary-print-row-done td {
+    background: #f1f5f9 !important;
+    color: #64748b;
+}
+
+.itinerary-print-row-done td:not(.itinerary-print-check-cell) {
+    text-decoration: line-through;
+    text-decoration-thickness: 1px;
+}
+
 .itinerary-print-empty {
     border: 1px dashed #cbd5e1;
     border-radius: 8px;

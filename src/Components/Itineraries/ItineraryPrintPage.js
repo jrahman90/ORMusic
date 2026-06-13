@@ -143,6 +143,7 @@ export default function ItineraryPrintPage({ publicView = false }) {
     publicPath && typeof window !== "undefined"
       ? `${window.location.origin}${publicPath}`
       : "";
+  const canUpdateChecklist = !publicView && canAccess;
 
   useEffect(() => {
     if (publicView || !canAccess || !event || !itinerary || itinerary.publicToken) {
@@ -279,6 +280,39 @@ export default function ItineraryPrintPage({ publicView = false }) {
     selectedSectionIndexes.includes(index)
   );
 
+  const toggleRowDone = async (sectionIndex, rowIndex, checked) => {
+    if (!canUpdateChecklist || !inquiry || !event || !itinerary) return;
+    const nextSections = sections.map((section, currentSectionIndex) => {
+      if (currentSectionIndex !== sectionIndex) return section;
+      return {
+        ...section,
+        items: (section.items || []).map((row, currentRowIndex) =>
+          currentRowIndex === rowIndex ? { ...row, __done: checked } : row
+        ),
+      };
+    });
+    const nextEvents = events.map((row) =>
+      row.id === eventId
+        ? {
+            ...row,
+            itinerary: {
+              ...itinerary,
+              sections: nextSections,
+              updatedAt: Date.now(),
+            },
+          }
+        : row
+    );
+    try {
+      await updateDoc(doc(db, "inquiries", inquiryId), {
+        events: nextEvents,
+        updatedAt: serverTimestamp(),
+      });
+    } catch {
+      setError("Unable to update this checklist item.");
+    }
+  };
+
   return (
     <div className="itinerary-print-shell">
       {!publicView ? (
@@ -370,6 +404,7 @@ export default function ItineraryPrintPage({ publicView = false }) {
                 <table>
                   <thead>
                     <tr>
+                      <th className="itinerary-print-check-header">Done</th>
                       {fields.map((field) => (
                         <th key={field}>{field}</th>
                       ))}
@@ -377,7 +412,25 @@ export default function ItineraryPrintPage({ publicView = false }) {
                   </thead>
                   <tbody>
                     {rows.map((row, rowIndex) => (
-                      <tr key={rowIndex}>
+                      <tr
+                        key={rowIndex}
+                        className={row?.__done ? "itinerary-print-row-done" : ""}
+                      >
+                        <td className="itinerary-print-check-cell">
+                          <Form.Check
+                            type="checkbox"
+                            aria-label={`Mark row ${rowIndex + 1} done`}
+                            checked={Boolean(row?.__done)}
+                            disabled={!canUpdateChecklist}
+                            onChange={(e) =>
+                              toggleRowDone(
+                                sectionIndex,
+                                rowIndex,
+                                e.target.checked
+                              )
+                            }
+                          />
+                        </td>
                         {fields.map((field) => (
                           <td key={field}>{row?.[field] || "-"}</td>
                         ))}
