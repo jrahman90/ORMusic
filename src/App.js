@@ -25,6 +25,8 @@ import firestore from "./api/firestore/firestore";
 import Inquiries from "./Components/Admin/Inquiries";
 import EventureTermsAndConditions from "./Components/EventureTerms";
 import EventureAdmin from "./Components/Admin/EventureAdmin";
+import AdminDashboard from "./Components/Admin/AdminDashboard";
+import AdminEventDetails from "./Components/Admin/AdminEventDetails";
 import ItineraryEditorPage from "./Components/Itineraries/ItineraryEditorPage";
 import ItineraryPrintPage from "./Components/Itineraries/ItineraryPrintPage";
 
@@ -312,6 +314,15 @@ function App() {
         {isAdmin && <Route path="/dj-mc-admin" element={<DjmcAdmin />} />}
         {isAdmin && (
           <Route path="/eventure-admin" element={<EventureAdmin />} />
+        )}
+        {isAdmin && (
+          <Route path="/dashboard-admin" element={<AdminDashboard />} />
+        )}
+        {isAdmin && (
+          <Route
+            path="/dashboard-admin/events/:inquiryId/:eventId"
+            element={<AdminEventDetails />}
+          />
         )}
         {isAdmin && <Route path="/inquiries-admin" element={<Inquiries />} />}
         <Route

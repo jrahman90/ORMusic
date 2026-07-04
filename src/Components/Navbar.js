@@ -17,7 +17,7 @@ import {
   onSnapshot,
 } from "@firebase/firestore";
 import "./Css/components.css";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { PiShoppingCartBold } from "react-icons/pi";
 import {
   FileText,
@@ -38,6 +38,15 @@ function AppNavbar() {
   const [userData, setUserData] = useState(null);
   const [cartCount, setCartCount] = useState(0);
   const [processingCount, setProcessingCount] = useState(0);
+  const [adminViewMode, setAdminViewMode] = useState(() => {
+    try {
+      return localStorage.getItem("adminViewMode") === "customer"
+        ? "customer"
+        : "admin";
+    } catch {
+      return "admin";
+    }
+  });
   const [expanded, setExpanded] = useState(false); // control mobile collapse
   const [showAccountModal, setShowAccountModal] = useState(false);
   const [accountMode, setAccountMode] = useState("login");
@@ -46,6 +55,7 @@ function AppNavbar() {
   const auth = getAuth();
   const db = firestore;
   const location = useLocation();
+  const navigate = useNavigate();
 
   const socials = [
     {
@@ -67,12 +77,19 @@ function AppNavbar() {
   ];
 
   const adminLinks = [
+    { to: "/dashboard-admin", label: "Dashboard" },
     { to: "/rental-items-admin", label: "Rental Items" },
     { to: "/music-video-admin", label: "Music Videos" },
     { to: "/dj-mc-admin", label: "Team" },
     { to: "/inquiries-admin", label: "Inquiries", count: processingCount },
     { to: "/eventure-admin", label: "Eventure Admin" },
   ];
+  const adminUtilityLinks = [
+    { to: "/inquiries", label: "My inquiries" },
+    ...adminLinks,
+  ];
+  const isCustomerView = Boolean(isAdmin) && adminViewMode === "customer";
+  const showAdminNavigation = Boolean(isAdmin) && !isCustomerView;
 
   // close the navbar after navigation on mobile
   const handleNavItemClick = useCallback(() => {
@@ -152,14 +169,38 @@ function AppNavbar() {
     return () => window.removeEventListener("auth:open", openLogin);
   }, []);
 
+  useEffect(() => {
+    try {
+      localStorage.setItem("adminViewMode", adminViewMode);
+    } catch {
+      /* ignore */
+    }
+  }, [adminViewMode]);
+
+  useEffect(() => {
+    if (userData && !isAdmin && adminViewMode !== "admin") {
+      setAdminViewMode("admin");
+    }
+  }, [adminViewMode, isAdmin, userData]);
+
   const handleLogout = async () => {
     try {
       await signOut(auth);
       setUserData(null);
       setIsAdmin(null);
+      setAdminViewMode("admin");
       handleNavItemClick();
     } catch (error) {
       console.error(error);
+    }
+  };
+
+  const changeAdminViewMode = (mode) => {
+    setAdminViewMode(mode);
+    setExpanded(false);
+    setShowAdminTools(false);
+    if (mode === "customer" && location.pathname.includes("-admin")) {
+      navigate("/");
     }
   };
 
@@ -241,6 +282,17 @@ function AppNavbar() {
                 Services
               </Nav.Link>
 
+              {userData && !showAdminNavigation ? (
+                <Nav.Link
+                  className="nav-items"
+                  as={Link}
+                  to="/inquiries"
+                  onClick={handleNavItemClick}
+                >
+                  My inquiries
+                </Nav.Link>
+              ) : null}
+
               <NavDropdown
                 title="Media"
                 className="nav-items"
@@ -256,7 +308,7 @@ function AppNavbar() {
                 </NavDropdown.Item>
               </NavDropdown>
 
-              {isAdmin && (
+              {showAdminNavigation && (
                 <NavDropdown
                   className="nav-items"
                   id="admin-dropdown"
@@ -277,7 +329,7 @@ function AppNavbar() {
                     </span>
                 }
               >
-                  {adminLinks.map((link) => (
+                  {adminUtilityLinks.map((link) => (
                     <NavDropdown.Item
                       key={link.to}
                       as={Link}
@@ -301,6 +353,29 @@ function AppNavbar() {
               className="align-items-lg-center gap-lg-2"
               onSelect={handleNavItemClick}
             >
+              {isAdmin ? (
+                <div
+                  className="admin-view-toggle"
+                  role="group"
+                  aria-label="Admin view mode"
+                >
+                  <button
+                    type="button"
+                    className={isCustomerView ? "is-active" : ""}
+                    onClick={() => changeAdminViewMode("customer")}
+                  >
+                    Customer
+                  </button>
+                  <button
+                    type="button"
+                    className={!isCustomerView ? "is-active" : ""}
+                    onClick={() => changeAdminViewMode("admin")}
+                  >
+                    Admin
+                  </button>
+                </div>
+              ) : null}
+
               <Nav.Link
                 className="mx-3 position-relative"
                 as={Link}
@@ -426,16 +501,29 @@ function AppNavbar() {
           <span>Cart</span>
         </Link>
         {userData ? (
-          <Link
-            to="/inquiries"
-            className={`mobile-tab ${
-              isActivePath("/inquiries") ? "is-active" : ""
-            }`}
-            onClick={handleNavItemClick}
-          >
-            <FileText size={22} />
-            <span>Inquiries</span>
-          </Link>
+          showAdminNavigation ? (
+            <Link
+              to="/dashboard-admin"
+              className={`mobile-tab ${
+                isActivePath("/dashboard-admin") ? "is-active" : ""
+              }`}
+              onClick={handleNavItemClick}
+            >
+              <Settings size={22} />
+              <span>Dashboard</span>
+            </Link>
+          ) : (
+            <Link
+              to="/inquiries"
+              className={`mobile-tab ${
+                isActivePath("/inquiries") ? "is-active" : ""
+              }`}
+              onClick={handleNavItemClick}
+            >
+              <FileText size={22} />
+              <span>Inquiries</span>
+            </Link>
+          )
         ) : (
           <button
             type="button"
@@ -457,7 +545,7 @@ function AppNavbar() {
             aria-label="Open admin tools"
           >
             <Settings size={20} />
-            {processingCount > 0 ? (
+            {showAdminNavigation && processingCount > 0 ? (
               <Badge bg="danger" pill className="mobile-admin-badge">
                 {processingCount}
               </Badge>
@@ -474,8 +562,32 @@ function AppNavbar() {
               <Offcanvas.Title>Admin Tools</Offcanvas.Title>
             </Offcanvas.Header>
             <Offcanvas.Body>
+              <div className="mobile-admin-view-toggle">
+                <span>View website as</span>
+                <div
+                  className="admin-view-toggle"
+                  role="group"
+                  aria-label="Admin view mode"
+                >
+                  <button
+                    type="button"
+                    className={isCustomerView ? "is-active" : ""}
+                    onClick={() => changeAdminViewMode("customer")}
+                  >
+                    Customer
+                  </button>
+                  <button
+                    type="button"
+                    className={!isCustomerView ? "is-active" : ""}
+                    onClick={() => changeAdminViewMode("admin")}
+                  >
+                    Admin
+                  </button>
+                </div>
+              </div>
               <div className="mobile-admin-links">
-                {adminLinks.map((link) => (
+                {showAdminNavigation ? (
+                  adminUtilityLinks.map((link) => (
                   <Link
                     key={link.to}
                     to={link.to}
@@ -489,7 +601,12 @@ function AppNavbar() {
                       </Badge>
                     ) : null}
                   </Link>
-                ))}
+                  ))
+                ) : (
+                  <div className="mobile-admin-customer-note">
+                    Customer view is active. Switch to Admin view to show admin tools.
+                  </div>
+                )}
               </div>
             </Offcanvas.Body>
           </Offcanvas>

@@ -1,7 +1,14 @@
 // src/components/user/PreviousInquiries.jsx
 import React, { useState, useEffect } from "react";
-import { Table, Badge, Card, Row, Col, ListGroup } from "react-bootstrap";
-import { collection, query, orderBy, onSnapshot } from "firebase/firestore";
+import { Badge, Button, Form } from "react-bootstrap";
+import {
+  collection,
+  doc,
+  query,
+  orderBy,
+  onSnapshot,
+  runTransaction,
+} from "firebase/firestore";
 import { getAuth, onAuthStateChanged } from "firebase/auth";
 import db from "../../api/firestore/firestore";
 import {
@@ -17,10 +24,23 @@ const money = (v) =>
     Number(v || 0)
   );
 
+const makeEventId = () =>
+  crypto.randomUUID?.() || `event-${Date.now()}-${Math.random()}`;
+
 const normalizeEvents = (events = []) =>
   (Array.isArray(events) ? events : []).map((ev, idx) => ({
     ...ev,
     id: ev?.id || `event-${idx}`,
+  }));
+
+const cleanEventRows = (events = []) =>
+  normalizeEvents(events).map((event) => ({
+    id: event.id || makeEventId(),
+    type: event.type || "",
+    venue: event.venue || "",
+    date: event.date || "",
+    startTime: event.startTime || "",
+    endTime: event.endTime || "",
   }));
 
 const eventLabel = (ev) => {
@@ -95,6 +115,21 @@ const StatusBadge = ({ status }) => {
 };
 
 const statusFlow = ["Processing", "Pending", "Approved", "Confirmed", "Completed"];
+
+const CUSTOMER_INQUIRY_TABS = [
+  { key: "overview", label: "Overview" },
+  { key: "events", label: "Events" },
+  { key: "services", label: "Services" },
+  { key: "payments", label: "Payments" },
+  { key: "contracts", label: "Contracts" },
+  { key: "itinerary", label: "Itinerary" },
+];
+
+const statusClass = (status = "Processing") =>
+  `status-${String(status || "Processing")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")}`;
 
 const InquiryTimeline = ({ inquiry }) => {
   const status = inquiry?.status || "Processing";
@@ -213,106 +248,36 @@ const sumDeposits = (inquiry) =>
     0
   );
 
-const ContactBlock = ({ inquiry }) => {
-  const hasContact =
-    inquiry?.name ||
-    inquiry?.email ||
-    inquiry?.phoneNumber ||
-    inquiry?.eventDetails;
-  if (!hasContact) return null;
-  return (
-    <div className="mt-2">
-      <div className="fw-semibold mb-1">Contact</div>
-      <div className="text-muted small">
-        {inquiry?.name ? <div>Name: {inquiry.name}</div> : null}
-        {inquiry?.email ? <div>Email: {inquiry.email}</div> : null}
-        {inquiry?.phoneNumber ? <div>Phone: {inquiry.phoneNumber}</div> : null}
-        {inquiry?.eventDetails ? (
-          <div>Notes: {inquiry.eventDetails}</div>
-        ) : null}
-      </div>
-    </div>
-  );
-};
-
-const ScheduleBlock = ({ inquiry }) => {
-  const events = normalizeEvents(inquiry?.events);
-  if (events.length === 0) return null;
-  return (
-    <div className="mt-2">
-      <div className="fw-semibold mb-1">Event schedule</div>
-      <ListGroup>
-        {events.map((e, i) => (
-          <ListGroup.Item key={`${e?.type || "event"}-${e?.date || i}`}>
-            <div className="fw-semibold">{e?.type || "Event"}</div>
-            <div className="text-muted small">
-              {e?.date ? prettyDate(e.date) : "Date N/A"} from{" "}
-              {e?.startTime ? to12h(e.startTime) : "Start N/A"} to{" "}
-              {e?.endTime ? to12h(e.endTime) : "End N/A"}
-            </div>
-            {e?.venue ? (
-              <div className="text-muted small">Venue: {e.venue}</div>
-            ) : null}
-          </ListGroup.Item>
-        ))}
-      </ListGroup>
-    </div>
-  );
-};
-
-const DepositsBlock = ({ inquiry }) => {
-  const deposits = Array.isArray(inquiry?.deposits) ? inquiry.deposits : [];
-  if (deposits.length === 0) {
-    return (
-      <div className="mt-3">
-        <div className="fw-semibold mb-1">Deposits</div>
-        <div className="text-muted small">No deposits yet</div>
-      </div>
-    );
-  }
-  const totalDeposits = sumDeposits(inquiry);
-  const { total } = calcTotals(inquiry);
-  const remaining = Math.max(0, total - totalDeposits);
-
-  return (
-    <div className="mt-3">
-      <div className="fw-semibold mb-1">Deposits</div>
-      <ul className="mb-2">
-        {deposits.map((d) => (
-          <li key={d.id}>
-            <span className="fw-semibold">{money(Number(d.amount || 0))}</span>
-            {d.note ? (
-              <span className="text-muted small">, {d.note}</span>
-            ) : null}
-            {d.date ? (
-              <span className="text-muted small">
-                , {prettyDateTimeMMDDYY(d.date)}
-              </span>
-            ) : null}
-          </li>
-        ))}
-      </ul>
-      <div className="d-flex justify-content-between">
-        <span>Total deposits</span>
-        <span>{money(totalDeposits)}</span>
-      </div>
-      <div className="d-flex justify-content-between fw-semibold">
-        <span>Balance after deposits</span>
-        <span>{money(remaining)}</span>
-      </div>
-      <div className="text-muted small mt-1">
-        Deposits are not included in contract totals
-      </div>
-    </div>
-  );
-};
-
 const PreviousInquiries = () => {
   const [inquiries, setInquiries] = useState([]);
+  const [catalog, setCatalog] = useState([]);
+  const [currentUser, setCurrentUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState("");
   const [showContract, setShowContract] = useState(false);
   const [contractInquiry, setContractInquiry] = useState(null);
   const [activeContract, setActiveContract] = useState(null);
+  const [activeInquiryId, setActiveInquiryId] = useState("");
+  const [activeTab, setActiveTab] = useState("overview");
+  const [isEditingDetails, setIsEditingDetails] = useState(false);
+  const [isEditingEvents, setIsEditingEvents] = useState(false);
+  const [isEditingServices, setIsEditingServices] = useState(false);
+  const [detailDraft, setDetailDraft] = useState({ eventDetails: "" });
+  const [eventRows, setEventRows] = useState([]);
+  const [newEventDraft, setNewEventDraft] = useState({
+    type: "",
+    venue: "",
+    date: "",
+    startTime: "",
+    endTime: "",
+  });
+  const [serviceDrafts, setServiceDrafts] = useState({});
+  const [addServiceDraft, setAddServiceDraft] = useState({
+    pickId: "",
+    eventId: "",
+    quantity: 1,
+  });
 
   const auth = getAuth();
 
@@ -323,6 +288,7 @@ const PreviousInquiries = () => {
     stopAuth = onAuthStateChanged(auth, (user) => {
       stopSnap?.();
       setInquiries([]);
+      setCurrentUser(user || null);
 
       if (!user) {
         setLoading(false);
@@ -362,389 +328,1028 @@ const PreviousInquiries = () => {
     };
   }, [auth]);
 
-  if (loading) {
-    return (
-      <div>
-        <h2>Previous Inquiries</h2>
-        <p>Loading...</p>
-      </div>
+  useEffect(() => {
+    const rentalsQuery = query(collection(db, "rentals"), orderBy("name", "asc"));
+    const stop = onSnapshot(
+      rentalsQuery,
+      (snap) =>
+        setCatalog(snap.docs.map((docSnap) => ({ id: docSnap.id, ...docSnap.data() }))),
+      (error) => console.error("Rentals catalog load failed:", error)
     );
-  }
+    return () => stop();
+  }, []);
 
-  if (inquiries.length === 0) {
-    return (
-      <div>
-        <h2>Previous Inquiries</h2>
-        <p>No previous inquiries found</p>
-      </div>
+  useEffect(() => {
+    if (inquiries.length === 0) {
+      setActiveInquiryId("");
+      return;
+    }
+    if (!activeInquiryId || !inquiries.some((inq) => inq.id === activeInquiryId)) {
+      setActiveInquiryId(inquiries[0].id);
+    }
+  }, [activeInquiryId, inquiries]);
+
+  const activeInquiry =
+    inquiries.find((inquiry) => inquiry.id === activeInquiryId) || inquiries[0];
+  const events = normalizeEvents(activeInquiry?.events);
+  const items = Array.isArray(activeInquiry?.items) ? activeInquiry.items : [];
+  const contracts = Array.isArray(activeInquiry?.contracts)
+    ? activeInquiry.contracts
+    : [];
+  const deposits = Array.isArray(activeInquiry?.deposits)
+    ? activeInquiry.deposits
+    : [];
+  const canEditInquiry = Boolean(activeInquiry) && contracts.length === 0;
+
+  useEffect(() => {
+    if (!activeInquiry) return;
+    if (!isEditingDetails) {
+      setDetailDraft({ eventDetails: activeInquiry.eventDetails || "" });
+    }
+    if (!isEditingEvents) {
+      setEventRows(cleanEventRows(activeInquiry.events));
+    }
+    if (!isEditingServices) {
+      setServiceDrafts({});
+      setAddServiceDraft({
+        pickId: "",
+        eventId: normalizeEvents(activeInquiry.events)[0]?.id || "",
+        quantity: 1,
+      });
+    }
+    setSaveError("");
+  }, [activeInquiry, isEditingDetails, isEditingEvents, isEditingServices]);
+
+  useEffect(() => {
+    if (canEditInquiry) return;
+    setIsEditingDetails(false);
+    setIsEditingEvents(false);
+    setIsEditingServices(false);
+  }, [canEditInquiry]);
+
+  const updateEditableInquiry = async (payload) => {
+    if (!activeInquiry || !currentUser) return false;
+    try {
+      setSaving(true);
+      setSaveError("");
+      const inquiryRef = doc(db, "inquiries", activeInquiry.id);
+      await runTransaction(db, async (transaction) => {
+        const snap = await transaction.get(inquiryRef);
+        if (!snap.exists()) {
+          throw new Error("This inquiry could not be found.");
+        }
+        const latest = snap.data();
+        const latestContracts = Array.isArray(latest.contracts)
+          ? latest.contracts
+          : [];
+        if (latestContracts.length > 0) {
+          throw new Error(
+            "This inquiry can no longer be edited because a contract has been created."
+          );
+        }
+        const ownsById =
+          latest.userId && currentUser.uid && latest.userId === currentUser.uid;
+        const ownsByEmail =
+          latest.email && currentUser.email && latest.email === currentUser.email;
+        if (!ownsById && !ownsByEmail) {
+          throw new Error("You can only edit your own inquiries.");
+        }
+        transaction.update(inquiryRef, payload);
+      });
+      return true;
+    } catch (error) {
+      console.error("Customer inquiry update failed:", error);
+      setSaveError(
+        error?.message || "We could not save those changes. Please try again."
+      );
+      return false;
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const saveDetails = async () => {
+    const saved = await updateEditableInquiry({
+      eventDetails: detailDraft.eventDetails || "",
+    });
+    if (saved) setIsEditingDetails(false);
+  };
+
+  const setEventRowField = (index, key, value) => {
+    setEventRows((rows) =>
+      rows.map((row, rowIndex) =>
+        rowIndex === index ? { ...row, [key]: value } : row
+      )
     );
-  }
+  };
+
+  const addEventRow = () => {
+    if (!newEventDraft.type || !newEventDraft.date) return;
+    setEventRows((rows) => [
+      ...rows,
+      {
+        ...newEventDraft,
+        id: makeEventId(),
+      },
+    ]);
+    setNewEventDraft({
+      type: "",
+      venue: "",
+      date: "",
+      startTime: "",
+      endTime: "",
+    });
+  };
+
+  const removeEventRow = (index) => {
+    setEventRows((rows) => rows.filter((_, rowIndex) => rowIndex !== index));
+  };
+
+  const saveEvents = async () => {
+    if (!activeInquiry) return;
+    const cleanRows = cleanEventRows(eventRows);
+    const eventIds = new Set(cleanRows.map((event) => event.id));
+    const cleanItems = items.map((item) => ({
+      ...item,
+      eventId: item.eventId && eventIds.has(item.eventId) ? item.eventId : "",
+      eventAllocations: normalizeAllocations(item, cleanRows),
+    }));
+    const saved = await updateEditableInquiry({
+      events: cleanRows,
+      items: cleanItems,
+    });
+    if (saved) setIsEditingEvents(false);
+  };
+
+  const cleanServiceItems = (nextItems, nextEvents = events) => {
+    const eventIds = new Set(nextEvents.map((event) => event.id));
+    return nextItems.map((item) => ({
+      id: item.id || crypto.randomUUID?.() || String(Date.now()),
+      name: item.name || "Service",
+      description: item.description || "",
+      price: Number(item.price || 0),
+      quantity: Math.max(0, Number(item.quantity || 0)),
+      media: Array.isArray(item.media) ? item.media : [],
+      eventId: item.eventId && eventIds.has(item.eventId) ? item.eventId : "",
+      eventAllocations: normalizeAllocations(item, nextEvents),
+    }));
+  };
+
+  const saveServiceItems = async (nextItems) => {
+    const saved = await updateEditableInquiry({
+      items: cleanServiceItems(nextItems),
+    });
+    return saved;
+  };
+
+  const setServiceDraftField = (index, key, value) => {
+    setServiceDrafts((drafts) => ({
+      ...drafts,
+      [index]: {
+        ...(drafts[index] || {}),
+        [key]: value,
+      },
+    }));
+  };
+
+  const saveServiceRow = async (index) => {
+    const draft = serviceDrafts[index] || {};
+    const nextItems = [...items];
+    const next = { ...nextItems[index] };
+    next.quantity = Math.max(0, Number(draft.quantity ?? next.quantity ?? 0));
+    const eventId = draft.eventId ?? next.eventId ?? "";
+    next.eventId = eventId;
+    next.eventAllocations = eventId
+      ? [{ eventId, quantity: next.quantity }]
+      : [];
+    nextItems[index] = next;
+    await saveServiceItems(nextItems);
+  };
+
+  const removeServiceRow = async (index) => {
+    await saveServiceItems(items.filter((_, itemIndex) => itemIndex !== index));
+  };
+
+  const handlePickCatalog = (rentalId) => {
+    const picked = catalog.find((row) => row.id === rentalId);
+    if (!picked) {
+      setAddServiceDraft((current) => ({
+        ...current,
+        pickId: "",
+        name: "",
+        description: "",
+        price: "",
+      }));
+      return;
+    }
+    setAddServiceDraft((current) => ({
+      ...current,
+      pickId: rentalId,
+      name: picked.name || "",
+      description: picked.description || "",
+      price: picked.price != null ? String(picked.price) : "0",
+      media: Array.isArray(picked.media) ? picked.media : [],
+    }));
+  };
+
+  const addService = async () => {
+    if (!addServiceDraft.name) return;
+    const quantity = Math.max(1, Number(addServiceDraft.quantity || 1));
+    const eventId = addServiceDraft.eventId || "";
+    const nextItem = {
+      id: crypto.randomUUID?.() || String(Date.now()),
+      name: addServiceDraft.name,
+      description: addServiceDraft.description || "",
+      price: Number(addServiceDraft.price || 0),
+      quantity,
+      media: Array.isArray(addServiceDraft.media) ? addServiceDraft.media : [],
+      eventId,
+      eventAllocations: eventId ? [{ eventId, quantity }] : [],
+    };
+    const saved = await saveServiceItems([...items, nextItem]);
+    if (saved) {
+      setAddServiceDraft({
+        pickId: "",
+        eventId: events[0]?.id || "",
+        quantity: 1,
+      });
+    }
+  };
+
   const openClientContract = (inq, c) => {
     setContractInquiry(inq);
     setActiveContract(c);
     setShowContract(true);
   };
 
+  if (loading) {
+    return (
+      <div className="customer-inquiries-shell">
+        <div className="customer-inquiries-empty">
+          <h2>My inquiries</h2>
+          <p>Loading your event details...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (inquiries.length === 0) {
+    return (
+      <div className="customer-inquiries-shell">
+        <div className="customer-inquiries-empty">
+          <h2>No inquiries yet</h2>
+          <p>Your submitted event inquiries will show here.</p>
+        </div>
+      </div>
+    );
+  }
+
+  const totals = calcTotals(activeInquiry);
+  const totalDeposits = sumDeposits(activeInquiry);
+  const remaining = Math.max(0, totals.total - totalDeposits);
+  const signedContracts = contracts.filter((contract) => contract.clientSignature)
+    .length;
+  const firstEvent = events[0];
+  const tabBadges = {
+    events: events.length ? String(events.length) : "",
+    services: items.length ? String(items.length) : "",
+    payments: remaining > 0 ? "Due" : "Paid",
+    contracts: contracts.length ? String(contracts.length) : "",
+    itinerary: events.length ? String(events.length) : "",
+  };
+  const activeSubmittedDate = activeInquiry?.timestamp
+    ? prettyDateTimeMMDDYY(activeInquiry.timestamp)
+    : "Submitted date unavailable";
+
   return (
-    <div>
-      <h2>Previous Inquiries</h2>
+    <div className="customer-inquiries-shell">
+      <div className="customer-inquiries-hero">
+        <div>
+          <div className="customer-inquiries-kicker">My inquiries</div>
+          <h2>Event plans, contracts, and payments</h2>
+          <p>
+            Review each inquiry, track its status, view contracts, and open
+            event itineraries from one place.
+          </p>
+        </div>
+        <div className="customer-inquiries-hero-stats">
+          <div>
+            <span>Total inquiries</span>
+            <strong>{inquiries.length}</strong>
+          </div>
+          <div>
+            <span>Open balance</span>
+            <strong>{money(remaining)}</strong>
+          </div>
+        </div>
+      </div>
 
-      {/* Mobile cards */}
-      <Row className="g-3 d-md-none">
-        {inquiries.map((inquiry) => {
-          const dateStr = prettyDateTimeMMDDYY(inquiry?.timestamp);
-          const {
-            subtotal,
-            discountApplied,
-            baseAfterDiscount,
-            feeApplied,
-            travel,
-            taxApplied,
-            total,
-            dType,
-            dRaw,
-            fType,
-            fRaw,
-            taxPercent,
-          } = calcTotals(inquiry);
-          const totalDeposits = sumDeposits(inquiry);
-          const remaining = Math.max(0, total - totalDeposits);
+      <div className="customer-inquiries-layout">
+        <aside className="customer-inquiries-list-panel">
+          <div className="customer-inquiries-list-heading">
+            <span>Inquiry history</span>
+            <strong>{inquiries.length}</strong>
+          </div>
+          <div className="customer-inquiries-list">
+            {inquiries.map((inquiry) => {
+              const inquiryEvents = normalizeEvents(inquiry.events);
+              const inquiryTotals = calcTotals(inquiry);
+              const inquiryBalance = Math.max(
+                0,
+                inquiryTotals.total - sumDeposits(inquiry)
+              );
+              const isActive = inquiry.id === activeInquiry.id;
+              const leadEvent = inquiryEvents[0];
 
-          return (
-            <Col xs={12} key={inquiry.id}>
-              <Card className="shadow-sm">
-                <Card.Body>
-                  <div className="d-flex justify-content-between align-items-start mb-1">
-                    <div className="fw-semibold">{dateStr}</div>
-                    <StatusBadge status={inquiry.status} />
+              return (
+                <button
+                  key={inquiry.id}
+                  type="button"
+                  className={`customer-inquiry-list-item ${statusClass(
+                    inquiry.status
+                  )} ${isActive ? "is-active" : ""}`}
+                  onClick={() => {
+                    setActiveInquiryId(inquiry.id);
+                    setActiveTab("overview");
+                  }}
+                >
+                  <span className="customer-inquiry-list-date">
+                    {inquiry.timestamp
+                      ? prettyDateTimeMMDDYY(inquiry.timestamp)
+                      : "Inquiry"}
+                  </span>
+                  <strong>{leadEvent?.type || "Event inquiry"}</strong>
+                  <span>
+                    {leadEvent?.date ? prettyDate(leadEvent.date) : "Date TBD"}
+                    {leadEvent?.venue ? ` at ${leadEvent.venue}` : ""}
+                  </span>
+                  <div>
+                    <span className="customer-inquiry-list-status">
+                      {inquiry.status || "Processing"}
+                    </span>
+                    <span>{money(inquiryBalance)} due</span>
                   </div>
-                  <ContactBlock inquiry={inquiry} />
-                  <ScheduleBlock inquiry={inquiry} />
-                  <InquiryTimeline inquiry={inquiry} />
-                  <InquiryItineraries inquiry={inquiry} mode="customer" />
+                </button>
+              );
+            })}
+          </div>
+        </aside>
 
-                  {/* Contracts for this inquiry */}
-                  <div className="fw-semibold mt-3 mb-1">Contracts</div>
-                  {(inquiry.contracts || []).length === 0 ? (
-                    <div className="text-muted small">No contracts yet</div>
-                  ) : (
-                    <ul className="mb-2">
-                      {inquiry.contracts.map((c) => (
-                        <li key={`${inquiry.id}-c-${c.id}`}>
-                          <button
-                            type="button"
-                            className="btn btn-link p-0 align-baseline"
-                            onClick={() => openClientContract(inquiry, c)}
-                          >
-                            {c.title}
-                          </button>
-                          {c.clientSignature ? (
-                            <Badge bg="success" className="ms-2">
-                              Signed
-                            </Badge>
-                          ) : (
-                            <Badge bg="warning" text="dark" className="ms-2">
-                              Pending
-                            </Badge>
-                          )}
-                        </li>
-                      ))}
-                    </ul>
-                  )}
+        <main className="customer-inquiry-detail">
+          <div className={`customer-inquiry-detail-hero ${statusClass(activeInquiry.status)}`}>
+            <div>
+              <span>{activeSubmittedDate}</span>
+              <h3>{firstEvent?.type || "Event inquiry"}</h3>
+              <p>
+                {firstEvent?.date ? prettyDate(firstEvent.date) : "Date TBD"}
+                {firstEvent?.venue ? ` at ${firstEvent.venue}` : ""}
+              </p>
+            </div>
+            <div className="customer-inquiry-detail-status">
+              <StatusBadge status={activeInquiry.status} />
+            </div>
+          </div>
 
-                  <div className="fw-semibold mt-3 mb-1">Items</div>
-                  <ul className="mb-2">
-                    {(inquiry.items || []).map((item, idx) => (
-                      <li key={`${inquiry.id}-m-name-${idx}`} className="mb-2">
-                        <strong>{item.name}</strong>: {money(item.price)} x{" "}
-                        {item.quantity}
-                        {item.description ? (
-                          <div className="text-muted small mt-1">
-                            {item.description}
-                          </div>
-                        ) : null}
-                        <div className="text-muted small mt-1">
-                          Event: {itemEventLabel(inquiry, item)}
-                        </div>
-                      </li>
-                    ))}
-                  </ul>
+          <div className="customer-inquiry-tabs" role="tablist" aria-label="Inquiry sections">
+            {CUSTOMER_INQUIRY_TABS.map((tab) => (
+              <button
+                key={tab.key}
+                type="button"
+                role="tab"
+                aria-selected={activeTab === tab.key}
+                className={activeTab === tab.key ? "is-active" : ""}
+                onClick={() => setActiveTab(tab.key)}
+              >
+                <span>{tab.label}</span>
+                {tabBadges[tab.key] ? <small>{tabBadges[tab.key]}</small> : null}
+              </button>
+            ))}
+          </div>
 
-                  <div className="border-top pt-2">
-                    <div className="d-flex justify-content-between">
-                      <span>Subtotal</span>
-                      <span>{money(subtotal)}</span>
+          {saveError ? (
+            <div className="customer-edit-alert is-error">{saveError}</div>
+          ) : null}
+
+          {canEditInquiry ? (
+            <div className="customer-edit-alert">
+              You can edit this inquiry until a contract is created.
+            </div>
+          ) : (
+            <div className="customer-edit-alert is-locked">
+              A contract has been created, so inquiry details are now locked.
+            </div>
+          )}
+
+          <section className={`customer-tab-panel ${activeTab === "overview" ? "" : "d-none"}`}>
+            <div className="customer-summary-grid">
+              <article>
+                <span>Status</span>
+                <strong>{activeInquiry.status || "Processing"}</strong>
+              </article>
+              <article>
+                <span>Events</span>
+                <strong>{events.length}</strong>
+              </article>
+              <article>
+                <span>Contracts signed</span>
+                <strong>
+                  {signedContracts}/{contracts.length}
+                </strong>
+              </article>
+              <article>
+                <span>Balance</span>
+                <strong>{money(remaining)}</strong>
+              </article>
+            </div>
+
+            <InquiryTimeline inquiry={activeInquiry} />
+
+            <div className="customer-info-grid">
+              <article>
+                <span>Contact</span>
+                <strong>{activeInquiry.name || "Name unavailable"}</strong>
+                {activeInquiry.email ? <p>{activeInquiry.email}</p> : null}
+                {activeInquiry.phoneNumber ? <p>{activeInquiry.phoneNumber}</p> : null}
+              </article>
+              <article>
+                <div className="customer-edit-heading compact">
+                  <div>
+                    <span>Inquiry notes</span>
+                    <strong>
+                      {activeInquiry.eventDetails ? "Notes provided" : "No notes yet"}
+                    </strong>
+                  </div>
+                  {canEditInquiry && !isEditingDetails ? (
+                    <Button
+                      size="sm"
+                      variant="outline-primary"
+                      onClick={() => setIsEditingDetails(true)}
+                    >
+                      Edit
+                    </Button>
+                  ) : null}
+                </div>
+                {isEditingDetails ? (
+                  <div className="customer-edit-form">
+                    <Form.Control
+                      as="textarea"
+                      rows={5}
+                      value={detailDraft.eventDetails}
+                      onChange={(event) =>
+                        setDetailDraft((current) => ({
+                          ...current,
+                          eventDetails: event.target.value,
+                        }))
+                      }
+                      disabled={saving}
+                    />
+                    <div className="customer-edit-actions">
+                      <Button
+                        size="sm"
+                        variant="outline-secondary"
+                        onClick={() => {
+                          setDetailDraft({
+                            eventDetails: activeInquiry.eventDetails || "",
+                          });
+                          setIsEditingDetails(false);
+                        }}
+                        disabled={saving}
+                      >
+                        Cancel
+                      </Button>
+                      <Button size="sm" onClick={saveDetails} disabled={saving}>
+                        {saving ? "Saving" : "Save details"}
+                      </Button>
                     </div>
+                  </div>
+                ) : activeInquiry.eventDetails ? (
+                  <p>{activeInquiry.eventDetails}</p>
+                ) : null}
+              </article>
+            </div>
+          </section>
 
-                    {discountApplied > 0 ? (
-                      <div className="d-flex justify-content-between text-success">
-                        <span>
-                          Discount
-                          {dType === "percent"
-                            ? ` (${Number(dRaw || 0)}%)`
-                            : ""}
-                        </span>
-                        <span>{money(discountApplied)}</span>
+          <section className={`customer-tab-panel ${activeTab === "events" ? "" : "d-none"}`}>
+            <div className="customer-edit-heading">
+              <div>
+                <span>Event dates</span>
+                <strong>Schedule and locations</strong>
+              </div>
+              {canEditInquiry ? (
+                isEditingEvents ? (
+                  <div className="customer-edit-actions">
+                    <Button
+                      size="sm"
+                      variant="outline-secondary"
+                      onClick={() => {
+                        setEventRows(cleanEventRows(activeInquiry.events));
+                        setIsEditingEvents(false);
+                      }}
+                      disabled={saving}
+                    >
+                      Cancel
+                    </Button>
+                    <Button size="sm" onClick={saveEvents} disabled={saving}>
+                      {saving ? "Saving" : "Save dates"}
+                    </Button>
+                  </div>
+                ) : (
+                  <Button
+                    size="sm"
+                    variant="outline-primary"
+                    onClick={() => setIsEditingEvents(true)}
+                  >
+                    Edit dates
+                  </Button>
+                )
+              ) : null}
+            </div>
+
+            {isEditingEvents ? (
+              <div className="customer-event-editor">
+                {eventRows.length === 0 ? (
+                  <div className="customer-empty-panel">
+                    Add one or more event dates when you know them.
+                  </div>
+                ) : (
+                  eventRows.map((eventRow, index) => (
+                    <div key={eventRow.id || index} className="customer-edit-card">
+                      <div className="customer-edit-grid">
+                        <Form.Group>
+                          <Form.Label>Type</Form.Label>
+                          <Form.Control
+                            value={eventRow.type || ""}
+                            onChange={(event) =>
+                              setEventRowField(index, "type", event.target.value)
+                            }
+                            disabled={saving}
+                          />
+                        </Form.Group>
+                        <Form.Group>
+                          <Form.Label>Venue</Form.Label>
+                          <Form.Control
+                            value={eventRow.venue || ""}
+                            onChange={(event) =>
+                              setEventRowField(index, "venue", event.target.value)
+                            }
+                            disabled={saving}
+                          />
+                        </Form.Group>
+                        <Form.Group>
+                          <Form.Label>Date</Form.Label>
+                          <Form.Control
+                            type="date"
+                            value={eventRow.date || ""}
+                            onChange={(event) =>
+                              setEventRowField(index, "date", event.target.value)
+                            }
+                            disabled={saving}
+                          />
+                        </Form.Group>
+                        <Form.Group>
+                          <Form.Label>Start</Form.Label>
+                          <Form.Control
+                            type="time"
+                            value={eventRow.startTime || ""}
+                            onChange={(event) =>
+                              setEventRowField(index, "startTime", event.target.value)
+                            }
+                            disabled={saving}
+                          />
+                        </Form.Group>
+                        <Form.Group>
+                          <Form.Label>End</Form.Label>
+                          <Form.Control
+                            type="time"
+                            value={eventRow.endTime || ""}
+                            onChange={(event) =>
+                              setEventRowField(index, "endTime", event.target.value)
+                            }
+                            disabled={saving}
+                          />
+                        </Form.Group>
                       </div>
-                    ) : null}
-
-                    {feeApplied > 0 ? (
-                      <div className="d-flex justify-content-between">
-                        <span>
-                          Processing fee
-                          {fType === "percent"
-                            ? ` (${Number(fRaw || 0)}%)`
-                            : ""}
-                        </span>
-                        <span>{money(feeApplied)}</span>
+                      <div className="customer-edit-actions">
+                        <Button
+                          size="sm"
+                          variant="outline-danger"
+                          onClick={() => removeEventRow(index)}
+                          disabled={saving}
+                        >
+                          Remove
+                        </Button>
                       </div>
-                    ) : null}
+                    </div>
+                  ))
+                )}
 
-                    {travel > 0 ? (
-                      <div className="d-flex justify-content-between">
-                        <span>Travel</span>
-                        <span>{money(travel)}</span>
+                <div className="customer-add-box">
+                  <div className="customer-panel-heading">
+                    <span>Add date</span>
+                  </div>
+                  <div className="customer-edit-grid">
+                    <Form.Group>
+                      <Form.Label>Type</Form.Label>
+                      <Form.Control
+                        value={newEventDraft.type}
+                        onChange={(event) =>
+                          setNewEventDraft((current) => ({
+                            ...current,
+                            type: event.target.value,
+                          }))
+                        }
+                        disabled={saving}
+                      />
+                    </Form.Group>
+                    <Form.Group>
+                      <Form.Label>Venue</Form.Label>
+                      <Form.Control
+                        value={newEventDraft.venue}
+                        onChange={(event) =>
+                          setNewEventDraft((current) => ({
+                            ...current,
+                            venue: event.target.value,
+                          }))
+                        }
+                        disabled={saving}
+                      />
+                    </Form.Group>
+                    <Form.Group>
+                      <Form.Label>Date</Form.Label>
+                      <Form.Control
+                        type="date"
+                        value={newEventDraft.date}
+                        onChange={(event) =>
+                          setNewEventDraft((current) => ({
+                            ...current,
+                            date: event.target.value,
+                          }))
+                        }
+                        disabled={saving}
+                      />
+                    </Form.Group>
+                    <Form.Group>
+                      <Form.Label>Start</Form.Label>
+                      <Form.Control
+                        type="time"
+                        value={newEventDraft.startTime}
+                        onChange={(event) =>
+                          setNewEventDraft((current) => ({
+                            ...current,
+                            startTime: event.target.value,
+                          }))
+                        }
+                        disabled={saving}
+                      />
+                    </Form.Group>
+                    <Form.Group>
+                      <Form.Label>End</Form.Label>
+                      <Form.Control
+                        type="time"
+                        value={newEventDraft.endTime}
+                        onChange={(event) =>
+                          setNewEventDraft((current) => ({
+                            ...current,
+                            endTime: event.target.value,
+                          }))
+                        }
+                        disabled={saving}
+                      />
+                    </Form.Group>
+                    <div className="customer-edit-grid-action">
+                      <Button
+                        onClick={addEventRow}
+                        disabled={saving || !newEventDraft.type || !newEventDraft.date}
+                      >
+                        Add date
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ) : events.length === 0 ? (
+              <div className="customer-empty-panel">No event dates have been added yet.</div>
+            ) : (
+              <div className="customer-event-list">
+                {events.map((event, index) => (
+                  <article key={event.id || index} className="customer-event-card">
+                    <div>
+                      <span>{event.date ? prettyDate(event.date) : "Date TBD"}</span>
+                      <strong>{event.type || "Event"}</strong>
+                    </div>
+                    <div>
+                      <span>Time</span>
+                      <strong>
+                        {event.startTime || event.endTime
+                          ? `${event.startTime ? to12h(event.startTime) : "Start TBD"} - ${
+                              event.endTime ? to12h(event.endTime) : "End TBD"
+                            }`
+                          : "Time TBD"}
+                      </strong>
+                    </div>
+                    <div>
+                      <span>Venue</span>
+                      <strong>{event.venue || "Venue TBD"}</strong>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            )}
+          </section>
+
+          <section className={`customer-tab-panel ${activeTab === "services" ? "" : "d-none"}`}>
+            <div className="customer-edit-heading">
+              <div>
+                <span>Services</span>
+                <strong>Selected services and event assignment</strong>
+              </div>
+              {canEditInquiry ? (
+                isEditingServices ? (
+                  <Button
+                    size="sm"
+                    variant="outline-secondary"
+                    onClick={() => setIsEditingServices(false)}
+                    disabled={saving}
+                  >
+                    Done
+                  </Button>
+                ) : (
+                  <Button
+                    size="sm"
+                    variant="outline-primary"
+                    onClick={() => setIsEditingServices(true)}
+                  >
+                    Edit services
+                  </Button>
+                )
+              ) : null}
+            </div>
+
+            {isEditingServices ? (
+              <div className="customer-service-editor">
+                {items.length === 0 ? (
+                  <div className="customer-empty-panel">
+                    No services are attached to this inquiry yet.
+                  </div>
+                ) : (
+                  items.map((item, index) => {
+                    const draft = serviceDrafts[index] || {};
+                    const draftQuantity = draft.quantity ?? item.quantity ?? 0;
+                    const allocations = normalizeAllocations(item, events);
+                    const draftEventId =
+                      draft.eventId ??
+                      item.eventId ??
+                      allocations[0]?.eventId ??
+                      "";
+
+                    return (
+                      <div key={`${activeInquiry.id}-edit-service-${index}`} className="customer-edit-card">
+                        <div>
+                          <strong>{item.name || "Service"}</strong>
+                          {item.description ? <p>{item.description}</p> : null}
+                          <span>{money(item.price)} each</span>
+                        </div>
+                        <div className="customer-edit-grid compact">
+                          <Form.Group>
+                            <Form.Label>Quantity</Form.Label>
+                            <Form.Control
+                              inputMode="numeric"
+                              value={draftQuantity}
+                              onChange={(event) =>
+                                setServiceDraftField(
+                                  index,
+                                  "quantity",
+                                  event.target.value
+                                )
+                              }
+                              disabled={saving}
+                            />
+                          </Form.Group>
+                          <Form.Group>
+                            <Form.Label>Event date</Form.Label>
+                            <Form.Select
+                              value={draftEventId}
+                              onChange={(event) =>
+                                setServiceDraftField(index, "eventId", event.target.value)
+                              }
+                              disabled={saving}
+                            >
+                              <option value="">General / not assigned</option>
+                              {events.map((eventRow) => (
+                                <option key={eventRow.id} value={eventRow.id}>
+                                  {eventLabel(eventRow)}
+                                </option>
+                              ))}
+                            </Form.Select>
+                          </Form.Group>
+                          <div className="customer-edit-grid-action multi">
+                            <Button
+                              size="sm"
+                              onClick={() => saveServiceRow(index)}
+                              disabled={saving}
+                            >
+                              Update
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline-danger"
+                              onClick={() => removeServiceRow(index)}
+                              disabled={saving}
+                            >
+                              Remove
+                            </Button>
+                          </div>
+                        </div>
                       </div>
-                    ) : null}
+                    );
+                  })
+                )}
 
-                    <div className="d-flex justify-content-between">
-                      <span>Net total</span>
+                <div className="customer-add-box">
+                  <div className="customer-panel-heading">
+                    <span>Add service</span>
+                  </div>
+                  <div className="customer-edit-grid">
+                    <Form.Group>
+                      <Form.Label>Service</Form.Label>
+                      <Form.Select
+                        value={addServiceDraft.pickId || ""}
+                        onChange={(event) => handlePickCatalog(event.target.value)}
+                        disabled={saving}
+                      >
+                        <option value="">Choose a service</option>
+                        {catalog.map((rental) => (
+                          <option key={rental.id} value={rental.id}>
+                            {rental.name}
+                            {rental.price != null ? `, ${money(rental.price)}` : ""}
+                          </option>
+                        ))}
+                      </Form.Select>
+                    </Form.Group>
+                    <Form.Group>
+                      <Form.Label>Quantity</Form.Label>
+                      <Form.Control
+                        inputMode="numeric"
+                        value={addServiceDraft.quantity || ""}
+                        onChange={(event) =>
+                          setAddServiceDraft((current) => ({
+                            ...current,
+                            quantity: event.target.value,
+                          }))
+                        }
+                        disabled={saving}
+                      />
+                    </Form.Group>
+                    <Form.Group>
+                      <Form.Label>Event date</Form.Label>
+                      <Form.Select
+                        value={addServiceDraft.eventId || ""}
+                        onChange={(event) =>
+                          setAddServiceDraft((current) => ({
+                            ...current,
+                            eventId: event.target.value,
+                          }))
+                        }
+                        disabled={saving}
+                      >
+                        <option value="">General / not assigned</option>
+                        {events.map((eventRow) => (
+                          <option key={eventRow.id} value={eventRow.id}>
+                            {eventLabel(eventRow)}
+                          </option>
+                        ))}
+                      </Form.Select>
+                    </Form.Group>
+                    <div className="customer-edit-grid-action">
+                      <Button
+                        onClick={addService}
+                        disabled={saving || !addServiceDraft.name}
+                      >
+                        Add service
+                      </Button>
+                    </div>
+                  </div>
+                  {addServiceDraft.name ? (
+                    <div className="customer-add-preview">
+                      <strong>{addServiceDraft.name}</strong>
+                      {addServiceDraft.description ? (
+                        <span>{addServiceDraft.description}</span>
+                      ) : null}
+                      <span>{money(addServiceDraft.price)} each</span>
+                    </div>
+                  ) : null}
+                </div>
+              </div>
+            ) : items.length === 0 ? (
+              <div className="customer-empty-panel">No services are attached to this inquiry yet.</div>
+            ) : (
+              <div className="customer-service-list">
+                {items.map((item, index) => (
+                  <article key={`${activeInquiry.id}-service-${index}`}>
+                    <div>
+                      <strong>{item.name || "Service"}</strong>
+                      {item.description ? <p>{item.description}</p> : null}
+                      <span>{itemEventLabel(activeInquiry, item)}</span>
+                    </div>
+                    <div>
+                      <span>Qty {item.quantity || 0}</span>
+                      <strong>
+                        {money(Number(item.price || 0) * Number(item.quantity || 0))}
+                      </strong>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            )}
+          </section>
+
+          <section className={`customer-tab-panel ${activeTab === "payments" ? "" : "d-none"}`}>
+            <div className="customer-payments-grid">
+              <article className="customer-total-card">
+                <span>Subtotal</span>
+                <strong>{money(totals.subtotal)}</strong>
+              </article>
+              <article className="customer-total-card">
+                <span>Discount</span>
+                <strong>{money(totals.discountApplied)}</strong>
+              </article>
+              <article className="customer-total-card">
+                <span>Processing fee</span>
+                <strong>{money(totals.feeApplied)}</strong>
+              </article>
+              <article className="customer-total-card">
+                <span>Travel</span>
+                <strong>{money(totals.travel)}</strong>
+              </article>
+              <article className="customer-total-card">
+                <span>Tax</span>
+                <strong>{money(totals.taxApplied)}</strong>
+              </article>
+              <article className="customer-total-card is-total">
+                <span>Total</span>
+                <strong>{money(totals.total)}</strong>
+              </article>
+            </div>
+
+            <div className="customer-deposit-panel">
+              <div className="customer-panel-heading">
+                <span>Deposits</span>
+                <strong>{money(totalDeposits)}</strong>
+              </div>
+              {deposits.length === 0 ? (
+                <div className="customer-empty-panel">No deposits have been logged yet.</div>
+              ) : (
+                <div className="customer-deposit-list">
+                  {deposits.map((deposit, index) => (
+                    <div key={deposit.id || index}>
+                      <strong>{money(deposit.amount)}</strong>
                       <span>
-                        {money(baseAfterDiscount + feeApplied + travel)}
+                        {deposit.note || "Deposit"}
+                        {deposit.date ? `, ${prettyDateTimeMMDDYY(deposit.date)}` : ""}
                       </span>
                     </div>
+                  ))}
+                </div>
+              )}
+              <div className="customer-balance-row">
+                <span>Balance after deposits</span>
+                <strong>{money(remaining)}</strong>
+              </div>
+            </div>
+          </section>
 
-                    {taxApplied > 0 ? (
-                      <div className="d-flex justify-content-between">
-                        <span>Tax ({Number(taxPercent)}%)</span>
-                        <span>{money(taxApplied)}</span>
-                      </div>
-                    ) : null}
-
-                    <div className="d-flex justify-content-between fw-semibold mt-1">
-                      <span>Total</span>
-                      <span>{money(total)}</span>
-                    </div>
-                  </div>
-
-                  {/* Deposits and remaining */}
-                  <DepositsBlock inquiry={inquiry} />
-                  <div className="d-flex justify-content-between fw-semibold mt-2">
-                    <span>Amount due after deposits</span>
-                    <span>{money(remaining)}</span>
-                  </div>
-                </Card.Body>
-              </Card>
-            </Col>
-          );
-        })}
-      </Row>
-
-      {/* Desktop table */}
-      <Table striped bordered hover responsive className="d-none d-md-table">
-        <thead>
-          <tr>
-            <th>Date</th>
-            <th>Contact and notes</th>
-            <th>Items and price</th>
-            <th>Qty</th>
-            <th>Totals</th>
-            <th>Status</th>
-          </tr>
-        </thead>
-        <tbody>
-          {inquiries.map((inquiry) => {
-            const dateStr = prettyDateTimeMMDDYY(inquiry?.timestamp);
-            const {
-              subtotal,
-              discountApplied,
-              baseAfterDiscount,
-              feeApplied,
-              travel,
-              taxApplied,
-              total,
-              dType,
-              dRaw,
-              fType,
-              fRaw,
-              taxPercent,
-            } = calcTotals(inquiry);
-            const depositsArr = Array.isArray(inquiry.deposits)
-              ? inquiry.deposits
-              : [];
-            const totalDeposits = sumDeposits(inquiry);
-            const remaining = Math.max(0, total - totalDeposits);
-
-            return (
-              <tr key={inquiry.id}>
-                <td>{dateStr}</td>
-
-                {/* Contact and schedule */}
-                <td style={{ minWidth: 260 }}>
-                  {inquiry?.name ? (
+          <section className={`customer-tab-panel ${activeTab === "contracts" ? "" : "d-none"}`}>
+            {contracts.length === 0 ? (
+              <div className="customer-empty-panel">No contracts have been sent yet.</div>
+            ) : (
+              <div className="customer-contract-list">
+                {contracts.map((contract, index) => (
+                  <article key={contract.id || index}>
                     <div>
-                      <strong>Name:</strong> {inquiry.name}
+                      <strong>{contract.title || "Contract"}</strong>
+                      <span>
+                        {contract.clientSignature ? "Client signed" : "Client signature pending"} /{" "}
+                        {contract.adminSignature ? "Admin signed" : "Admin signature pending"}
+                      </span>
                     </div>
-                  ) : null}
-                  {inquiry?.email ? (
-                    <div>
-                      <strong>Email:</strong> {inquiry.email}
-                    </div>
-                  ) : null}
-                  {inquiry?.phoneNumber ? (
-                    <div>
-                      <strong>Phone:</strong> {inquiry.phoneNumber}
-                    </div>
-                  ) : null}
-                  {inquiry?.eventDetails ? (
-                    <div className="text-muted">
-                      <strong>Notes:</strong> {inquiry.eventDetails}
-                    </div>
-                  ) : null}
-                  {Array.isArray(inquiry.events) &&
-                  inquiry.events.length > 0 ? (
-                    <div className="mt-1">
-                      <strong>Schedule:</strong>
-                      <ul className="mb-0">
-                        {inquiry.events.map((e, i) => (
-                          <li key={`${inquiry.id}-ev-${i}`}>
-                            {e?.type || "Event"} on{" "}
-                            {e?.date ? prettyDate(e.date) : "N/A"} from{" "}
-                            {e?.startTime ? to12h(e.startTime) : "N/A"} to{" "}
-                            {e?.endTime ? to12h(e.endTime) : "N/A"}
-                            {e?.venue ? ` at ${e.venue}` : ""}
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  ) : null}
-
-                  <InquiryTimeline inquiry={inquiry} />
-                  <InquiryItineraries inquiry={inquiry} mode="customer" />
-
-                  {(inquiry.contracts || []).length > 0 ? (
-                    <div className="mt-2">
-                      <strong>Contracts:</strong>
-                      <ul className="mb-0">
-                        {inquiry.contracts.map((c) => (
-                          <li key={`${inquiry.id}-ct-${c.id}`}>
-                            <button
-                              type="button"
-                              className="btn btn-link p-0 align-baseline"
-                              onClick={() => openClientContract(inquiry, c)}
-                            >
-                              {c.title}
-                            </button>
-                            {c.clientSignature ? (
-                              <Badge bg="success" className="ms-2">
-                                Signed
-                              </Badge>
-                            ) : (
-                              <Badge bg="warning" text="dark" className="ms-2">
-                                Pending
-                              </Badge>
-                            )}
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  ) : null}
-                </td>
-
-                {/* Items */}
-                <ul className="mb-2">
-                  {(inquiry.items || []).map((item, idx) => (
-                    <li key={`${inquiry.id}-m-name-${idx}`} className="mb-2">
-                      <strong>{item.name}</strong>: {money(item.price)}
-                    {item.description ? (
-                      <div className="text-muted small mt-1">
-                        {item.description}
-                      </div>
-                    ) : null}
-                    <div className="text-muted small mt-1">
-                      Event: {itemEventLabel(inquiry, item)}
-                    </div>
-                  </li>
+                    <Button
+                      size="sm"
+                      variant={contract.clientSignature ? "outline-primary" : "primary"}
+                      onClick={() => openClientContract(activeInquiry, contract)}
+                    >
+                      {contract.clientSignature ? "View contract" : "Review and sign"}
+                    </Button>
+                  </article>
                 ))}
-                </ul>
+              </div>
+            )}
+          </section>
 
-                {/* Qty */}
-                <td>
-                  <ul className="mb-0">
-                    {(inquiry.items || []).map((item, idx) => (
-                      <li key={`${inquiry.id}-qty-${idx}`}>{item.quantity}</li>
-                    ))}
-                  </ul>
-                </td>
-
-                {/* Totals and deposits */}
-                <td>
-                  <div>Subtotal: {money(subtotal)}</div>
-                  {discountApplied > 0 ? (
-                    <div className="text-success">
-                      Discount
-                      {dType === "percent"
-                        ? ` (${Number(dRaw || 0)}%)`
-                        : ""}: {money(discountApplied)}
-                    </div>
-                  ) : null}
-                  {feeApplied > 0 ? (
-                    <div>
-                      Processing fee
-                      {fType === "percent"
-                        ? ` (${Number(fRaw || 0)}%)`
-                        : ""}: {money(feeApplied)}
-                    </div>
-                  ) : null}
-                  {travel > 0 ? <div>Travel: {money(travel)}</div> : null}
-                  <div>
-                    Net total: {money(baseAfterDiscount + feeApplied + travel)}
-                  </div>
-                  {taxApplied > 0 ? (
-                    <div>
-                      Tax ({Number(taxPercent)}%): {money(taxApplied)}
-                    </div>
-                  ) : null}
-                  <div className="fw-semibold">Total: {money(total)}</div>
-
-                  <hr className="my-2" />
-                  <div className="fw-semibold mb-1">Deposits</div>
-                  {depositsArr.length === 0 ? (
-                    <div className="text-muted small">No deposits yet</div>
-                  ) : (
-                    <ul className="mb-1">
-                      {depositsArr.map((d) => (
-                        <li key={d.id}>
-                          {money(Number(d.amount || 0))}
-                          {d.note ? (
-                            <span className="text-muted small">, {d.note}</span>
-                          ) : null}
-                          {d.date ? (
-                            <span className="text-muted small">
-                              , {prettyDateTimeMMDDYY(d.date)}
-                            </span>
-                          ) : null}
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                  <div>Total deposits: {money(totalDeposits)}</div>
-                  <div className="fw-semibold">
-                    Balance after deposits: {money(remaining)}
-                  </div>
-                  <div className="text-muted small">
-                    Deposits are not included in contract totals
-                  </div>
-                </td>
-
-                <td>
-                  <StatusBadge status={inquiry.status} />
-                </td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </Table>
+          <section className={`customer-tab-panel ${activeTab === "itinerary" ? "" : "d-none"}`}>
+            <InquiryItineraries inquiry={activeInquiry} mode="customer" />
+          </section>
+        </main>
+      </div>
 
       <ContractModal
         show={showContract}

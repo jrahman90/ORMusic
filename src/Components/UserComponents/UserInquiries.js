@@ -8,7 +8,7 @@ export default function UserInquiries() {
   const inquirySubmitted = Boolean(location.state?.inquirySubmitted);
 
   return (
-    <Container className="py-3">
+    <Container fluid="xl" className="customer-inquiries-page py-3">
       {inquirySubmitted ? (
         <Alert variant="success">
           Your inquiry was submitted successfully. You can track its status
