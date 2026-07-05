@@ -1220,11 +1220,116 @@ ul {
     font-size: .82rem;
 }
 
+.admin-calendar-subscription-heading {
+    align-items: center;
+    display: flex;
+    gap: .75rem;
+    justify-content: space-between;
+    margin-bottom: 1rem;
+}
+
+.admin-calendar-subscription-heading > div {
+    display: grid;
+    gap: .1rem;
+}
+
+.admin-calendar-subscription-heading strong {
+    color: #111827;
+    font-size: 1rem;
+    font-weight: 850;
+}
+
+.admin-calendar-subscription-heading span,
 .admin-calendar-subscription-note {
     color: #64748b;
     font-size: .88rem;
     line-height: 1.45;
+}
+
+.admin-calendar-subscription-heading .btn {
+    align-items: center;
+    display: inline-flex;
+    gap: .35rem;
+}
+
+.admin-calendar-subscription-note {
     margin-top: .75rem;
+}
+
+.admin-subscription-empty {
+    align-items: center;
+    background: #f8fafc;
+    border: 1px dashed #cbd5e1;
+    border-radius: 8px;
+    color: #64748b;
+    display: flex;
+    gap: .5rem;
+    justify-content: center;
+    margin-top: .85rem;
+    min-height: 88px;
+    padding: .85rem;
+    text-align: center;
+}
+
+.admin-subscription-list {
+    display: grid;
+    gap: .75rem;
+    margin-top: .85rem;
+}
+
+.admin-subscription-row {
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    display: grid;
+    gap: .65rem;
+    padding: .85rem;
+}
+
+.admin-subscription-row.is-revoked {
+    background: #f8fafc;
+    opacity: .72;
+}
+
+.admin-subscription-main {
+    align-items: flex-start;
+    display: flex;
+    gap: .75rem;
+    justify-content: space-between;
+}
+
+.admin-subscription-main > div {
+    display: grid;
+    gap: .12rem;
+    min-width: 0;
+}
+
+.admin-subscription-main strong {
+    color: #111827;
+    font-weight: 850;
+    overflow-wrap: anywhere;
+}
+
+.admin-subscription-main span:not(.admin-status-badge),
+.admin-subscription-meta {
+    color: #64748b;
+    font-size: .82rem;
+}
+
+.admin-subscription-meta {
+    display: grid;
+    gap: .2rem;
+    overflow-wrap: anywhere;
+}
+
+.admin-subscription-actions {
+    display: flex;
+    justify-content: flex-end;
+}
+
+.admin-subscription-actions .btn {
+    align-items: center;
+    display: inline-flex;
+    gap: .3rem;
 }
 
 .admin-dashboard-summary {

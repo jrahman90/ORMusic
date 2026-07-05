@@ -16,44 +16,63 @@ const safeCompare = (first, second) => {
   return crypto.timingSafeEqual(firstBuffer, secondBuffer);
 };
 
-const signFeedToken = (feedId = DEFAULT_FEED_ID, signingKey = "") => {
+const tokenPayload = (feedId = DEFAULT_FEED_ID, subscriptionId = "") => {
   const id = String(feedId || DEFAULT_FEED_ID).trim();
-  const key = String(signingKey || "");
+  const subId = String(subscriptionId || "").trim();
 
   if (!id) throw new Error("A feed id is required.");
+
+  return subId ? `${id}.${subId}` : id;
+};
+
+const signFeedToken = (
+  feedId = DEFAULT_FEED_ID,
+  signingKey = "",
+  subscriptionId = ""
+) => {
+  const payload = tokenPayload(feedId, subscriptionId);
+  const key = String(signingKey || "");
+
   if (!key) throw new Error("CALENDAR_FEED_SIGNING_KEY is required.");
 
   const signature = toBase64Url(
-    crypto.createHmac("sha256", key).update(id).digest()
+    crypto.createHmac("sha256", key).update(payload).digest()
   );
-  return `${id}.${signature}`;
+  return `${payload}.${signature}`;
 };
 
-const validateFeedToken = (
+const parseFeedToken = (
   token = "",
   signingKey = "",
   expectedFeedId = DEFAULT_FEED_ID
 ) => {
   const raw = String(token || "").trim();
-  const dotIndex = raw.indexOf(".");
-  if (dotIndex <= 0) return false;
+  const parts = raw.split(".");
+  if (![2, 3].includes(parts.length)) return { valid: false };
 
-  const feedId = raw.slice(0, dotIndex);
-  const signature = raw.slice(dotIndex + 1);
+  const [feedId, middle, maybeSignature] = parts;
+  const subscriptionId = parts.length === 3 ? middle : "";
+  const signature = parts.length === 3 ? maybeSignature : middle;
 
-  if (feedId !== expectedFeedId || !signature) return false;
+  if (feedId !== expectedFeedId || !signature) return { valid: false };
 
   try {
-    const expectedToken = signFeedToken(feedId, signingKey);
-    const expectedSignature = expectedToken.slice(expectedToken.indexOf(".") + 1);
-    return safeCompare(signature, expectedSignature);
+    const expectedToken = signFeedToken(feedId, signingKey, subscriptionId);
+    const expectedSignature = expectedToken.split(".").at(-1);
+    const valid = safeCompare(signature, expectedSignature);
+    return valid
+      ? { valid, feedId, subscriptionId }
+      : { valid: false };
   } catch {
-    return false;
+    return { valid: false };
   }
 };
 
+const validateFeedToken = (...args) => parseFeedToken(...args).valid;
+
 module.exports = {
   DEFAULT_FEED_ID,
+  parseFeedToken,
   signFeedToken,
   validateFeedToken,
 };

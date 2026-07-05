@@ -32,6 +32,7 @@ import {
   MapPin,
   Plus,
   Search,
+  Trash2,
   UsersRound,
 } from "lucide-react";
 import db, { functions as firebaseFunctions } from "../../api/firestore/firestore";
@@ -172,6 +173,26 @@ const fileSlug = (value = "event") => {
 const singleEventFileName = (event) =>
   `or-music-${event.dateKey || "event"}-${fileSlug(event.clientName)}.ics`;
 
+const formatSubscriptionDate = (value, fallback = "Not yet") => {
+  if (!value) return fallback;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return fallback;
+  return date.toLocaleString(undefined, {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+};
+
+const shortenUserAgent = (value = "") => {
+  const text = String(value || "").trim();
+  if (!text) return "No fetch yet";
+  if (text.length <= 92) return text;
+  return `${text.slice(0, 89)}...`;
+};
+
 const emptyInquiryDraft = {
   name: "",
   email: "",
@@ -199,6 +220,10 @@ export default function AdminDashboard() {
   );
   const [subscriptionLoading, setSubscriptionLoading] = useState(false);
   const [subscriptionMessage, setSubscriptionMessage] = useState("");
+  const [calendarSubscriptions, setCalendarSubscriptions] = useState([]);
+  const [subscriptionsLoading, setSubscriptionsLoading] = useState(false);
+  const [creatingSubscription, setCreatingSubscription] = useState(false);
+  const [revokingSubscriptionId, setRevokingSubscriptionId] = useState("");
   const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
   const [subscriptionUrls, setSubscriptionUrls] = useState({
     feedUrl: "",
@@ -441,31 +466,99 @@ export default function AdminDashboard() {
     }
   };
 
-  const openAppleCalendarSubscription = async () => {
+  const loadCalendarSubscriptions = async () => {
     try {
-      setSubscriptionLoading(true);
+      setSubscriptionsLoading(true);
+      const listSubscriptions = httpsCallable(
+        firebaseFunctions,
+        "adminCalendarSubscriptions"
+      );
+      const result = await listSubscriptions();
+      setCalendarSubscriptions(result.data?.subscriptions || []);
+    } catch (error) {
+      console.error("Calendar subscriptions load failed:", error);
+      setSubscriptionMessage("Could not load calendar subscriptions.");
+    } finally {
+      setSubscriptionsLoading(false);
+    }
+  };
+
+  const createCalendarSubscription = async () => {
+    try {
+      setCreatingSubscription(true);
       setSubscriptionMessage("");
 
-      const getFeedUrl = httpsCallable(
+      const createSubscription = httpsCallable(
         firebaseFunctions,
-        "adminCalendarFeedUrl"
+        "adminCalendarCreateSubscription"
       );
-      const result = await getFeedUrl();
+      const result = await createSubscription();
       const feedUrl = result.data?.feedUrl;
       const webcalUrl =
         result.data?.webcalUrl || feedUrl?.replace(/^https:/i, "webcal:");
+      const subscription = result.data?.subscription;
 
       if (!feedUrl || !webcalUrl) {
         throw new Error("The calendar feed URL was not returned.");
       }
 
       setSubscriptionUrls({ feedUrl, webcalUrl });
-      setShowSubscriptionModal(true);
+      if (subscription) {
+        setCalendarSubscriptions((current) => [
+          subscription,
+          ...current.filter((row) => row.id !== subscription.id),
+        ]);
+      }
       await copySubscriptionUrl(feedUrl);
     } catch (error) {
+      console.error("Calendar subscription create failed:", error);
+      setSubscriptionMessage("Could not create subscription link.");
+      alert("Could not create the calendar subscription. Check the console for details.");
+    } finally {
+      setCreatingSubscription(false);
+    }
+  };
+
+  const revokeCalendarSubscription = async (subscriptionId) => {
+    if (!subscriptionId) return;
+    try {
+      setRevokingSubscriptionId(subscriptionId);
+      const revokeSubscription = httpsCallable(
+        firebaseFunctions,
+        "adminCalendarRevokeSubscription"
+      );
+      await revokeSubscription({ subscriptionId });
+      setCalendarSubscriptions((current) =>
+        current.map((subscription) =>
+          subscription.id === subscriptionId
+            ? {
+                ...subscription,
+                active: false,
+                revokedAt: new Date().toISOString(),
+              }
+            : subscription
+        )
+      );
+      setSubscriptionMessage("Subscription revoked.");
+    } catch (error) {
+      console.error("Calendar subscription revoke failed:", error);
+      setSubscriptionMessage("Could not revoke subscription.");
+      alert("Could not revoke the calendar subscription. Check the console for details.");
+    } finally {
+      setRevokingSubscriptionId("");
+    }
+  };
+
+  const openAppleCalendarSubscription = async () => {
+    try {
+      setSubscriptionLoading(true);
+      setSubscriptionMessage("");
+      setShowSubscriptionModal(true);
+      await loadCalendarSubscriptions();
+    } catch (error) {
       console.error("Calendar subscription failed:", error);
-      setSubscriptionMessage("Could not open subscription link.");
-      alert("Could not open the calendar subscription. Check the console for details.");
+      setSubscriptionMessage("Could not open calendar subscriptions.");
+      alert("Could not open calendar subscriptions. Check the console for details.");
     } finally {
       setSubscriptionLoading(false);
     }
@@ -547,7 +640,7 @@ export default function AdminDashboard() {
               disabled={subscriptionLoading}
             >
               <CalendarPlus size={17} />
-              {subscriptionLoading ? "Loading..." : "Subscribe calendar"}
+              {subscriptionLoading ? "Loading..." : "Calendar subscriptions"}
             </Button>
             {subscriptionMessage ? (
               <span className="admin-calendar-subscription-status">
@@ -1199,32 +1292,118 @@ export default function AdminDashboard() {
       <Modal
         show={showSubscriptionModal}
         onHide={() => setShowSubscriptionModal(false)}
+        size="lg"
         centered
       >
         <Modal.Header closeButton>
           <Modal.Title>OR Music Events calendar</Modal.Title>
         </Modal.Header>
         <Modal.Body>
-          <Form.Label>Subscription URL</Form.Label>
-          <InputGroup className="admin-calendar-subscription-url">
-            <Form.Control
-              value={subscriptionUrls.feedUrl}
-              readOnly
-              onFocus={(event) => event.target.select()}
-            />
+          <div className="admin-calendar-subscription-heading">
+            <div>
+              <strong>Subscription links</strong>
+              <span>{calendarSubscriptions.length} recorded</span>
+            </div>
             <Button
               type="button"
-              variant="outline-primary"
-              onClick={() => copySubscriptionUrl()}
-              disabled={!subscriptionUrls.feedUrl}
+              onClick={createCalendarSubscription}
+              disabled={creatingSubscription}
             >
-              Copy
+              <CalendarPlus size={16} />
+              {creatingSubscription ? "Creating..." : "New link"}
             </Button>
-          </InputGroup>
-          <div className="admin-calendar-subscription-note">
-            Add this URL as a subscribed calendar in Apple Calendar. The
-            calendar name will appear as OR Music Events.
           </div>
+
+          {subscriptionUrls.feedUrl ? (
+            <>
+              <Form.Label>Latest subscription URL</Form.Label>
+              <InputGroup className="admin-calendar-subscription-url">
+                <Form.Control
+                  value={subscriptionUrls.feedUrl}
+                  readOnly
+                  onFocus={(event) => event.target.select()}
+                />
+                <Button
+                  type="button"
+                  variant="outline-primary"
+                  onClick={() => copySubscriptionUrl()}
+                >
+                  Copy
+                </Button>
+              </InputGroup>
+            </>
+          ) : null}
+
+          <div className="admin-calendar-subscription-note">
+            Apple Calendar fetches show here after the device refreshes the
+            subscribed calendar.
+          </div>
+
+          {subscriptionsLoading ? (
+            <div className="admin-subscription-empty">
+              <Spinner animation="border" size="sm" />
+              Loading subscriptions
+            </div>
+          ) : calendarSubscriptions.length === 0 ? (
+            <div className="admin-subscription-empty">
+              No calendar subscriptions yet.
+            </div>
+          ) : (
+            <div className="admin-subscription-list">
+              {calendarSubscriptions.map((subscription) => (
+                <article
+                  key={subscription.id}
+                  className={`admin-subscription-row ${
+                    subscription.active ? "" : "is-revoked"
+                  }`}
+                >
+                  <div className="admin-subscription-main">
+                    <div>
+                      <strong>{subscription.label || "Calendar link"}</strong>
+                      <span>
+                        {subscription.createdByName ||
+                          subscription.createdByEmail ||
+                          "Unknown admin"}
+                      </span>
+                    </div>
+                    <span
+                      className={`admin-status-badge ${
+                        subscription.active ? "status-confirmed" : "status-cancelled"
+                      }`}
+                    >
+                      {subscription.active ? "Active" : "Revoked"}
+                    </span>
+                  </div>
+                  <div className="admin-subscription-meta">
+                    <span>
+                      Created {formatSubscriptionDate(subscription.createdAt)}
+                    </span>
+                    <span>
+                      Last sync{" "}
+                      {formatSubscriptionDate(subscription.lastFetchedAt)}
+                    </span>
+                    <span>{shortenUserAgent(subscription.lastUserAgent)}</span>
+                  </div>
+                  {subscription.active ? (
+                    <div className="admin-subscription-actions">
+                      <Button
+                        type="button"
+                        variant="outline-danger"
+                        size="sm"
+                        onClick={() => revokeCalendarSubscription(subscription.id)}
+                        disabled={revokingSubscriptionId === subscription.id}
+                      >
+                        <Trash2 size={14} />
+                        {revokingSubscriptionId === subscription.id
+                          ? "Revoking..."
+                          : "Revoke"}
+                      </Button>
+                    </div>
+                  ) : null}
+                </article>
+              ))}
+            </div>
+          )}
         </Modal.Body>
         <Modal.Footer>
           <Button

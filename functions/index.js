@@ -1,11 +1,13 @@
+const crypto = require("crypto");
 const { initializeApp, getApps } = require("firebase-admin/app");
-const { getFirestore } = require("firebase-admin/firestore");
+const { FieldValue, getFirestore } = require("firebase-admin/firestore");
 const { logger } = require("firebase-functions");
 const { defineSecret } = require("firebase-functions/params");
 const { HttpsError, onCall, onRequest } = require("firebase-functions/v2/https");
 const { buildAdminCalendarFeed } = require("./lib/adminCalendar");
 const {
   DEFAULT_FEED_ID,
+  parseFeedToken,
   signFeedToken,
   validateFeedToken,
 } = require("./lib/feedToken");
@@ -19,6 +21,8 @@ if (!getApps().length) {
 }
 
 const firestore = () => getFirestore();
+
+const subscriptionsRef = () => firestore().collection("calendarSubscriptions");
 
 const signingKey = () => {
   const key =
@@ -54,6 +58,33 @@ const feedUrlForToken = (token) => {
 
 const webcalUrlFor = (feedUrl) => feedUrl.replace(/^https:/i, "webcal:");
 
+const coerceDate = (value) => {
+  if (!value) return null;
+  if (typeof value?.toDate === "function") return value.toDate();
+  if (value instanceof Date) return Number.isNaN(value.getTime()) ? null : value;
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+};
+
+const isoDate = (value) => coerceDate(value)?.toISOString() || "";
+
+const sanitizeSubscription = (docSnap) => {
+  const data = docSnap.data() || {};
+  return {
+    id: docSnap.id,
+    active: data.active !== false,
+    label: data.label || "",
+    createdByUid: data.createdByUid || "",
+    createdByName: data.createdByName || "",
+    createdByEmail: data.createdByEmail || "",
+    createdAt: isoDate(data.createdAt),
+    lastFetchedAt: isoDate(data.lastFetchedAt),
+    lastUserAgent: data.lastUserAgent || "",
+    revokedAt: isoDate(data.revokedAt),
+    revokedByUid: data.revokedByUid || "",
+  };
+};
+
 const assertAdmin = async (auth) => {
   const uid = auth?.uid;
   if (!uid) {
@@ -67,6 +98,47 @@ const assertAdmin = async (auth) => {
       "Only admins can get the calendar feed."
     );
   }
+
+  return {
+    uid,
+    user: userSnap.data() || {},
+  };
+};
+
+const createCalendarSubscription = async (auth, data = {}) => {
+  const { uid, user } = await assertAdmin(auth);
+  const subscriptionId = crypto.randomBytes(18).toString("base64url");
+  const label =
+    String(data?.label || "").trim() ||
+    `${user.name || auth?.token?.name || "Admin"} calendar`;
+  const token = signFeedToken(
+    DEFAULT_FEED_ID,
+    signingKey(),
+    subscriptionId
+  );
+  const feedUrl = feedUrlForToken(token);
+  const docRef = subscriptionsRef().doc(subscriptionId);
+
+  await docRef.set({
+    active: true,
+    feedId: DEFAULT_FEED_ID,
+    label,
+    createdByUid: uid,
+    createdByName: user.name || auth?.token?.name || "",
+    createdByEmail: user.email || auth?.token?.email || "",
+    createdAt: FieldValue.serverTimestamp(),
+    lastFetchedAt: null,
+    lastUserAgent: "",
+    revokedAt: null,
+    revokedByUid: "",
+  });
+
+  const docSnap = await docRef.get();
+  return {
+    feedUrl,
+    webcalUrl: webcalUrlFor(feedUrl),
+    subscription: sanitizeSubscription(docSnap),
+  };
 };
 
 exports.adminCalendarFeedUrl = onCall(
@@ -75,15 +147,65 @@ exports.adminCalendarFeedUrl = onCall(
     secrets: [CALENDAR_FEED_SIGNING_KEY],
   },
   async (request) => {
+    return createCalendarSubscription(request.auth, request.data);
+  }
+);
+
+exports.adminCalendarCreateSubscription = onCall(
+  {
+    region: REGION,
+    secrets: [CALENDAR_FEED_SIGNING_KEY],
+  },
+  async (request) => createCalendarSubscription(request.auth, request.data)
+);
+
+exports.adminCalendarSubscriptions = onCall(
+  {
+    region: REGION,
+  },
+  async (request) => {
     await assertAdmin(request.auth);
 
-    const token = signFeedToken(DEFAULT_FEED_ID, signingKey());
-    const feedUrl = feedUrlForToken(token);
+    const snapshot = await subscriptionsRef()
+      .orderBy("createdAt", "desc")
+      .limit(50)
+      .get();
 
     return {
-      feedUrl,
-      webcalUrl: webcalUrlFor(feedUrl),
+      subscriptions: snapshot.docs.map(sanitizeSubscription),
     };
+  }
+);
+
+exports.adminCalendarRevokeSubscription = onCall(
+  {
+    region: REGION,
+  },
+  async (request) => {
+    const { uid } = await assertAdmin(request.auth);
+    const subscriptionId = String(request.data?.subscriptionId || "").trim();
+
+    if (!subscriptionId) {
+      throw new HttpsError(
+        "invalid-argument",
+        "A subscription id is required."
+      );
+    }
+
+    const docRef = subscriptionsRef().doc(subscriptionId);
+    const docSnap = await docRef.get();
+
+    if (!docSnap.exists) {
+      throw new HttpsError("not-found", "Calendar subscription not found.");
+    }
+
+    await docRef.update({
+      active: false,
+      revokedAt: FieldValue.serverTimestamp(),
+      revokedByUid: uid,
+    });
+
+    return { ok: true };
   }
 );
 
@@ -106,12 +228,41 @@ exports.adminCalendarFeed = onRequest(
       ? request.query.token[0]
       : request.query.token;
 
-    if (!validateFeedToken(rawToken, signingKey(), DEFAULT_FEED_ID)) {
+    const parsedToken = parseFeedToken(
+      rawToken,
+      signingKey(),
+      DEFAULT_FEED_ID
+    );
+
+    if (!parsedToken.valid) {
       response.status(403).send("Forbidden");
       return;
     }
 
     try {
+      if (parsedToken.subscriptionId) {
+        const subscriptionRef = subscriptionsRef().doc(
+          parsedToken.subscriptionId
+        );
+        const subscriptionSnap = await subscriptionRef.get();
+
+        if (
+          !subscriptionSnap.exists ||
+          subscriptionSnap.data()?.active === false
+        ) {
+          response.status(403).send("Forbidden");
+          return;
+        }
+
+        await subscriptionRef.update({
+          lastFetchedAt: FieldValue.serverTimestamp(),
+          lastUserAgent: request.get("user-agent") || "",
+        });
+      } else if (!validateFeedToken(rawToken, signingKey(), DEFAULT_FEED_ID)) {
+        response.status(403).send("Forbidden");
+        return;
+      }
+
       const calendarText = await buildAdminCalendarFeed({
         db: firestore(),
         appBaseUrl: adminAppBaseUrl(),
