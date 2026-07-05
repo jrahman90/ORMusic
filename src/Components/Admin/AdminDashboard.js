@@ -220,10 +220,15 @@ export default function AdminDashboard() {
   );
   const [subscriptionLoading, setSubscriptionLoading] = useState(false);
   const [subscriptionMessage, setSubscriptionMessage] = useState("");
+  const [calendarUsers, setCalendarUsers] = useState([]);
   const [calendarSubscriptions, setCalendarSubscriptions] = useState([]);
   const [subscriptionsLoading, setSubscriptionsLoading] = useState(false);
   const [creatingSubscription, setCreatingSubscription] = useState(false);
-  const [revokingSubscriptionId, setRevokingSubscriptionId] = useState("");
+  const [deletingSubscriptionId, setDeletingSubscriptionId] = useState("");
+  const [subscriptionDraft, setSubscriptionDraft] = useState({
+    label: "",
+    assignedUserId: "",
+  });
   const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
   const [subscriptionUrls, setSubscriptionUrls] = useState({
     feedUrl: "",
@@ -253,6 +258,22 @@ export default function AdminDashboard() {
         setLoadError("Could not load events. Check the console for details.");
         setLoading(false);
       }
+    );
+    return () => stop();
+  }, []);
+
+  useEffect(() => {
+    const usersQuery = query(collection(db, "users"), orderBy("name", "asc"));
+    const stop = onSnapshot(
+      usersQuery,
+      (snap) =>
+        setCalendarUsers(
+          snap.docs.map((docSnap) => ({
+            id: docSnap.id,
+            ...docSnap.data(),
+          }))
+        ),
+      (error) => console.error("Calendar users load failed:", error)
     );
     return () => stop();
   }, []);
@@ -487,12 +508,20 @@ export default function AdminDashboard() {
     try {
       setCreatingSubscription(true);
       setSubscriptionMessage("");
+      const assignedUser = calendarUsers.find(
+        (user) => user.id === subscriptionDraft.assignedUserId
+      );
 
       const createSubscription = httpsCallable(
         firebaseFunctions,
         "adminCalendarCreateSubscription"
       );
-      const result = await createSubscription();
+      const result = await createSubscription({
+        label: subscriptionDraft.label,
+        assignedUserId: subscriptionDraft.assignedUserId,
+        assignedUserName: assignedUser?.name || "",
+        assignedUserEmail: assignedUser?.email || "",
+      });
       const feedUrl = result.data?.feedUrl;
       const webcalUrl =
         result.data?.webcalUrl || feedUrl?.replace(/^https:/i, "webcal:");
@@ -509,6 +538,7 @@ export default function AdminDashboard() {
           ...current.filter((row) => row.id !== subscription.id),
         ]);
       }
+      setSubscriptionDraft({ label: "", assignedUserId: "" });
       await copySubscriptionUrl(feedUrl);
     } catch (error) {
       console.error("Calendar subscription create failed:", error);
@@ -519,33 +549,32 @@ export default function AdminDashboard() {
     }
   };
 
-  const revokeCalendarSubscription = async (subscriptionId) => {
+  const deleteCalendarSubscription = async (subscriptionId) => {
     if (!subscriptionId) return;
+    if (
+      typeof window !== "undefined" &&
+      !window.confirm("Delete this calendar subscription? This cannot be undone.")
+    ) {
+      return;
+    }
+
     try {
-      setRevokingSubscriptionId(subscriptionId);
-      const revokeSubscription = httpsCallable(
+      setDeletingSubscriptionId(subscriptionId);
+      const deleteSubscription = httpsCallable(
         firebaseFunctions,
-        "adminCalendarRevokeSubscription"
+        "adminCalendarDeleteSubscription"
       );
-      await revokeSubscription({ subscriptionId });
+      await deleteSubscription({ subscriptionId });
       setCalendarSubscriptions((current) =>
-        current.map((subscription) =>
-          subscription.id === subscriptionId
-            ? {
-                ...subscription,
-                active: false,
-                revokedAt: new Date().toISOString(),
-              }
-            : subscription
-        )
+        current.filter((subscription) => subscription.id !== subscriptionId)
       );
-      setSubscriptionMessage("Subscription revoked.");
+      setSubscriptionMessage("Subscription deleted.");
     } catch (error) {
-      console.error("Calendar subscription revoke failed:", error);
-      setSubscriptionMessage("Could not revoke subscription.");
-      alert("Could not revoke the calendar subscription. Check the console for details.");
+      console.error("Calendar subscription delete failed:", error);
+      setSubscriptionMessage("Could not delete subscription.");
+      alert("Could not delete the calendar subscription. Check the console for details.");
     } finally {
-      setRevokingSubscriptionId("");
+      setDeletingSubscriptionId("");
     }
   };
 
@@ -1304,13 +1333,49 @@ export default function AdminDashboard() {
               <strong>Subscription links</strong>
               <span>{calendarSubscriptions.length} recorded</span>
             </div>
+          </div>
+
+          <div className="admin-subscription-create">
+            <Form.Group controlId="calendarSubscriptionName">
+              <Form.Label>Subscription name</Form.Label>
+              <Form.Control
+                value={subscriptionDraft.label}
+                placeholder="Omer iPhone"
+                onChange={(event) =>
+                  setSubscriptionDraft((current) => ({
+                    ...current,
+                    label: event.target.value,
+                  }))
+                }
+              />
+            </Form.Group>
+            <Form.Group controlId="calendarSubscriptionUser">
+              <Form.Label>Assigned user</Form.Label>
+              <Form.Select
+                value={subscriptionDraft.assignedUserId}
+                onChange={(event) =>
+                  setSubscriptionDraft((current) => ({
+                    ...current,
+                    assignedUserId: event.target.value,
+                  }))
+                }
+              >
+                <option value="">Unassigned</option>
+                {calendarUsers.map((user) => (
+                  <option key={user.id} value={user.id}>
+                    {user.name || user.email || user.id}
+                    {user.name && user.email ? ` (${user.email})` : ""}
+                  </option>
+                ))}
+              </Form.Select>
+            </Form.Group>
             <Button
               type="button"
               onClick={createCalendarSubscription}
               disabled={creatingSubscription}
             >
               <CalendarPlus size={16} />
-              {creatingSubscription ? "Creating..." : "New link"}
+              {creatingSubscription ? "Creating..." : "Create link"}
             </Button>
           </div>
 
@@ -1330,6 +1395,17 @@ export default function AdminDashboard() {
                 >
                   Copy
                 </Button>
+                {subscriptionUrls.webcalUrl ? (
+                  <Button
+                    type="button"
+                    variant="outline-primary"
+                    onClick={() => {
+                      window.location.href = subscriptionUrls.webcalUrl;
+                    }}
+                  >
+                    Open
+                  </Button>
+                ) : null}
               </InputGroup>
             </>
           ) : null}
@@ -1361,9 +1437,10 @@ export default function AdminDashboard() {
                     <div>
                       <strong>{subscription.label || "Calendar link"}</strong>
                       <span>
-                        {subscription.createdByName ||
-                          subscription.createdByEmail ||
-                          "Unknown admin"}
+                        Assigned to{" "}
+                        {subscription.assignedUserName ||
+                          subscription.assignedUserEmail ||
+                          "Unassigned"}
                       </span>
                     </div>
                     <span
@@ -1376,6 +1453,12 @@ export default function AdminDashboard() {
                   </div>
                   <div className="admin-subscription-meta">
                     <span>
+                      Created by{" "}
+                      {subscription.createdByName ||
+                        subscription.createdByEmail ||
+                        "Unknown admin"}
+                    </span>
+                    <span>
                       Created {formatSubscriptionDate(subscription.createdAt)}
                     </span>
                     <span>
@@ -1384,22 +1467,20 @@ export default function AdminDashboard() {
                     </span>
                     <span>{shortenUserAgent(subscription.lastUserAgent)}</span>
                   </div>
-                  {subscription.active ? (
-                    <div className="admin-subscription-actions">
-                      <Button
-                        type="button"
-                        variant="outline-danger"
-                        size="sm"
-                        onClick={() => revokeCalendarSubscription(subscription.id)}
-                        disabled={revokingSubscriptionId === subscription.id}
-                      >
-                        <Trash2 size={14} />
-                        {revokingSubscriptionId === subscription.id
-                          ? "Revoking..."
-                          : "Revoke"}
-                      </Button>
-                    </div>
-                  ) : null}
+                  <div className="admin-subscription-actions">
+                    <Button
+                      type="button"
+                      variant="outline-danger"
+                      size="sm"
+                      onClick={() => deleteCalendarSubscription(subscription.id)}
+                      disabled={deletingSubscriptionId === subscription.id}
+                    >
+                      <Trash2 size={14} />
+                      {deletingSubscriptionId === subscription.id
+                        ? "Deleting..."
+                        : "Delete"}
+                    </Button>
+                  </div>
                 </article>
               ))}
             </div>

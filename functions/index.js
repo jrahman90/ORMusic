@@ -77,6 +77,9 @@ const sanitizeSubscription = (docSnap) => {
     createdByUid: data.createdByUid || "",
     createdByName: data.createdByName || "",
     createdByEmail: data.createdByEmail || "",
+    assignedUserId: data.assignedUserId || "",
+    assignedUserName: data.assignedUserName || "",
+    assignedUserEmail: data.assignedUserEmail || "",
     createdAt: isoDate(data.createdAt),
     lastFetchedAt: isoDate(data.lastFetchedAt),
     lastUserAgent: data.lastUserAgent || "",
@@ -108,9 +111,28 @@ const assertAdmin = async (auth) => {
 const createCalendarSubscription = async (auth, data = {}) => {
   const { uid, user } = await assertAdmin(auth);
   const subscriptionId = crypto.randomBytes(18).toString("base64url");
+  const assignedUserId = String(data?.assignedUserId || "").trim();
+  let assignedUser = null;
+
+  if (assignedUserId) {
+    const assignedUserSnap = await firestore()
+      .collection("users")
+      .doc(assignedUserId)
+      .get();
+    if (assignedUserSnap.exists) {
+      assignedUser = assignedUserSnap.data() || {};
+    }
+  }
+
+  const assignedUserName =
+    assignedUser?.name || String(data?.assignedUserName || "").trim();
+  const assignedUserEmail =
+    assignedUser?.email || String(data?.assignedUserEmail || "").trim();
   const label =
     String(data?.label || "").trim() ||
-    `${user.name || auth?.token?.name || "Admin"} calendar`;
+    `${
+      assignedUserName || assignedUserEmail || user.name || auth?.token?.name || "Admin"
+    } calendar`;
   const token = signFeedToken(
     DEFAULT_FEED_ID,
     signingKey(),
@@ -126,6 +148,9 @@ const createCalendarSubscription = async (auth, data = {}) => {
     createdByUid: uid,
     createdByName: user.name || auth?.token?.name || "",
     createdByEmail: user.email || auth?.token?.email || "",
+    assignedUserId,
+    assignedUserName,
+    assignedUserEmail,
     createdAt: FieldValue.serverTimestamp(),
     lastFetchedAt: null,
     lastUserAgent: "",
@@ -204,6 +229,34 @@ exports.adminCalendarRevokeSubscription = onCall(
       revokedAt: FieldValue.serverTimestamp(),
       revokedByUid: uid,
     });
+
+    return { ok: true };
+  }
+);
+
+exports.adminCalendarDeleteSubscription = onCall(
+  {
+    region: REGION,
+  },
+  async (request) => {
+    await assertAdmin(request.auth);
+    const subscriptionId = String(request.data?.subscriptionId || "").trim();
+
+    if (!subscriptionId) {
+      throw new HttpsError(
+        "invalid-argument",
+        "A subscription id is required."
+      );
+    }
+
+    const docRef = subscriptionsRef().doc(subscriptionId);
+    const docSnap = await docRef.get();
+
+    if (!docSnap.exists) {
+      throw new HttpsError("not-found", "Calendar subscription not found.");
+    }
+
+    await docRef.delete();
 
     return { ok: true };
   }

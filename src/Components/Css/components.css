@@ -1256,6 +1256,34 @@ ul {
     margin-top: .75rem;
 }
 
+.admin-subscription-create {
+    align-items: end;
+    background: #f8fafc;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    display: grid;
+    gap: .75rem;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
+    margin-bottom: 1rem;
+    padding: .85rem;
+}
+
+.admin-subscription-create .form-label {
+    color: #475569;
+    font-size: .78rem;
+    font-weight: 850;
+    margin-bottom: .3rem;
+}
+
+.admin-subscription-create .btn {
+    align-items: center;
+    display: inline-flex;
+    gap: .35rem;
+    justify-content: center;
+    min-height: 38px;
+    white-space: nowrap;
+}
+
 .admin-subscription-empty {
     align-items: center;
     background: #f8fafc;
@@ -3624,6 +3652,18 @@ ul {
     .admin-dashboard-header-actions .btn {
         width: 100%;
         justify-content: center;
+    }
+    .admin-subscription-create {
+        grid-template-columns: 1fr;
+    }
+    .admin-subscription-create .btn {
+        width: 100%;
+    }
+    .admin-calendar-subscription-url {
+        flex-wrap: wrap;
+    }
+    .admin-calendar-subscription-url .form-control {
+        flex: 1 0 100%;
     }
     .admin-dashboard-summary {
         grid-template-columns: repeat(3, minmax(0, 1fr));
