@@ -52,6 +52,29 @@ const normalizeEvents = (events = []) =>
     id: event?.id || `event-${index}`,
   }));
 
+const serviceNamesForEvent = (inquiry = {}, event = {}, events = []) => {
+  const items = Array.isArray(inquiry.items) ? inquiry.items : [];
+  const hasMultipleEvents = events.length > 1;
+  const names = items
+    .filter((item) => {
+      const allocations = Array.isArray(item.eventAllocations)
+        ? item.eventAllocations
+        : [];
+      const assignedByAllocation = allocations.some(
+        (row) => row.eventId === event.id && Number(row.quantity || 0) > 0
+      );
+      const assignedByLegacyEventId = item.eventId && item.eventId === event.id;
+      const generalSingleEventItem =
+        !hasMultipleEvents && !item.eventId && allocations.length === 0;
+
+      return assignedByAllocation || assignedByLegacyEventId || generalSingleEventItem;
+    })
+    .map((item) => item.name)
+    .filter(Boolean);
+
+  return Array.from(new Set(names));
+};
+
 const makeEventId = () =>
   crypto.randomUUID?.() || `event-${Date.now()}-${Math.random()}`;
 
@@ -190,7 +213,8 @@ export default function AdminDashboard() {
     const events = inquiries.flatMap((inquiry) => {
       const status = inquiry.status || "Processing";
       const createdAt = coerceTimestampDate(inquiry.timestamp);
-      return normalizeEvents(inquiry.events)
+      const inquiryEvents = normalizeEvents(inquiry.events);
+      return inquiryEvents
         .map((event) => {
           const eventDate = coerceEventDate(event.date);
           if (!eventDate) return null;
@@ -205,6 +229,7 @@ export default function AdminDashboard() {
             email: inquiry.email || inquiry.userEmail || "",
             phoneNumber: inquiry.phoneNumber || "",
             eventDetails: inquiry.eventDetails || "",
+            serviceNames: serviceNamesForEvent(inquiry, event, inquiryEvents),
             createdAt,
             status,
           };
@@ -288,15 +313,20 @@ export default function AdminDashboard() {
   }, [filteredEvents]);
 
   const mobileCalendarDays = useMemo(
-    () =>
-      calendarDays
+    () => {
+      const isCurrentMonth = sameMonth(calendarMonth, todayStart);
+      return calendarDays
         .filter((day) => day.inMonth)
+        .filter((day) => !isCurrentMonth || day.date >= todayStart)
         .map((day) => ({
           ...day,
-          events: eventsByDay.get(day.key) || [],
+          events: (eventsByDay.get(day.key) || []).filter(
+            (event) => !isCurrentMonth || event.eventDate >= todayStart
+          ),
         }))
-        .filter((day) => day.events.length > 0 || day.isToday),
-    [calendarDays, eventsByDay]
+        .filter((day) => day.events.length > 0 || day.isToday);
+    },
+    [calendarDays, calendarMonth, eventsByDay, todayStart]
   );
 
   const monthEventCount = useMemo(
@@ -672,7 +702,9 @@ export default function AdminDashboard() {
               >
                 {mobileCalendarDays.length === 0 ? (
                   <div className="admin-dashboard-empty compact">
-                    No events match the current filters this month.
+                    {sameMonth(calendarMonth, todayStart)
+                      ? "No events match the current filters from today forward."
+                      : "No events match the current filters this month."}
                   </div>
                 ) : (
                   mobileCalendarDays.map((day) => (
@@ -718,6 +750,11 @@ export default function AdminDashboard() {
                               <div>
                                 <strong>{event.clientName}</strong>
                                 <span>{event.type || "Event"}</span>
+                                {event.serviceNames?.length ? (
+                                  <span className="admin-mobile-event-services">
+                                    {event.serviceNames.join(", ")}
+                                  </span>
+                                ) : null}
                               </div>
                               <div>
                                 <span>{formatTimeRange(event)}</span>

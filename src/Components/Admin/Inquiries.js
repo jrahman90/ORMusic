@@ -38,6 +38,49 @@ const money = (v) =>
     Number(v || 0)
   );
 
+const catalogOptionLabel = (item = {}) =>
+  `${item.name || "Unnamed item"}${
+    item.price != null ? `, ${money(item.price)}` : ""
+  }`;
+
+const splitCatalogGroups = (catalog = []) => {
+  const groups = {
+    packages: [],
+    rentals: [],
+    other: [],
+  };
+  catalog.forEach((item) => {
+    const categories = Array.isArray(item.categories) ? item.categories : [];
+    if (categories.includes("packages")) {
+      groups.packages.push(item);
+    } else if (categories.includes("addons")) {
+      groups.rentals.push(item);
+    } else {
+      groups.other.push(item);
+    }
+  });
+  return groups;
+};
+
+const renderCatalogOptionGroups = (catalog = []) => {
+  const groups = splitCatalogGroups(catalog);
+  return [
+    ["Packages", groups.packages],
+    ["Rentals", groups.rentals],
+    ["Other", groups.other],
+  ].map(([label, items]) =>
+    items.length ? (
+      <optgroup key={label} label={label}>
+        {items.map((item) => (
+          <option key={item.id} value={item.id}>
+            {catalogOptionLabel(item)}
+          </option>
+        ))}
+      </optgroup>
+    ) : null
+  );
+};
+
 const makeEventId = () =>
   crypto.randomUUID?.() || `event-${Date.now()}-${Math.random()}`;
 
@@ -1743,14 +1786,7 @@ export default function Inquiries() {
                                   disabled={busy}
                                 >
                                   <option value="">Choose an item</option>
-                                  {catalog.map((r) => (
-                                    <option key={r.id} value={r.id}>
-                                      {r.name}
-                                      {r.price != null
-                                        ? `, ${money(r.price)}`
-                                        : ""}
-                                    </option>
-                                  ))}
+                                  {renderCatalogOptionGroups(catalog)}
                                   <option value="__custom__">
                                     Custom item
                                   </option>
@@ -2311,12 +2347,7 @@ export default function Inquiries() {
                               disabled={busy}
                             >
                               <option value="">Choose an item</option>
-                              {catalog.map((r) => (
-                                <option key={r.id} value={r.id}>
-                                  {r.name}
-                                  {r.price != null ? `, ${money(r.price)}` : ""}
-                                </option>
-                              ))}
+                              {renderCatalogOptionGroups(catalog)}
                               <option value="__custom__">Custom item</option>
                             </Form.Select>
                           </Col>

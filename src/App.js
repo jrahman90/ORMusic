@@ -4,7 +4,7 @@ import "bootstrap/dist/css/bootstrap.min.css";
 import "./App.css";
 import "./Components/Css/components.css";
 import AppNavbar from "./Components/Navbar";
-import { Routes, Route, useLocation } from "react-router-dom";
+import { Routes, Route, useLocation, matchPath } from "react-router-dom";
 import Home from "./Components/Home";
 import ContactUs from "./Components/ContactUs";
 import Djmc from "./Components/Djmc";
@@ -29,6 +29,13 @@ import AdminDashboard from "./Components/Admin/AdminDashboard";
 import AdminEventDetails from "./Components/Admin/AdminEventDetails";
 import ItineraryEditorPage from "./Components/Itineraries/ItineraryEditorPage";
 import ItineraryPrintPage from "./Components/Itineraries/ItineraryPrintPage";
+
+const SITE_URL = "https://ormusicevents.com";
+const DEFAULT_SHARE_IMAGE = `${SITE_URL}/og-image.jpg`;
+const DEFAULT_SHARE_IMAGE_ALT =
+  "OR Music Events DJ and lighting setup at a New York City event";
+const PUBLIC_ROBOTS = "index, follow, max-image-preview:large";
+const PRIVATE_ROBOTS = "noindex, nofollow";
 
 const SEO_CONFIG = {
   "/": {
@@ -67,52 +74,105 @@ const SEO_CONFIG = {
     description:
       "Listen to music and mixes by OR Music Events and discover the sounds behind our events.",
     path: "/Music",
+    robots: PRIVATE_ROBOTS,
+  },
+  "/Downloads": {
+    title: "Downloads | OR Music Events",
+    description:
+      "Download available OR Music Events resources and event planning materials.",
+    path: "/Downloads",
+    robots: PRIVATE_ROBOTS,
   },
   "/Cart": {
     title: "Your Cart | OR Music Events Rentals",
     description:
       "Review and update your rental cart for event equipment from OR Music Events.",
     path: "/Cart",
-    robots: "noindex, nofollow",
+    robots: PRIVATE_ROBOTS,
   },
   "/inquiries": {
     title: "Your Inquiries | OR Music Events",
     description:
       "Review your OR Music Events inquiries, contracts, deposits, and status updates.",
     path: "/inquiries",
-    robots: "noindex, nofollow",
+    robots: PRIVATE_ROBOTS,
   },
   "/inquiries/:inquiryId/events/:eventId/itinerary": {
     title: "Event Itinerary | OR Music Events",
     description:
       "Create and edit your OR Music Events itinerary for a confirmed event.",
     path: "/inquiries",
-    robots: "noindex, nofollow",
+    robots: PRIVATE_ROBOTS,
   },
   "/inquiries/:inquiryId/events/:eventId/itinerary/print": {
     title: "Printable Event Itinerary | OR Music Events",
     description:
       "View, print, or save a PDF copy of your OR Music Events itinerary.",
     path: "/inquiries",
-    robots: "noindex, nofollow",
+    robots: PRIVATE_ROBOTS,
   },
   "/itinerary/public/:inquiryId/:eventId/:token": {
     title: "Live Event Itinerary | OR Music Events",
     description:
       "View the current public itinerary for an OR Music Events event.",
     path: "/itinerary/public",
-    robots: "noindex, nofollow",
+    robots: PRIVATE_ROBOTS,
+  },
+  "/dashboard-admin": {
+    title: "Admin Dashboard | OR Music Events",
+    description: "Admin dashboard for OR Music Events.",
+    path: "/dashboard-admin",
+    robots: PRIVATE_ROBOTS,
+  },
+  "/dashboard-admin/events/:inquiryId/:eventId": {
+    title: "Admin Event Details | OR Music Events",
+    description: "Admin event details for OR Music Events.",
+    path: "/dashboard-admin",
+    robots: PRIVATE_ROBOTS,
+  },
+  "/inquiries-admin": {
+    title: "Admin Inquiries | OR Music Events",
+    description: "Admin inquiry management for OR Music Events.",
+    path: "/inquiries-admin",
+    robots: PRIVATE_ROBOTS,
+  },
+  "/rental-items-admin": {
+    title: "Rental Items Admin | OR Music Events",
+    description: "Admin rental and service catalog editor for OR Music Events.",
+    path: "/rental-items-admin",
+    robots: PRIVATE_ROBOTS,
+  },
+  "/music-video-admin": {
+    title: "Music Video Admin | OR Music Events",
+    description: "Admin music video editor for OR Music Events.",
+    path: "/music-video-admin",
+    robots: PRIVATE_ROBOTS,
+  },
+  "/dj-mc-admin": {
+    title: "Team Admin | OR Music Events",
+    description: "Admin team editor for OR Music Events.",
+    path: "/dj-mc-admin",
+    robots: PRIVATE_ROBOTS,
+  },
+  "/eventure-admin": {
+    title: "Eventure Admin | OR Music Events",
+    description: "Admin Eventure contact management for OR Music Events.",
+    path: "/eventure-admin",
+    robots: PRIVATE_ROBOTS,
   },
   "/eventure-terms-conditions": {
     title: "Eventure Terms and Conditions | OR Music Events",
     description:
       "Read the Eventure terms and conditions for using the platform and working with OR Music Events.",
     path: "/eventure-terms-conditions",
-    robots: "noindex, nofollow",
+    robots: PRIVATE_ROBOTS,
   },
 };
 
-const SITE_URL = "https://ormusicevents.com";
+const SEO_ROUTES = Object.entries(SEO_CONFIG).map(([pattern, config]) => ({
+  pattern,
+  config,
+}));
 
 const upsertMeta = ({ selector, attrs }) => {
   let el = document.head.querySelector(selector);
@@ -133,6 +193,27 @@ const upsertCanonical = (href) => {
   el.setAttribute("href", href);
 };
 
+const canonicalUrlForPath = (path = "/") => {
+  const cleanPath = path === "/" ? "/" : path.replace(/\/+$/, "");
+  return `${SITE_URL}${cleanPath || "/"}`;
+};
+
+const routeSeoForPath = (pathname) => {
+  const match = SEO_ROUTES.find(({ pattern }) =>
+    matchPath({ path: pattern, end: true }, pathname)
+  );
+
+  if (match) return match.config;
+
+  return {
+    title: "Page Not Found | OR Music Events",
+    description:
+      "The OR Music Events page you are looking for could not be found.",
+    path: pathname,
+    robots: PRIVATE_ROBOTS,
+  };
+};
+
 function App() {
   const [isAdmin, setIsAdmin] = useState(null);
   const [, setUserData] = useState(null);
@@ -142,26 +223,13 @@ function App() {
 
   // update title and meta description when route changes
   useEffect(() => {
-    const isAdminRoute = location.pathname.includes("-admin");
-    const isItineraryRoute =
-      (location.pathname.includes("/events/") &&
-        (location.pathname.endsWith("/itinerary") ||
-          location.pathname.endsWith("/itinerary/print"))) ||
-      location.pathname.startsWith("/itinerary/public/");
-    const seo = SEO_CONFIG[location.pathname] || {
-      title: isItineraryRoute
-        ? "Event Itinerary | OR Music Events"
-        : "OR Music Events | New York City",
-      description: isItineraryRoute
-        ? "Create and edit your OR Music Events itinerary for a confirmed event."
-        : "Professional DJ, MC, lighting, staging and event production services from OR Music Events.",
-      path: location.pathname,
-      robots: isAdminRoute || isItineraryRoute ? "noindex, nofollow" : "index, follow",
-    };
+    const seo = routeSeoForPath(location.pathname);
 
     if (seo) {
       document.title = seo.title;
-      const canonicalUrl = `${SITE_URL}${seo.path || location.pathname}`;
+      const canonicalUrl = canonicalUrlForPath(seo.path || location.pathname);
+      const shareImage = seo.image || DEFAULT_SHARE_IMAGE;
+      const shareImageAlt = seo.imageAlt || DEFAULT_SHARE_IMAGE_ALT;
       upsertCanonical(canonicalUrl);
       upsertMeta({
         selector: 'meta[name="description"]',
@@ -169,7 +237,15 @@ function App() {
       });
       upsertMeta({
         selector: 'meta[name="robots"]',
-        attrs: { name: "robots", content: seo.robots || "index, follow" },
+        attrs: { name: "robots", content: seo.robots || PUBLIC_ROBOTS },
+      });
+      upsertMeta({
+        selector: 'meta[property="og:type"]',
+        attrs: { property: "og:type", content: "website" },
+      });
+      upsertMeta({
+        selector: 'meta[property="og:site_name"]',
+        attrs: { property: "og:site_name", content: "OR Music Events" },
       });
       upsertMeta({
         selector: 'meta[property="og:title"]',
@@ -184,12 +260,40 @@ function App() {
         attrs: { property: "og:url", content: canonicalUrl },
       });
       upsertMeta({
+        selector: 'meta[property="og:image"]',
+        attrs: { property: "og:image", content: shareImage },
+      });
+      upsertMeta({
+        selector: 'meta[property="og:image:alt"]',
+        attrs: { property: "og:image:alt", content: shareImageAlt },
+      });
+      upsertMeta({
+        selector: 'meta[property="og:image:width"]',
+        attrs: { property: "og:image:width", content: "1200" },
+      });
+      upsertMeta({
+        selector: 'meta[property="og:image:height"]',
+        attrs: { property: "og:image:height", content: "630" },
+      });
+      upsertMeta({
+        selector: 'meta[name="twitter:card"]',
+        attrs: { name: "twitter:card", content: "summary_large_image" },
+      });
+      upsertMeta({
         selector: 'meta[name="twitter:title"]',
         attrs: { name: "twitter:title", content: seo.title },
       });
       upsertMeta({
         selector: 'meta[name="twitter:description"]',
         attrs: { name: "twitter:description", content: seo.description },
+      });
+      upsertMeta({
+        selector: 'meta[name="twitter:image"]',
+        attrs: { name: "twitter:image", content: shareImage },
+      });
+      upsertMeta({
+        selector: 'meta[name="twitter:image:alt"]',
+        attrs: { name: "twitter:image:alt", content: shareImageAlt },
       });
     }
   }, [location.pathname]);

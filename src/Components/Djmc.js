@@ -3,7 +3,7 @@ import { Container, Row, Col, Image } from "react-bootstrap";
 import db from "../api/firestore/firestore";
 import { collection, getDocs, query, orderBy } from "firebase/firestore";
 
-const DjmcAdmin = () => {
+const Djmc = () => {
   const [artists, setartists] = useState([]);
 
   useEffect(() => {
@@ -46,7 +46,12 @@ const DjmcAdmin = () => {
               className="d-flex align-items-center"
               style={{ justifyContent: "center" }}
             >
-              <Image src={artist.imageUrl} roundedCircle fluid />
+              <Image
+                src={artist.imageUrl}
+                alt={`${artist.name || "OR Music Events team member"} portrait`}
+                roundedCircle
+                fluid
+              />
             </Col>
 
             <Col
@@ -67,4 +72,4 @@ const DjmcAdmin = () => {
   );
 };
 
-export default DjmcAdmin;
+export default Djmc;

@@ -21,7 +21,7 @@ const money = (v) =>
   );
 
 /* ---------- Media ---------- */
-const MediaCarousel = ({ media = [] }) => {
+const MediaCarousel = ({ media = [], itemName = "OR Music Events service" }) => {
   if (!media.length) return null;
 
   return (
@@ -43,7 +43,7 @@ const MediaCarousel = ({ media = [] }) => {
             >
               <img
                 src={m.url}
-                alt={`media-${idx}`}
+                alt={`${itemName} media ${idx + 1}`}
                 style={{
                   position: "absolute",
                   top: 0,
@@ -155,7 +155,7 @@ function SectionGrid({ title, items = [], onAddToCart }) {
           <Col key={`${title}-${item.id}`}>
             <Card className="h-100 shadow-sm border-0">
               {Array.isArray(item.media) && item.media.length > 0 ? (
-                <MediaCarousel media={item.media} />
+                <MediaCarousel media={item.media} itemName={item.name} />
               ) : null}
               <Card.Body className="d-flex flex-column">
                 <div className="d-flex justify-content-between align-items-start mb-2">

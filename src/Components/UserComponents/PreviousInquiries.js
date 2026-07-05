@@ -131,6 +131,27 @@ const statusClass = (status = "Processing") =>
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")}`;
 
+const isCompletedStatus = (status = "") =>
+  String(status || "").trim().toLowerCase() === "completed";
+
+const customerName = (inquiry = {}) =>
+  inquiry.name || inquiry.userName || inquiry.email || inquiry.userEmail || "Inquiry";
+
+const inquiryDisplayName = (inquiry = {}) => {
+  const name = customerName(inquiry);
+  const events = normalizeEvents(inquiry.events);
+  if (events.length !== 1) return name;
+
+  const [event] = events;
+  return [
+    name,
+    event.date ? prettyDate(event.date) : "",
+    event.type || "",
+  ]
+    .filter(Boolean)
+    .join(" ");
+};
+
 const InquiryTimeline = ({ inquiry }) => {
   const status = inquiry?.status || "Processing";
   const currentIdx = Math.max(
@@ -359,7 +380,9 @@ const PreviousInquiries = () => {
   const deposits = Array.isArray(activeInquiry?.deposits)
     ? activeInquiry.deposits
     : [];
-  const canEditInquiry = Boolean(activeInquiry) && contracts.length === 0;
+  const isCompletedInquiry = isCompletedStatus(activeInquiry?.status);
+  const canEditInquiry =
+    Boolean(activeInquiry) && contracts.length === 0 && !isCompletedInquiry;
 
   useEffect(() => {
     if (!activeInquiry) return;
@@ -405,6 +428,11 @@ const PreviousInquiries = () => {
         if (latestContracts.length > 0) {
           throw new Error(
             "This inquiry can no longer be edited because a contract has been created."
+          );
+        }
+        if (isCompletedStatus(latest.status)) {
+          throw new Error(
+            "This inquiry can no longer be edited because the event is completed."
           );
         }
         const ownsById =
@@ -660,6 +688,7 @@ const PreviousInquiries = () => {
               );
               const isActive = inquiry.id === activeInquiry.id;
               const leadEvent = inquiryEvents[0];
+              const displayName = inquiryDisplayName(inquiry);
 
               return (
                 <button
@@ -678,10 +707,11 @@ const PreviousInquiries = () => {
                       ? prettyDateTimeMMDDYY(inquiry.timestamp)
                       : "Inquiry"}
                   </span>
-                  <strong>{leadEvent?.type || "Event inquiry"}</strong>
+                  <strong>{displayName}</strong>
                   <span>
-                    {leadEvent?.date ? prettyDate(leadEvent.date) : "Date TBD"}
-                    {leadEvent?.venue ? ` at ${leadEvent.venue}` : ""}
+                    {inquiryEvents.length > 1
+                      ? `${inquiryEvents.length} event dates`
+                      : leadEvent?.venue || "Event details pending"}
                   </span>
                   <div>
                     <span className="customer-inquiry-list-status">
@@ -699,10 +729,11 @@ const PreviousInquiries = () => {
           <div className={`customer-inquiry-detail-hero ${statusClass(activeInquiry.status)}`}>
             <div>
               <span>{activeSubmittedDate}</span>
-              <h3>{firstEvent?.type || "Event inquiry"}</h3>
+              <h3>{inquiryDisplayName(activeInquiry)}</h3>
               <p>
-                {firstEvent?.date ? prettyDate(firstEvent.date) : "Date TBD"}
-                {firstEvent?.venue ? ` at ${firstEvent.venue}` : ""}
+                {events.length > 1
+                  ? `${events.length} event dates`
+                  : firstEvent?.venue || "Event details pending"}
               </p>
             </div>
             <div className="customer-inquiry-detail-status">
@@ -736,7 +767,9 @@ const PreviousInquiries = () => {
             </div>
           ) : (
             <div className="customer-edit-alert is-locked">
-              A contract has been created, so inquiry details are now locked.
+              {isCompletedInquiry
+                ? "This event is completed, so inquiry details are now locked."
+                : "A contract has been created, so inquiry details are now locked."}
             </div>
           )}
 
