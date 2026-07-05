@@ -220,14 +220,13 @@ export default function AdminDashboard() {
   );
   const [subscriptionLoading, setSubscriptionLoading] = useState(false);
   const [subscriptionMessage, setSubscriptionMessage] = useState("");
-  const [calendarUsers, setCalendarUsers] = useState([]);
   const [calendarSubscriptions, setCalendarSubscriptions] = useState([]);
   const [subscriptionsLoading, setSubscriptionsLoading] = useState(false);
   const [creatingSubscription, setCreatingSubscription] = useState(false);
   const [deletingSubscriptionId, setDeletingSubscriptionId] = useState("");
   const [subscriptionDraft, setSubscriptionDraft] = useState({
     label: "",
-    assignedUserId: "",
+    assignedUserName: "",
   });
   const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
   const [subscriptionUrls, setSubscriptionUrls] = useState({
@@ -258,22 +257,6 @@ export default function AdminDashboard() {
         setLoadError("Could not load events. Check the console for details.");
         setLoading(false);
       }
-    );
-    return () => stop();
-  }, []);
-
-  useEffect(() => {
-    const usersQuery = query(collection(db, "users"), orderBy("name", "asc"));
-    const stop = onSnapshot(
-      usersQuery,
-      (snap) =>
-        setCalendarUsers(
-          snap.docs.map((docSnap) => ({
-            id: docSnap.id,
-            ...docSnap.data(),
-          }))
-        ),
-      (error) => console.error("Calendar users load failed:", error)
     );
     return () => stop();
   }, []);
@@ -508,9 +491,6 @@ export default function AdminDashboard() {
     try {
       setCreatingSubscription(true);
       setSubscriptionMessage("");
-      const assignedUser = calendarUsers.find(
-        (user) => user.id === subscriptionDraft.assignedUserId
-      );
 
       const createSubscription = httpsCallable(
         firebaseFunctions,
@@ -518,9 +498,7 @@ export default function AdminDashboard() {
       );
       const result = await createSubscription({
         label: subscriptionDraft.label,
-        assignedUserId: subscriptionDraft.assignedUserId,
-        assignedUserName: assignedUser?.name || "",
-        assignedUserEmail: assignedUser?.email || "",
+        assignedUserName: subscriptionDraft.assignedUserName,
       });
       const feedUrl = result.data?.feedUrl;
       const webcalUrl =
@@ -538,7 +516,7 @@ export default function AdminDashboard() {
           ...current.filter((row) => row.id !== subscription.id),
         ]);
       }
-      setSubscriptionDraft({ label: "", assignedUserId: "" });
+      setSubscriptionDraft({ label: "", assignedUserName: "" });
       await copySubscriptionUrl(feedUrl);
     } catch (error) {
       console.error("Calendar subscription create failed:", error);
@@ -1349,25 +1327,18 @@ export default function AdminDashboard() {
                 }
               />
             </Form.Group>
-            <Form.Group controlId="calendarSubscriptionUser">
-              <Form.Label>Assigned user</Form.Label>
-              <Form.Select
-                value={subscriptionDraft.assignedUserId}
+            <Form.Group controlId="calendarSubscriptionEmployee">
+              <Form.Label>Employee name</Form.Label>
+              <Form.Control
+                value={subscriptionDraft.assignedUserName}
+                placeholder="Employee name"
                 onChange={(event) =>
                   setSubscriptionDraft((current) => ({
                     ...current,
-                    assignedUserId: event.target.value,
+                    assignedUserName: event.target.value,
                   }))
                 }
-              >
-                <option value="">Unassigned</option>
-                {calendarUsers.map((user) => (
-                  <option key={user.id} value={user.id}>
-                    {user.name || user.email || user.id}
-                    {user.name && user.email ? ` (${user.email})` : ""}
-                  </option>
-                ))}
-              </Form.Select>
+              />
             </Form.Group>
             <Button
               type="button"
@@ -1437,7 +1408,7 @@ export default function AdminDashboard() {
                     <div>
                       <strong>{subscription.label || "Calendar link"}</strong>
                       <span>
-                        Assigned to{" "}
+                        Employee:{" "}
                         {subscription.assignedUserName ||
                           subscription.assignedUserEmail ||
                           "Unassigned"}
