@@ -78,6 +78,7 @@ function AppNavbar() {
 
   const adminLinks = [
     { to: "/dashboard-admin", label: "Dashboard" },
+    { to: "/reports-admin", label: "Reports" },
     { to: "/rental-items-admin", label: "Rental Items" },
     { to: "/music-video-admin", label: "Music Videos" },
     { to: "/dj-mc-admin", label: "Team" },

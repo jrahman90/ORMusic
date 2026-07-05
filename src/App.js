@@ -27,6 +27,7 @@ import EventureTermsAndConditions from "./Components/EventureTerms";
 import EventureAdmin from "./Components/Admin/EventureAdmin";
 import AdminDashboard from "./Components/Admin/AdminDashboard";
 import AdminEventDetails from "./Components/Admin/AdminEventDetails";
+import AdminYearReport from "./Components/Admin/AdminYearReport";
 import ItineraryEditorPage from "./Components/Itineraries/ItineraryEditorPage";
 import ItineraryPrintPage from "./Components/Itineraries/ItineraryPrintPage";
 
@@ -128,6 +129,12 @@ const SEO_CONFIG = {
     title: "Admin Event Details | OR Music Events",
     description: "Admin event details for OR Music Events.",
     path: "/dashboard-admin",
+    robots: PRIVATE_ROBOTS,
+  },
+  "/reports-admin": {
+    title: "Admin Reports | OR Music Events",
+    description: "Admin yearly revenue and product reports for OR Music Events.",
+    path: "/reports-admin",
     robots: PRIVATE_ROBOTS,
   },
   "/inquiries-admin": {
@@ -428,6 +435,7 @@ function App() {
             element={<AdminEventDetails />}
           />
         )}
+        {isAdmin && <Route path="/reports-admin" element={<AdminYearReport />} />}
         {isAdmin && <Route path="/inquiries-admin" element={<Inquiries />} />}
         <Route
           path="/eventure-terms-conditions"

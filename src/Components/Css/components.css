@@ -1430,6 +1430,303 @@ ul {
     padding: 1rem;
 }
 
+.admin-year-report {
+    color: #111827;
+}
+
+.admin-report-header {
+    align-items: flex-end;
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    box-shadow: 0 12px 30px rgba(17, 24, 39, .06);
+    display: grid;
+    gap: 1rem;
+    grid-template-columns: minmax(0, 1fr) auto;
+    margin-bottom: 1rem;
+    padding: 1rem;
+}
+
+.admin-report-header h1 {
+    font-size: clamp(2rem, 4vw, 3.25rem);
+    font-weight: 850;
+    letter-spacing: 0;
+    margin: .25rem 0;
+}
+
+.admin-report-header p {
+    color: #64748b;
+    line-height: 1.55;
+    margin: 0;
+}
+
+.admin-report-controls {
+    align-items: flex-end;
+    display: flex;
+    flex-wrap: wrap;
+    gap: .65rem;
+    justify-content: flex-end;
+}
+
+.admin-report-controls .form-label {
+    color: #475569;
+    font-size: .76rem;
+    font-weight: 850;
+    margin-bottom: .25rem;
+    text-transform: uppercase;
+}
+
+.admin-report-controls .form-select {
+    min-width: 170px;
+}
+
+.admin-report-controls .btn {
+    align-items: center;
+    display: inline-flex;
+    gap: .35rem;
+    min-height: 38px;
+}
+
+.admin-report-kpis {
+    display: grid;
+    gap: .75rem;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    margin-bottom: 1rem;
+}
+
+.admin-report-kpi {
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    box-shadow: 0 10px 24px rgba(17, 24, 39, .05);
+    min-height: 102px;
+    padding: .85rem;
+}
+
+.admin-report-kpi span,
+.admin-report-kpi strong {
+    display: block;
+}
+
+.admin-report-kpi span {
+    align-items: center;
+    color: #64748b;
+    display: flex;
+    font-size: .76rem;
+    font-weight: 850;
+    gap: .35rem;
+    text-transform: uppercase;
+}
+
+.admin-report-kpi svg {
+    color: var(--brand-blue);
+}
+
+.admin-report-kpi strong {
+    color: #111827;
+    font-size: clamp(1.35rem, 2vw, 1.85rem);
+    line-height: 1.1;
+    margin-top: .45rem;
+    overflow-wrap: anywhere;
+}
+
+.admin-report-section {
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    box-shadow: 0 12px 30px rgba(17, 24, 39, .06);
+    padding: 1rem;
+}
+
+.admin-report-section-heading {
+    align-items: flex-start;
+    display: flex;
+    gap: .75rem;
+    justify-content: space-between;
+    margin-bottom: .85rem;
+}
+
+.admin-report-section-heading h2 {
+    font-size: 1.05rem;
+    font-weight: 850;
+    letter-spacing: 0;
+    margin: 0;
+}
+
+.admin-report-section-heading span {
+    color: #64748b;
+    display: block;
+    font-size: .82rem;
+    margin-top: .12rem;
+}
+
+.admin-report-table-wrap {
+    overflow-x: auto;
+}
+
+.admin-report-table {
+    border-collapse: collapse;
+    min-width: 680px;
+    width: 100%;
+}
+
+.admin-report-table th,
+.admin-report-table td {
+    border-bottom: 1px solid #e5e7eb;
+    padding: .7rem .55rem;
+    text-align: right;
+    white-space: nowrap;
+}
+
+.admin-report-table th:first-child,
+.admin-report-table td:first-child {
+    text-align: left;
+}
+
+.admin-report-table th {
+    color: #64748b;
+    font-size: .76rem;
+    font-weight: 850;
+    text-transform: uppercase;
+}
+
+.admin-report-table td {
+    color: #111827;
+    font-size: .9rem;
+    font-weight: 750;
+}
+
+.admin-report-month {
+    display: grid;
+    gap: .35rem;
+    min-width: 180px;
+}
+
+.admin-report-month strong {
+    color: #111827;
+}
+
+.admin-report-month span {
+    background: linear-gradient(90deg, #2563eb, #14b8a6);
+    border-radius: 999px;
+    display: block;
+    height: 7px;
+    min-width: 7px;
+}
+
+.admin-report-status-list,
+.admin-report-money-list,
+.admin-report-product-list,
+.admin-report-category-list,
+.admin-report-booking-list {
+    display: grid;
+    gap: .65rem;
+}
+
+.admin-report-status-row,
+.admin-report-money-list div,
+.admin-report-category-list > div,
+.admin-report-booking-row {
+    align-items: center;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    display: flex;
+    gap: .75rem;
+    justify-content: space-between;
+    padding: .7rem .75rem;
+}
+
+.admin-report-status-row > div,
+.admin-report-category-list > div > div,
+.admin-report-booking-row > div {
+    display: grid;
+    gap: .2rem;
+    min-width: 0;
+}
+
+.admin-report-status-row small,
+.admin-report-money-list span,
+.admin-report-category-list span,
+.admin-report-booking-row span,
+.admin-report-product-row span {
+    color: #64748b;
+    font-size: .8rem;
+}
+
+.admin-report-status-row strong,
+.admin-report-money-list strong,
+.admin-report-category-list strong,
+.admin-report-booking-row strong {
+    color: #111827;
+    font-weight: 850;
+}
+
+.admin-report-product-row {
+    align-items: center;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    display: grid;
+    gap: .75rem;
+    grid-template-columns: 34px minmax(0, 1fr) auto;
+    padding: .7rem .75rem;
+}
+
+.admin-report-product-row > div {
+    display: grid;
+    gap: .15rem;
+    min-width: 0;
+}
+
+.admin-report-product-row > div:last-child {
+    text-align: right;
+}
+
+.admin-report-product-row strong {
+    color: #111827;
+    font-weight: 850;
+    overflow-wrap: anywhere;
+}
+
+.admin-report-rank {
+    align-items: center;
+    background: #eef2ff;
+    border-radius: 999px;
+    color: var(--brand-blue) !important;
+    display: inline-flex;
+    font-size: .78rem !important;
+    font-weight: 850;
+    height: 28px;
+    justify-content: center;
+    width: 28px;
+}
+
+.admin-report-booking-row {
+    color: #111827;
+    text-decoration: none;
+}
+
+.admin-report-booking-row:hover {
+    border-color: var(--brand-blue);
+    color: #111827;
+}
+
+.admin-report-booking-row > div:last-child {
+    justify-items: end;
+}
+
+.admin-report-empty {
+    align-items: center;
+    background: #f8fafc;
+    border: 1px dashed #cbd5e1;
+    border-radius: 8px;
+    color: #64748b;
+    display: flex;
+    justify-content: center;
+    min-height: 96px;
+    padding: 1rem;
+    text-align: center;
+}
+
 .admin-attention-panel {
     margin-bottom: 1rem;
 }
@@ -3643,11 +3940,22 @@ ul {
         width: 100%;
     }
     .admin-dashboard-header,
-    .admin-dashboard-toolbar {
+    .admin-dashboard-toolbar,
+    .admin-report-header {
         grid-template-columns: 1fr;
     }
-    .admin-dashboard-header {
+    .admin-dashboard-header,
+    .admin-report-header {
         align-items: stretch;
+    }
+    .admin-report-controls {
+        display: grid;
+        grid-template-columns: 1fr;
+        justify-content: stretch;
+    }
+    .admin-report-controls .form-select,
+    .admin-report-controls .btn {
+        width: 100%;
     }
     .admin-dashboard-header-actions .btn {
         width: 100%;
@@ -3667,6 +3975,12 @@ ul {
     }
     .admin-dashboard-summary {
         grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+    .admin-report-kpis {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+    .admin-report-kpi {
+        min-height: 92px;
     }
     .admin-dashboard-summary div {
         min-height: 66px;
@@ -3716,6 +4030,24 @@ ul {
     }
     .admin-pending-event-badges {
         justify-content: flex-start;
+    }
+    .admin-report-section-heading,
+    .admin-report-status-row,
+    .admin-report-money-list div,
+    .admin-report-category-list > div,
+    .admin-report-booking-row {
+        align-items: stretch;
+        flex-direction: column;
+    }
+    .admin-report-product-row {
+        grid-template-columns: 30px minmax(0, 1fr);
+    }
+    .admin-report-product-row > div:last-child {
+        grid-column: 2;
+        text-align: left;
+    }
+    .admin-report-booking-row > div:last-child {
+        justify-items: start;
     }
     .admin-mobile-event-link {
         grid-template-columns: 1fr;
