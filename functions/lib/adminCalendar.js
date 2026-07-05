@@ -192,7 +192,7 @@ const eventSummary = (inquiry = {}, event = {}) => {
   const status = inquiry.status || "Processing";
   const clientName = inquiry.name || inquiry.userName || "Unknown client";
   const type = event.type || "Event";
-  return `[${status}] ${clientName} - ${type}`;
+  return `${clientName} - ${type} [${status}]`;
 };
 
 const lastModifiedForDoc = (docSnap) =>

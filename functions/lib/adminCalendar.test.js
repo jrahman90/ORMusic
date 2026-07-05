@@ -52,7 +52,7 @@ test("builds calendar events with status, packages, and items", () => {
     { appBaseUrl: "https://ormusicevents.com" }
   );
 
-  assert.equal(event.summary, "[Confirmed] Alex Rivera - Wedding");
+  assert.equal(event.summary, "Alex Rivera - Wedding [Confirmed]");
   assert.match(event.description, /Status: Confirmed/);
   assert.match(event.description, /Packages:\n- Gold Package x1/);
   assert.match(event.description, /Items:\n- Uplights x8/);
@@ -66,7 +66,7 @@ test("builds calendar events with status, packages, and items", () => {
     generatedAt: new Date("2026-07-02T12:00:00Z"),
   });
 
-  assert.match(calendar, /SUMMARY:\[Confirmed\] Alex Rivera - Wedding/);
+  assert.match(calendar, /SUMMARY:Alex Rivera - Wedding \[Confirmed\]/);
   assert.match(calendar, /STATUS:CONFIRMED/);
   assert.match(calendar, /LAST-MODIFIED:20260701T120000Z/);
   assert.match(calendar, /SEQUENCE:1782907200/);
@@ -81,6 +81,6 @@ test("maps pending inquiries to tentative calendar events", () => {
     })
   );
 
-  assert.equal(event.summary, "[Pending] Sam Chen - Event");
+  assert.equal(event.summary, "Sam Chen - Event [Pending]");
   assert.equal(event.calendarStatus, "TENTATIVE");
 });
