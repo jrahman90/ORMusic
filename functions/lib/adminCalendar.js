@@ -9,12 +9,6 @@ const normalizeEvents = (events = []) =>
     sourceIndex: index,
   }));
 
-const money = (value) =>
-  new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-  }).format(Number(value || 0));
-
 const dateKey = (value) => {
   if (!value) return "";
   if (typeof value?.toDate === "function") return dateKey(value.toDate());
@@ -151,19 +145,7 @@ const groupedItemsForEvent = (inquiry = {}, event = {}, events = []) => {
 
 const formatItemLine = (item = {}) => {
   const quantity = Math.max(0, Number(item.assignedQuantity || item.quantity || 0));
-  const price = Number(item.price || 0);
-  const lineTotal = price * quantity;
-  const parts = [`- ${item.name || "Unnamed item"} x${quantity}`];
-
-  if (price > 0) parts.push(`@ ${money(price)} = ${money(lineTotal)}`);
-
-  const categories = Array.isArray(item.categories)
-    ? item.categories.filter(Boolean).join(", ")
-    : "";
-  if (categories) parts.push(`(${categories})`);
-  if (item.description) parts.push(`- ${item.description}`);
-
-  return parts.join(" ");
+  return `- ${item.name || "Unnamed item"} x${quantity}`;
 };
 
 const appendItemGroup = (lines, label, items) => {
@@ -199,10 +181,6 @@ const eventDescription = ({ inquiry, event, events, url }) => {
     !groups.generalItems.length
   ) {
     lines.push("", "Packages/items: None assigned.");
-  }
-
-  if (inquiry.eventDetails) {
-    lines.push("", "Inquiry notes:", inquiry.eventDetails);
   }
 
   lines.push("", `Admin link: ${url}`);

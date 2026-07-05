@@ -56,6 +56,10 @@ test("builds calendar events with status, packages, and items", () => {
   assert.match(event.description, /Status: Confirmed/);
   assert.match(event.description, /Packages:\n- Gold Package x1/);
   assert.match(event.description, /Items:\n- Uplights x8/);
+  assert.doesNotMatch(event.description, /\$/);
+  assert.doesNotMatch(event.description, /DJ and lighting/);
+  assert.doesNotMatch(event.description, /\(addons\)|\(packages\)/i);
+  assert.doesNotMatch(event.description, /Use side entrance/);
   assert.equal(event.calendarStatus, "CONFIRMED");
 
   const calendar = buildIcsCalendar([event], {
