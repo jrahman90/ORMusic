@@ -93,6 +93,7 @@ exports.adminCalendarFeed = onRequest(
     secrets: [CALENDAR_FEED_SIGNING_KEY],
     timeoutSeconds: 30,
     memory: "256MiB",
+    invoker: "public",
   },
   async (request, response) => {
     if (!["GET", "HEAD"].includes(request.method)) {
