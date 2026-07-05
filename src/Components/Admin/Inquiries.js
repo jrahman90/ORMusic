@@ -673,6 +673,7 @@ export default function Inquiries() {
           description: "",
           price: "",
           quantity: s[inqId]?.quantity || 1,
+          categories: [],
         },
       }));
       return;
@@ -688,6 +689,7 @@ export default function Inquiries() {
         description: picked.description || "",
         price: picked.price != null ? String(picked.price) : "",
         quantity: s[inqId]?.quantity || 1,
+        categories: Array.isArray(picked.categories) ? picked.categories : [],
       },
     }));
   };
@@ -906,6 +908,7 @@ export default function Inquiries() {
         description: it.description || "",
         price: Number(it.price || 0),
         quantity: Math.max(0, Number(it.quantity || 0)),
+        categories: Array.isArray(it.categories) ? it.categories : [],
         media: Array.isArray(it.media) ? it.media : [],
         eventId: it.eventId && eventIds.has(it.eventId) ? it.eventId : "",
         eventAllocations: normalizeAllocations(it, normalizeEvents(inq.events)),
@@ -970,6 +973,7 @@ export default function Inquiries() {
       description: draft.description || "",
       price: Number(draft.price || 0),
       quantity: Math.max(1, Number(draft.quantity || 1)),
+      categories: Array.isArray(draft.categories) ? draft.categories : [],
       media,
       eventId: draft.eventId || "",
       eventAllocations: draft.eventId

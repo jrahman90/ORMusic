@@ -1208,6 +1208,25 @@ ul {
     gap: .4rem;
 }
 
+.admin-calendar-subscription-status {
+    align-self: center;
+    color: #64748b;
+    font-size: .82rem;
+    font-weight: 750;
+}
+
+.admin-calendar-subscription-url .form-control {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+    font-size: .82rem;
+}
+
+.admin-calendar-subscription-note {
+    color: #64748b;
+    font-size: .88rem;
+    line-height: 1.45;
+    margin-top: .75rem;
+}
+
 .admin-dashboard-summary {
     display: grid;
     grid-template-columns: repeat(3, minmax(104px, 1fr));
@@ -1361,12 +1380,15 @@ ul {
 
 .admin-calendar-actions {
     display: flex;
+    flex-wrap: wrap;
     gap: .45rem;
+    justify-content: flex-end;
 }
 
 .admin-calendar-actions .btn {
     align-items: center;
     display: inline-flex;
+    gap: .35rem;
     justify-content: center;
     min-height: 34px;
 }
@@ -1565,21 +1587,29 @@ ul {
 }
 
 .admin-mobile-event {
-    align-items: flex-start;
     background: var(--event-soft);
     border: 1px solid rgba(17, 24, 39, .08);
     border-left: 5px solid var(--event-accent);
     border-radius: 8px;
+    display: grid;
+    gap: .6rem;
+    padding: .75rem;
+}
+
+.admin-mobile-event-link {
+    align-items: flex-start;
     color: #111827;
     display: grid;
     gap: .7rem;
     grid-template-columns: minmax(0, 1fr) auto;
-    padding: .75rem;
     text-decoration: none;
 }
 
 .admin-mobile-event:hover {
     border-color: var(--event-accent);
+}
+
+.admin-mobile-event-link:hover {
     color: #111827;
 }
 
@@ -1608,13 +1638,20 @@ ul {
     overflow-wrap: anywhere;
 }
 
-.admin-mobile-event > div:last-child {
+.admin-mobile-event-link > div:last-child {
     text-align: right;
 }
 
-.admin-mobile-event > div:last-child span:last-child {
+.admin-mobile-event-link > div:last-child span:last-child {
     color: var(--event-ink);
     font-weight: 850;
+}
+
+.admin-mobile-calendar-button {
+    align-items: center;
+    display: inline-flex;
+    gap: .35rem;
+    justify-self: end;
 }
 
 .admin-mobile-empty-day {
@@ -1729,14 +1766,22 @@ ul {
     color: var(--brand-blue);
 }
 
-.admin-upcoming-actions a {
+.admin-upcoming-actions a,
+.admin-calendar-link-button.btn {
+    align-items: center;
     color: var(--brand-blue);
+    display: inline-flex;
     font-size: .82rem;
     font-weight: 850;
+    gap: .25rem;
+    line-height: 1.2;
+    padding: 0;
     text-decoration: none;
 }
 
-.admin-upcoming-actions a:hover {
+.admin-upcoming-actions a:hover,
+.admin-calendar-link-button.btn:hover {
+    color: var(--brand-blue);
     text-decoration: underline;
 }
 
@@ -3504,6 +3549,12 @@ ul {
         display: grid;
         grid-template-columns: 1fr 1fr 1fr;
     }
+    .admin-calendar-actions .btn {
+        width: 100%;
+    }
+    .admin-calendar-export {
+        grid-column: 1 / -1;
+    }
     .admin-upcoming-panel {
         position: static;
     }
@@ -3521,14 +3572,19 @@ ul {
     .admin-pending-event-badges {
         justify-content: flex-start;
     }
-    .admin-mobile-event {
+    .admin-mobile-event-link {
         grid-template-columns: 1fr;
     }
-    .admin-mobile-event > div:last-child {
+    .admin-mobile-event-link > div:last-child {
         display: flex;
         flex-wrap: wrap;
         gap: .4rem .75rem;
         text-align: left;
+    }
+    .admin-mobile-calendar-button {
+        justify-content: center;
+        justify-self: stretch;
+        width: 100%;
     }
     .admin-status-badge {
         align-self: flex-start;

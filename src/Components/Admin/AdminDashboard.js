@@ -19,19 +19,23 @@ import {
   query,
   serverTimestamp,
 } from "firebase/firestore";
+import { httpsCallable } from "firebase/functions";
 import {
+  CalendarPlus,
   CalendarCheck,
   CalendarDays,
   ChevronLeft,
   ChevronRight,
   Clock,
+  Download,
   ListFilter,
   MapPin,
   Plus,
   Search,
   UsersRound,
 } from "lucide-react";
-import db from "../../api/firestore/firestore";
+import db, { functions as firebaseFunctions } from "../../api/firestore/firestore";
+import { buildIcsCalendar, downloadIcsFile } from "../../utils/calendar";
 import { prettyDate, to12h } from "../../utils/formatters";
 
 const STATUS_OPTIONS = [
@@ -156,6 +160,18 @@ const eventSort = (a, b) => {
 const eventDetailsPath = (event) =>
   `/dashboard-admin/events/${event.inquiryId}/${event.id}`;
 
+const fileSlug = (value = "event") => {
+  const slug = String(value || "event")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+  return slug || "event";
+};
+
+const singleEventFileName = (event) =>
+  `or-music-${event.dateKey || "event"}-${fileSlug(event.clientName)}.ics`;
+
 const emptyInquiryDraft = {
   name: "",
   email: "",
@@ -181,6 +197,13 @@ export default function AdminDashboard() {
   const [calendarMonth, setCalendarMonth] = useState(() =>
     startOfMonth(new Date())
   );
+  const [subscriptionLoading, setSubscriptionLoading] = useState(false);
+  const [subscriptionMessage, setSubscriptionMessage] = useState("");
+  const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
+  const [subscriptionUrls, setSubscriptionUrls] = useState({
+    feedUrl: "",
+    webcalUrl: "",
+  });
 
   const todayKey = useMemo(() => dateKey(new Date()), []);
   const todayStart = useMemo(() => coerceEventDate(todayKey), [todayKey]);
@@ -329,13 +352,14 @@ export default function AdminDashboard() {
     [calendarDays, calendarMonth, eventsByDay, todayStart]
   );
 
-  const monthEventCount = useMemo(
+  const calendarMonthEvents = useMemo(
     () =>
       filteredEvents.filter((event) =>
         sameMonth(event.eventDate, calendarMonth)
-      ).length,
+      ),
     [calendarMonth, filteredEvents]
   );
+  const monthEventCount = calendarMonthEvents.length;
 
   const sidebarEvents = useMemo(() => {
     const upcoming = filteredEvents
@@ -390,6 +414,61 @@ export default function AdminDashboard() {
   const clearFilters = () => {
     setSearch("");
     setStatusFilter("All");
+  };
+
+  const exportEventsToAppleCalendar = (events, fileName) => {
+    const eventList = (Array.isArray(events) ? events : [events]).filter(Boolean);
+    if (eventList.length === 0) return;
+
+    const origin = typeof window !== "undefined" ? window.location.origin : "";
+    const calendarText = buildIcsCalendar(eventList, {
+      calendarName: "OR Music Events",
+      getSourceUrl: (event) =>
+        origin ? `${origin}${eventDetailsPath(event)}` : eventDetailsPath(event),
+    });
+    downloadIcsFile(calendarText, fileName);
+  };
+
+  const copySubscriptionUrl = async (url = subscriptionUrls.feedUrl) => {
+    if (!url) return false;
+    try {
+      await navigator.clipboard?.writeText(url);
+      setSubscriptionMessage("Subscription link copied.");
+      return true;
+    } catch {
+      setSubscriptionMessage("Copy the subscription link from the dialog.");
+      return false;
+    }
+  };
+
+  const openAppleCalendarSubscription = async () => {
+    try {
+      setSubscriptionLoading(true);
+      setSubscriptionMessage("");
+
+      const getFeedUrl = httpsCallable(
+        firebaseFunctions,
+        "adminCalendarFeedUrl"
+      );
+      const result = await getFeedUrl();
+      const feedUrl = result.data?.feedUrl;
+      const webcalUrl =
+        result.data?.webcalUrl || feedUrl?.replace(/^https:/i, "webcal:");
+
+      if (!feedUrl || !webcalUrl) {
+        throw new Error("The calendar feed URL was not returned.");
+      }
+
+      setSubscriptionUrls({ feedUrl, webcalUrl });
+      setShowSubscriptionModal(true);
+      await copySubscriptionUrl(feedUrl);
+    } catch (error) {
+      console.error("Calendar subscription failed:", error);
+      setSubscriptionMessage("Could not open subscription link.");
+      alert("Could not open the calendar subscription. Check the console for details.");
+    } finally {
+      setSubscriptionLoading(false);
+    }
   };
 
   const openCreateInquiry = () => {
@@ -461,6 +540,20 @@ export default function AdminDashboard() {
               <Plus size={17} />
               Create inquiry
             </Button>
+            <Button
+              type="button"
+              variant="outline-primary"
+              onClick={openAppleCalendarSubscription}
+              disabled={subscriptionLoading}
+            >
+              <CalendarPlus size={17} />
+              {subscriptionLoading ? "Loading..." : "Subscribe calendar"}
+            </Button>
+            {subscriptionMessage ? (
+              <span className="admin-calendar-subscription-status">
+                {subscriptionMessage}
+              </span>
+            ) : null}
           </div>
         </div>
 
@@ -625,6 +718,23 @@ export default function AdminDashboard() {
                   >
                     <ChevronRight size={17} />
                   </Button>
+                  <Button
+                    type="button"
+                    variant="outline-secondary"
+                    size="sm"
+                    className="admin-calendar-export"
+                    onClick={() =>
+                      exportEventsToAppleCalendar(
+                        calendarMonthEvents,
+                        `or-music-events-${dateKey(calendarMonth).slice(0, 7)}.ics`
+                      )
+                    }
+                    disabled={calendarMonthEvents.length === 0}
+                    title="Download an Apple Calendar .ics file for this filtered month"
+                  >
+                    <Download size={16} />
+                    Apple Calendar
+                  </Button>
                 </div>
               </div>
 
@@ -740,27 +850,47 @@ export default function AdminDashboard() {
                       ) : (
                         <div className="admin-mobile-event-list">
                           {day.events.map((event) => (
-                            <Link
+                            <article
                               key={`${event.inquiryId}-${event.id}`}
-                              to={eventDetailsPath(event)}
                               className={`admin-mobile-event ${statusClass(
                                 event.status
                               )}`}
                             >
-                              <div>
-                                <strong>{event.clientName}</strong>
-                                <span>{event.type || "Event"}</span>
-                                {event.serviceNames?.length ? (
-                                  <span className="admin-mobile-event-services">
-                                    {event.serviceNames.join(", ")}
-                                  </span>
-                                ) : null}
-                              </div>
-                              <div>
-                                <span>{formatTimeRange(event)}</span>
-                                <span>{event.status}</span>
-                              </div>
-                            </Link>
+                              <Link
+                                to={eventDetailsPath(event)}
+                                className="admin-mobile-event-link"
+                              >
+                                <div>
+                                  <strong>{event.clientName}</strong>
+                                  <span>{event.type || "Event"}</span>
+                                  {event.serviceNames?.length ? (
+                                    <span className="admin-mobile-event-services">
+                                      {event.serviceNames.join(", ")}
+                                    </span>
+                                  ) : null}
+                                </div>
+                                <div>
+                                  <span>{formatTimeRange(event)}</span>
+                                  <span>{event.status}</span>
+                                </div>
+                              </Link>
+                              <Button
+                                type="button"
+                                variant="outline-secondary"
+                                size="sm"
+                                className="admin-mobile-calendar-button"
+                                onClick={() =>
+                                  exportEventsToAppleCalendar(
+                                    event,
+                                    singleEventFileName(event)
+                                  )
+                                }
+                                title="Download an Apple Calendar .ics file for this event"
+                              >
+                                <CalendarPlus size={15} />
+                                Apple Calendar
+                              </Button>
+                            </article>
                           ))}
                         </div>
                       )}
@@ -864,6 +994,21 @@ export default function AdminDashboard() {
                       <div className="admin-upcoming-actions">
                         <Link to={eventDetailsPath(event)}>View event</Link>
                         <Link to="/inquiries-admin">Open inquiry</Link>
+                        <Button
+                          type="button"
+                          variant="link"
+                          className="admin-calendar-link-button"
+                          onClick={() =>
+                            exportEventsToAppleCalendar(
+                              event,
+                              singleEventFileName(event)
+                            )
+                          }
+                          title="Download an Apple Calendar .ics file for this event"
+                        >
+                          <CalendarPlus size={14} />
+                          Apple Calendar
+                        </Button>
                       </div>
                     </article>
                   ))}
@@ -1047,6 +1192,47 @@ export default function AdminDashboard() {
           </Button>
           <Button onClick={createInquiry} disabled={creatingInquiry}>
             {creatingInquiry ? "Creating" : "Create inquiry"}
+          </Button>
+        </Modal.Footer>
+      </Modal>
+
+      <Modal
+        show={showSubscriptionModal}
+        onHide={() => setShowSubscriptionModal(false)}
+        centered
+      >
+        <Modal.Header closeButton>
+          <Modal.Title>OR Music Events calendar</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <Form.Label>Subscription URL</Form.Label>
+          <InputGroup className="admin-calendar-subscription-url">
+            <Form.Control
+              value={subscriptionUrls.feedUrl}
+              readOnly
+              onFocus={(event) => event.target.select()}
+            />
+            <Button
+              type="button"
+              variant="outline-primary"
+              onClick={() => copySubscriptionUrl()}
+              disabled={!subscriptionUrls.feedUrl}
+            >
+              Copy
+            </Button>
+          </InputGroup>
+          <div className="admin-calendar-subscription-note">
+            Add this URL as a subscribed calendar in Apple Calendar. The
+            calendar name will appear as OR Music Events.
+          </div>
+        </Modal.Body>
+        <Modal.Footer>
+          <Button
+            type="button"
+            variant="outline-secondary"
+            onClick={() => setShowSubscriptionModal(false)}
+          >
+            Done
           </Button>
         </Modal.Footer>
       </Modal>

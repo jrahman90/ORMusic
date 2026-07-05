@@ -879,6 +879,7 @@ export default function AdminEventDetails() {
         description: item.description || "",
         price: Number(item.price || 0),
         quantity: Math.max(0, Number(item.quantity || 0)),
+        categories: Array.isArray(item.categories) ? item.categories : [],
         media: Array.isArray(item.media) ? item.media : [],
         eventId: item.eventId && eventIds.has(item.eventId) ? item.eventId : "",
         eventAllocations: normalizeAllocations(item, events),
@@ -940,6 +941,7 @@ export default function AdminEventDetails() {
         description: "",
         price: "",
         quantity: current.quantity || 1,
+        categories: [],
       }));
       return;
     }
@@ -952,6 +954,7 @@ export default function AdminEventDetails() {
       description: picked.description || "",
       price: picked.price != null ? String(picked.price) : "",
       quantity: current.quantity || 1,
+      categories: Array.isArray(picked.categories) ? picked.categories : [],
     }));
   };
 
@@ -971,6 +974,7 @@ export default function AdminEventDetails() {
       description: addDraft.description || "",
       price: Number(addDraft.price || 0),
       quantity,
+      categories: Array.isArray(addDraft.categories) ? addDraft.categories : [],
       media,
       eventId: addDraft.eventId || "",
       eventAllocations: addDraft.eventId
