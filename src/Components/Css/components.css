@@ -3372,6 +3372,11 @@ ul {
     overflow-wrap: anywhere;
 }
 
+.itinerary-row-value.is-multiline strong,
+.itinerary-print-section td.is-multiline {
+    white-space: pre-wrap;
+}
+
 .itinerary-row-actions {
     display: flex;
     gap: .5rem;

@@ -60,19 +60,19 @@ function AppNavbar() {
   const socials = [
     {
       linkToSocial: "https://www.facebook.com/ormusicevents",
-      imageSrc: "facebook.png",
+      imageSrc: "/facebook.png",
     },
     {
       linkToSocial: "https://www.instagram.com/ormusic.events/",
-      imageSrc: "instagram.png",
+      imageSrc: "/instagram.png",
     },
     {
       linkToSocial: "https://www.youtube.com/channel/UCdtFAaHPQxzm-jKlPgKPngQ",
-      imageSrc: "youtube.png",
+      imageSrc: "/youtube.png",
     },
     {
       linkToSocial: "https://www.tiktok.com/@officialopu",
-      imageSrc: "tiktok.png",
+      imageSrc: "/tiktok.png",
     },
   ];
 
@@ -246,7 +246,7 @@ function AppNavbar() {
         <Container>
           <Navbar.Brand as={Link} to="/" onClick={handleNavItemClick}>
             <img
-              src="ormusiclogo.png"
+              src="/ormusiclogo.png"
               alt=""
               width="100"
               height="30"

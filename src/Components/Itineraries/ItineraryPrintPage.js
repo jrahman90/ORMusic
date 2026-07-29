@@ -21,6 +21,11 @@ const normalizeEvents = (events = []) =>
     id: event?.id || `event-${index}`,
   }));
 
+const normalizeSectionTitle = (value = "") =>
+  String(value).toLowerCase().replace(/[^a-z0-9]/g, "");
+
+const isNotesField = (field = "") => normalizeSectionTitle(field) === "notes";
+
 const eventLabel = (event) => {
   const date = event?.date ? prettyDate(event.date) : "Date TBD";
   const time =
@@ -432,7 +437,12 @@ export default function ItineraryPrintPage({ publicView = false }) {
                           />
                         </td>
                         {fields.map((field) => (
-                          <td key={field}>{row?.[field] || "-"}</td>
+                          <td
+                            key={field}
+                            className={isNotesField(field) ? "is-multiline" : ""}
+                          >
+                            {row?.[field] || "-"}
+                          </td>
                         ))}
                       </tr>
                     ))}

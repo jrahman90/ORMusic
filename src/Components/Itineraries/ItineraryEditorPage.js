@@ -98,6 +98,8 @@ const isConfirmed = (status) => {
 const normalizeSectionTitle = (value = "") =>
   String(value).toLowerCase().replace(/[^a-z0-9]/g, "");
 
+const isNotesField = (field = "") => normalizeSectionTitle(field) === "notes";
+
 const SECTION_TYPES = {
   generic: {
     label: "Generic section",
@@ -285,6 +287,9 @@ export default function ItineraryEditorPage() {
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(null);
+  const [optimisticEvents, setOptimisticEvents] = useState(null);
+  const eventsRef = useRef([]);
+  const saveQueueRef = useRef(Promise.resolve());
 
   useEffect(() => {
     const auth = getAuth();
@@ -328,7 +333,17 @@ export default function ItineraryEditorPage() {
     return () => unsub();
   }, [inquiryId]);
 
-  const events = useMemo(() => normalizeEvents(inquiry?.events), [inquiry]);
+  const eventsFromInquiry = useMemo(
+    () => normalizeEvents(inquiry?.events),
+    [inquiry?.events]
+  );
+
+  useEffect(() => {
+    eventsRef.current = eventsFromInquiry;
+    setOptimisticEvents(eventsFromInquiry);
+  }, [eventsFromInquiry]);
+
+  const events = optimisticEvents || eventsFromInquiry;
   const event = events.find((row) => row.id === eventId);
   const itinerary = event?.itinerary;
   const canAccess =
@@ -339,19 +354,31 @@ export default function ItineraryEditorPage() {
   const printPath = `/inquiries/${inquiryId}/events/${eventId}/itinerary/print`;
 
   const saveEvents = async (nextEvents) => {
+    if (!inquiry?.id) return;
+    eventsRef.current = nextEvents;
+    setOptimisticEvents(nextEvents);
     setSaving(true);
+    const saveTask = saveQueueRef.current
+      .catch(() => undefined)
+      .then(() =>
+        updateDoc(doc(db, "inquiries", inquiry.id), {
+          events: nextEvents,
+          updatedAt: serverTimestamp(),
+        })
+      );
+    saveQueueRef.current = saveTask;
     try {
-      await updateDoc(doc(db, "inquiries", inquiry.id), {
-        events: nextEvents,
-        updatedAt: serverTimestamp(),
-      });
+      await saveTask;
     } finally {
-      setSaving(false);
+      if (saveQueueRef.current === saveTask) {
+        setSaving(false);
+      }
     }
   };
 
   const updateEvent = async (updater) => {
-    const nextEvents = events.map((row) =>
+    const currentEvents = eventsRef.current.length ? eventsRef.current : events;
+    const nextEvents = currentEvents.map((row) =>
       row.id === eventId ? updater(row) : row
     );
     await saveEvents(nextEvents);
@@ -741,6 +768,58 @@ function ItineraryEditor({
     setRowDrafts(next);
   };
 
+  const removeKey = (store, key) => {
+    const { [key]: _removed, ...next } = store;
+    return next;
+  };
+
+  const rowMatches = (row, draft, fields) =>
+    fields.every((field) => String(row?.[field] || "") === String(draft?.[field] || ""));
+
+  const remapRowsAfterDelete = (store, sectionIndex, deletedRowIndex) => {
+    const next = {};
+    Object.entries(store).forEach(([key, value]) => {
+      const [rawSectionIndex, rawRowIndex] = key.split("-");
+      const currentSectionIndex = Number(rawSectionIndex);
+      const currentRowIndex = Number(rawRowIndex);
+      if (
+        currentSectionIndex !== sectionIndex ||
+        !Number.isInteger(currentRowIndex)
+      ) {
+        next[key] = value;
+        return;
+      }
+      if (currentRowIndex < deletedRowIndex) {
+        next[key] = value;
+      } else if (currentRowIndex > deletedRowIndex) {
+        next[rowKey(sectionIndex, currentRowIndex - 1)] = value;
+      }
+    });
+    return next;
+  };
+
+  const clearRowStateForSection = (sectionIndex) => {
+    const keepOtherSections = (store) =>
+      Object.fromEntries(
+        Object.entries(store).filter(([key]) => {
+          const [rawSectionIndex] = key.split("-");
+          return Number(rawSectionIndex) !== sectionIndex;
+        })
+      );
+    setEditingRows(keepOtherSections);
+    setRowDraftStore(keepOtherSections);
+  };
+
+  const handleDeleteRow = (sectionIndex, rowIndex) => {
+    setEditingRows((current) =>
+      remapRowsAfterDelete(current, sectionIndex, rowIndex)
+    );
+    setRowDraftStore((current) =>
+      remapRowsAfterDelete(current, sectionIndex, rowIndex)
+    );
+    return onDeleteRow(sectionIndex, rowIndex);
+  };
+
   const makeInfoDraft = () => ({
     name: itinerary.name || "",
     eventType: itinerary.eventType || "",
@@ -785,6 +864,7 @@ function ItineraryEditor({
 
   const finishSectionEditing = (section, sectionIndex) => {
     const draft = getSectionDraft(section, sectionIndex);
+    clearRowStateForSection(sectionIndex);
     onSectionSchema(sectionIndex, draft.title, draft.fields);
     setEditingFields((current) => ({ ...current, [sectionIndex]: false }));
   };
@@ -836,8 +916,11 @@ function ItineraryEditor({
     fields.forEach((field) => {
       nextRow[field] = draft[field] || "";
     });
-    onRow(sectionIndex, rowIndex, nextRow);
-    setEditingRows((current) => ({ ...current, [key]: false }));
+    if (!rowMatches(section?.items?.[rowIndex], nextRow, fields)) {
+      onRow(sectionIndex, rowIndex, nextRow);
+    }
+    setEditingRows((current) => removeKey(current, key));
+    setRowDraftStore((current) => removeKey(current, key));
   };
 
   const updateRowDraft = (section, sectionIndex, rowIndex, field, value) => {
@@ -883,6 +966,7 @@ function ItineraryEditor({
   };
 
   const toggleRowReorder = (sectionIndex) => {
+    clearRowStateForSection(sectionIndex);
     setReorderingRows((current) => ({
       ...current,
       [sectionIndex]: !current[sectionIndex],
@@ -1332,6 +1416,8 @@ function ItineraryEditor({
                                     <Form.Group key={field}>
                                       <Form.Label>{field}</Form.Label>
                                       <Form.Control
+                                        as={isNotesField(field) ? "textarea" : "input"}
+                                        rows={isNotesField(field) ? 3 : undefined}
                                         value={rowDraft[field] || ""}
                                         onChange={(e) =>
                                           updateRowDraft(
@@ -1345,7 +1431,12 @@ function ItineraryEditor({
                                       />
                                     </Form.Group>
                                   ) : (
-                                    <div className="itinerary-row-value" key={field}>
+                                    <div
+                                      className={`itinerary-row-value ${
+                                        isNotesField(field) ? "is-multiline" : ""
+                                      }`}
+                                      key={field}
+                                    >
                                       <span>{field}</span>
                                       <strong>{row[field] || "-"}</strong>
                                     </div>
@@ -1386,7 +1477,7 @@ function ItineraryEditor({
                                         "This will delete this row from the itinerary section.",
                                       confirmText: "Delete row",
                                       onConfirm: () =>
-                                        onDeleteRow(sectionIndex, rowIndex),
+                                        handleDeleteRow(sectionIndex, rowIndex),
                                     })
                                   }
                                 >
