@@ -3593,6 +3593,11 @@ ul {
     margin-top: 1.1rem;
 }
 
+.itinerary-print-section-start {
+    break-inside: avoid;
+    page-break-inside: avoid;
+}
+
 .itinerary-print-section h2 {
     color: #1f2937;
     font-size: 1.2rem;
@@ -3603,7 +3608,12 @@ ul {
 .itinerary-print-section table {
     border-collapse: collapse;
     font-size: .92rem;
+    table-layout: fixed;
     width: 100%;
+}
+
+.itinerary-print-table-continuation {
+    margin-top: -1px;
 }
 
 .itinerary-print-section th {
@@ -3616,6 +3626,7 @@ ul {
 
 .itinerary-print-section td {
     border: 1px solid #e2e8f0;
+    overflow-wrap: anywhere;
     padding: .65rem .7rem;
     vertical-align: top;
 }
@@ -3627,6 +3638,10 @@ ul {
 .itinerary-print-check-header,
 .itinerary-print-check-cell {
     text-align: center;
+    width: 58px;
+}
+
+.itinerary-print-check-col {
     width: 58px;
 }
 
@@ -4327,6 +4342,11 @@ ul {
     .itinerary-print-section table {
         break-inside: auto;
         page-break-inside: auto;
+    }
+    .itinerary-print-section-start,
+    .itinerary-print-section-start table {
+        break-inside: avoid;
+        page-break-inside: avoid;
     }
     .itinerary-print-section h2,
     .itinerary-print-section thead {

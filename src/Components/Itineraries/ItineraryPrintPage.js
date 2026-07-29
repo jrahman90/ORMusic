@@ -398,56 +398,89 @@ export default function ItineraryPrintPage({ publicView = false }) {
           const sectionIndex = sections.indexOf(section);
           const fields = Array.isArray(section.fields) ? section.fields : [];
           const rows = Array.isArray(section.items) ? section.items : [];
+          const leadRows = rows.slice(0, 2);
+          const remainingRows = rows.slice(leadRows.length);
+          const renderColGroup = () => (
+            <colgroup>
+              <col className="itinerary-print-check-col" />
+              {fields.map((field) => (
+                <col key={field} />
+              ))}
+            </colgroup>
+          );
+          const renderHeader = () => (
+            <thead>
+              <tr>
+                <th className="itinerary-print-check-header">Done</th>
+                {fields.map((field) => (
+                  <th key={field}>{field}</th>
+                ))}
+              </tr>
+            </thead>
+          );
+          const renderRow = (row, rowIndex) => (
+            <tr
+              key={rowIndex}
+              className={row?.__done ? "itinerary-print-row-done" : ""}
+            >
+              <td className="itinerary-print-check-cell">
+                <Form.Check
+                  type="checkbox"
+                  aria-label={`Mark row ${rowIndex + 1} done`}
+                  checked={Boolean(row?.__done)}
+                  disabled={!canUpdateChecklist}
+                  onChange={(e) =>
+                    toggleRowDone(sectionIndex, rowIndex, e.target.checked)
+                  }
+                />
+              </td>
+              {fields.map((field) => (
+                <td
+                  key={field}
+                  className={isNotesField(field) ? "is-multiline" : ""}
+                >
+                  {row?.[field] || "-"}
+                </td>
+              ))}
+            </tr>
+          );
+
           return (
             <section className="itinerary-print-section" key={`${section.title}-${sectionIndex}-${visibleIndex}`}>
-              <h2>{section.title || "Itinerary Section"}</h2>
               {fields.length === 0 ? (
-                <p className="itinerary-print-empty">No fields in this section.</p>
+                <>
+                  <h2>{section.title || "Itinerary Section"}</h2>
+                  <p className="itinerary-print-empty">No fields in this section.</p>
+                </>
               ) : rows.length === 0 ? (
-                <p className="itinerary-print-empty">No entries yet.</p>
+                <>
+                  <h2>{section.title || "Itinerary Section"}</h2>
+                  <p className="itinerary-print-empty">No entries yet.</p>
+                </>
               ) : (
-                <table>
-                  <thead>
-                    <tr>
-                      <th className="itinerary-print-check-header">Done</th>
-                      {fields.map((field) => (
-                        <th key={field}>{field}</th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {rows.map((row, rowIndex) => (
-                      <tr
-                        key={rowIndex}
-                        className={row?.__done ? "itinerary-print-row-done" : ""}
-                      >
-                        <td className="itinerary-print-check-cell">
-                          <Form.Check
-                            type="checkbox"
-                            aria-label={`Mark row ${rowIndex + 1} done`}
-                            checked={Boolean(row?.__done)}
-                            disabled={!canUpdateChecklist}
-                            onChange={(e) =>
-                              toggleRowDone(
-                                sectionIndex,
-                                rowIndex,
-                                e.target.checked
-                              )
-                            }
-                          />
-                        </td>
-                        {fields.map((field) => (
-                          <td
-                            key={field}
-                            className={isNotesField(field) ? "is-multiline" : ""}
-                          >
-                            {row?.[field] || "-"}
-                          </td>
-                        ))}
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                <>
+                  <div className="itinerary-print-section-start">
+                    <h2>{section.title || "Itinerary Section"}</h2>
+                    <table>
+                      {renderColGroup()}
+                      {renderHeader()}
+                      <tbody>{leadRows.map(renderRow)}</tbody>
+                    </table>
+                  </div>
+                  {remainingRows.length > 0 ? (
+                    <table
+                      className="itinerary-print-table-continuation"
+                      aria-label={`${section.title || "Itinerary Section"} continued`}
+                    >
+                      {renderColGroup()}
+                      <tbody>
+                        {remainingRows.map((row, rowOffset) =>
+                          renderRow(row, rowOffset + leadRows.length)
+                        )}
+                      </tbody>
+                    </table>
+                  ) : null}
+                </>
               )}
             </section>
           );

@@ -367,7 +367,7 @@ export default function AdminDashboard() {
   const mobileCalendarDays = useMemo(
     () => {
       const isCurrentMonth = sameMonth(calendarMonth, todayStart);
-      return calendarDays
+      const monthDays = calendarDays
         .filter((day) => day.inMonth)
         .filter((day) => !isCurrentMonth || day.date >= todayStart)
         .map((day) => ({
@@ -376,9 +376,27 @@ export default function AdminDashboard() {
             (event) => !isCurrentMonth || event.eventDate >= todayStart
           ),
         }))
-        .filter((day) => day.events.length > 0 || day.isToday);
+        .filter((day) => day.events.length > 0);
+
+      if (monthDays.length > 0 || !isCurrentMonth) return monthDays;
+
+      const nextEvent = filteredEvents.find(
+        (event) => event.eventDate >= todayStart
+      );
+      if (!nextEvent) return [];
+
+      return [
+        {
+          date: coerceEventDate(nextEvent.dateKey) || nextEvent.eventDate,
+          key: nextEvent.dateKey,
+          inMonth: sameMonth(nextEvent.eventDate, calendarMonth),
+          isToday: nextEvent.dateKey === todayKey,
+          isNextEventFallback: true,
+          events: eventsByDay.get(nextEvent.dateKey) || [nextEvent],
+        },
+      ];
     },
-    [calendarDays, calendarMonth, eventsByDay, todayStart]
+    [calendarDays, calendarMonth, eventsByDay, filteredEvents, todayKey, todayStart]
   );
 
   const calendarMonthEvents = useMemo(
@@ -940,6 +958,10 @@ export default function AdminDashboard() {
                         </div>
                         {day.isToday ? (
                           <Badge bg="primary">Today</Badge>
+                        ) : day.isNextEventFallback ? (
+                          <Badge bg="light" text="dark">
+                            Next event
+                          </Badge>
                         ) : null}
                       </div>
 
