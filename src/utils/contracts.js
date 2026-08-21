@@ -1,5 +1,10 @@
 // utils/contracts.js
 import { to12h, prettyDate } from "./formatters";
+import {
+  calcInquiryTotals,
+  getItemPricing,
+  getLineTotal,
+} from "./pricing";
 
 const money = (v) =>
   new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(
@@ -81,11 +86,20 @@ const serviceRowsHtml = (items = []) =>
     ? items
         .map((it) => {
           const qty = Math.max(0, Number(it?.quantity || 0));
-          const price = Number(it?.price || 0);
-          const amount = qty * price;
+          const pricing = getItemPricing(it);
+          const amount = getLineTotal(it, qty);
           return `<tr style="border-top:1px solid #edf0f2;">
             <td style="padding:.65rem 14px;">
               <div style="font-weight:600;">${esc(it?.name || "Item")}</div>
+              ${
+                pricing.hasDiscount
+                  ? `<div style="color:#198754; font-size:12px; line-height:1.45; margin-top:4px;">
+                      ${esc(pricing.discountName)}: originally ${money(
+                      pricing.originalUnitPrice
+                    )} each
+                    </div>`
+                  : ""
+              }
               ${
                 it?.description
                   ? `<div style="color:#6c757d; font-size:12px; line-height:1.45; margin-top:4px;">
@@ -96,9 +110,13 @@ const serviceRowsHtml = (items = []) =>
               ${serviceMediaHtml(it)}
             </td>
             <td style="padding:.65rem 14px; text-align:right;">${qty}</td>
-            <td style="padding:.65rem 14px; text-align:right;">${money(
-              price
-            )}</td>
+            <td style="padding:.65rem 14px; text-align:right;">${
+              pricing.hasDiscount
+                ? `<span style="color:#6c757d; text-decoration:line-through; display:block;">${money(
+                    pricing.originalUnitPrice
+                  )}</span><strong>${money(pricing.unitPrice)}</strong>`
+                : money(pricing.unitPrice)
+            }</td>
             <td style="padding:.65rem 14px; text-align:right; font-weight:700;">${money(
               amount
             )}</td>
@@ -188,9 +206,7 @@ export function buildContractHtml(inquiryArg) {
           ...events.map((ev) => {
             const eventItems = splitItems.byEvent[ev.id] || [];
             const eventSubtotal = eventItems.reduce(
-              (sum, it) =>
-                sum +
-                Number(it?.price || 0) * Math.max(0, Number(it?.quantity || 0)),
+              (sum, it) => sum + getLineTotal(it),
               0
             );
             return `<div style="border:1px solid #e9ecef; border-radius:12px; overflow:hidden; background:#fff; margin-bottom:12px;">
@@ -223,53 +239,15 @@ export function buildContractHtml(inquiryArg) {
         </div>`;
 
   // Totals (null-safe)
-  const subtotal = items.reduce(
-    (sum, it) =>
-      sum + Number(it?.price || 0) * Math.max(0, Number(it?.quantity || 0)),
-    0
-  );
-
-  const dType =
-    inquiry?.discountType === "percent" || inquiry?.discountType === "amount"
-      ? inquiry?.discountType
-      : "amount";
-
-  const dRaw =
-    inquiry?.discountType === "percent"
-      ? Number(inquiry?.discountValue || 0)
-      : inquiry?.discount != null
-      ? Number(inquiry?.discount || 0)
-      : Number(inquiry?.discountValue || 0) || 0;
-
-  const discountApplied =
-    dType === "percent"
-      ? Math.max(0, Math.min(100, dRaw)) * 0.01 * subtotal
-      : Math.max(0, dRaw);
-
-  const baseAfterDiscount = Math.max(0, subtotal - discountApplied);
-
-  const fType =
-    inquiry?.feeType === "percent" || inquiry?.feeType === "amount"
-      ? inquiry?.feeType
-      : "amount";
-  const fRaw = Number(inquiry?.feeValue || 0);
-
-  const feeApplied =
-    fType === "percent"
-      ? Math.max(0, Math.min(100, fRaw)) * 0.01 * baseAfterDiscount
-      : Math.max(0, fRaw);
-
-  const travel = Math.max(0, Number(inquiry?.travelAmount || 0));
-  const taxPercent = Math.max(
-    0,
-    Math.min(100, Number(inquiry?.taxPercent || 0))
-  );
-  const taxApplied = taxPercent * 0.01 * baseAfterDiscount;
-
-  const total = Math.max(
-    0,
-    baseAfterDiscount + feeApplied + travel + taxApplied
-  );
+  const {
+    subtotal,
+    discountApplied,
+    discountBreakdown,
+    feeApplied,
+    travel,
+    taxApplied,
+    total,
+  } = calcInquiryTotals(inquiry);
 
   const generatedAt = new Date().toLocaleString();
 
@@ -359,6 +337,18 @@ export function buildContractHtml(inquiryArg) {
                  </tr>`
               : ""
           }
+          ${discountBreakdown
+            .map(
+              (row) => `<tr>
+                   <td style="padding:.45rem 14px; color:#6c757d; font-size:13px;">${esc(
+                     row.name
+                   )}</td>
+                   <td style="padding:.45rem 14px; text-align:right; color:#6c757d; font-size:13px;">-${money(
+                     row.amount
+                   )}</td>
+                 </tr>`
+            )
+            .join("")}
           ${
             feeApplied > 0
               ? `<tr>

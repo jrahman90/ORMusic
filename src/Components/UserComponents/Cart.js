@@ -24,13 +24,15 @@ import { useNavigate } from "react-router-dom";
 import db from "../../api/firestore/firestore";
 import { to12h, prettyDate } from "../../utils/formatters";
 import emailjs from "@emailjs/browser";
+import {
+  calcInquiryTotals,
+  captureItemPricing,
+  getItemPricing,
+  getLineTotal,
+  money,
+} from "../../utils/pricing";
 
 /* ---------- Helpers ---------- */
-const money = (v) =>
-  new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(
-    Number(v || 0)
-  );
-
 const emailOk = (v) => /\S+@\S+\.\S+/.test(String(v || "").trim());
 const minLen = (v, n) => String(v || "").trim().length >= n;
 const makeEventId = () =>
@@ -49,9 +51,13 @@ const formatItemsForEmail = (items = []) => {
   return (items || [])
     .map((it) => {
       const qty = Number(it.quantity || 0);
-      const price = Number(it.price || 0);
-      const line = qty * price;
-      return `${it.name} (x${qty}) @ ${money(price)} = ${money(line)}`;
+      const pricing = getItemPricing(it);
+      const discount = pricing.hasDiscount
+        ? ` (${pricing.discountName}: -${money(pricing.unitDiscount)} each)`
+        : "";
+      return `${it.name} (x${qty}) @ ${money(pricing.unitPrice)}${discount} = ${money(
+        getLineTotal(it, qty)
+      )}`;
     })
     .join("\n");
 };
@@ -178,9 +184,13 @@ const formatItemsByEventForEmail = (items = [], events = []) => {
         eventLabel(eventMap.get(eventId)),
         ...group.map((it) => {
           const qty = Number(it.quantity || 0);
-          const price = Number(it.price || 0);
-          const line = qty * price;
-          return `- ${it.name} (x${qty}) @ ${money(price)} = ${money(line)}`;
+          const pricing = getItemPricing(it);
+          const discount = pricing.hasDiscount
+            ? ` (${pricing.discountName}: -${money(pricing.unitDiscount)} each)`
+            : "";
+          return `- ${it.name} (x${qty}) @ ${money(
+            pricing.unitPrice
+          )}${discount} = ${money(getLineTotal(it, qty))}`;
         }),
       ].join("\n");
     });
@@ -191,9 +201,13 @@ const formatItemsByEventForEmail = (items = [], events = []) => {
         "Unassigned services",
         ...unassigned.map((it) => {
           const qty = Number(it.quantity || 0);
-          const price = Number(it.price || 0);
-          const line = qty * price;
-          return `- ${it.name} (x${qty}) @ ${money(price)} = ${money(line)}`;
+          const pricing = getItemPricing(it);
+          const discount = pricing.hasDiscount
+            ? ` (${pricing.discountName}: -${money(pricing.unitDiscount)} each)`
+            : "";
+          return `- ${it.name} (x${qty}) @ ${money(
+            pricing.unitPrice
+          )}${discount} = ${money(getLineTotal(it, qty))}`;
         }),
       ].join("\n")
     );
@@ -546,12 +560,16 @@ const Cart = ({ items, setItems }) => {
 
       const eventsForSubmit = normalizedEvents;
       const eventIds = new Set(eventsForSubmit.map((ev) => ev.id));
-      const itemsForSubmit = (items || []).map((item) => ({
-        ...item,
-        eventAllocations: normalizeAllocations(item, eventsForSubmit),
-        eventId:
-          item.eventId && eventIds.has(item.eventId) ? item.eventId : "",
-      }));
+      const itemsForSubmit = (items || []).map((item) => {
+        const pricingFields = captureItemPricing(item);
+        return {
+          ...item,
+          ...pricingFields,
+          eventAllocations: normalizeAllocations(item, eventsForSubmit),
+          eventId:
+            item.eventId && eventIds.has(item.eventId) ? item.eventId : "",
+        };
+      });
 
       const inquiriesRef = collection(db, "inquiries");
       await addDoc(inquiriesRef, {
@@ -612,12 +630,8 @@ const Cart = ({ items, setItems }) => {
   }, []);
 
   /* ---------- Totals ---------- */
-  const total = useMemo(() => {
-    return (items || []).reduce(
-      (sum, it) => sum + Number(it.price || 0) * Number(it.quantity || 0),
-      0
-    );
-  }, [items]);
+  const cartTotals = useMemo(() => calcInquiryTotals({ items }), [items]);
+  const total = cartTotals.total;
 
   const canSubmit =
     (items || []).length > 0 &&
@@ -870,6 +884,7 @@ const Cart = ({ items, setItems }) => {
                       item,
                       normalizedEvents
                     );
+                    const pricing = getItemPricing(item);
                     const assigned = allocations.reduce(
                       (sum, row) => sum + row.quantity,
                       0
@@ -884,7 +899,10 @@ const Cart = ({ items, setItems }) => {
                             <div className="fw-semibold">{item.name}</div>
                             <div className="text-muted small">
                               Total qty {totalQty} ·{" "}
-                              {money(Number(item.price || 0) * totalQty)}
+                              {money(getLineTotal(item, totalQty))}
+                              {pricing.hasDiscount
+                                ? ` after ${pricing.discountName}`
+                                : ""}
                             </div>
                             <div
                               className={
@@ -963,6 +981,7 @@ const Cart = ({ items, setItems }) => {
         (items || []).map((item) => {
           const media = Array.isArray(item.media) ? item.media : [];
           const cover = media[0];
+          const pricing = getItemPricing(item);
           return (
             <Card key={item.id} className="mb-3 shadow-sm border-0">
               <Row className="g-0">
@@ -1029,7 +1048,21 @@ const Cart = ({ items, setItems }) => {
                   <Card.Body className="h-100 d-flex flex-column">
                     <div className="d-flex justify-content-between align-items-start">
                       <Card.Title className="mb-1">{item.name}</Card.Title>
-                      <Badge bg="dark">{money(item.price)}</Badge>
+                      <div className="text-end">
+                        {pricing.hasDiscount ? (
+                          <div className="small text-muted text-decoration-line-through">
+                            {money(pricing.originalUnitPrice)}
+                          </div>
+                        ) : null}
+                        <Badge bg={pricing.hasDiscount ? "success" : "dark"}>
+                          {money(pricing.unitPrice)}
+                        </Badge>
+                        {pricing.hasDiscount ? (
+                          <div className="small text-success mt-1">
+                            {pricing.discountName}
+                          </div>
+                        ) : null}
+                      </div>
                     </div>
 
                     {item.description ? (
@@ -1090,9 +1123,15 @@ const Cart = ({ items, setItems }) => {
 
                     <div className="mt-2 small text-muted">
                       Line total:{" "}
-                      {money(
-                        Number(item.price || 0) * Number(item.quantity || 0)
-                      )}
+                      {money(getLineTotal(item))}
+                      {pricing.hasDiscount ? (
+                        <>
+                          {" "}
+                          <span className="text-success">
+                            saved {money(pricing.unitDiscount * Number(item.quantity || 0))}
+                          </span>
+                        </>
+                      ) : null}
                     </div>
                   </Card.Body>
                 </Col>
@@ -1134,24 +1173,31 @@ const Cart = ({ items, setItems }) => {
             <hr />
             <div className="fw-semibold mb-2">Selected services</div>
             <ListGroup>
-              {(items || []).map((item) => (
-                <ListGroup.Item
-                  key={`review-${item.id}`}
-                  className="d-flex justify-content-between align-items-start gap-3"
-                >
-                  <span>
-                    <span className="fw-semibold">
-                      {item.name} x {item.quantity}
+              {(items || []).map((item) => {
+                const pricing = getItemPricing(item);
+                return (
+                  <ListGroup.Item
+                    key={`review-${item.id}`}
+                    className="d-flex justify-content-between align-items-start gap-3"
+                  >
+                    <span>
+                      <span className="fw-semibold">
+                        {item.name} x {item.quantity}
+                      </span>
+                      <div className="text-muted small">
+                        {allocationSummary(item, normalizedEvents)}
+                      </div>
+                      {pricing.hasDiscount ? (
+                        <div className="text-success small">
+                          {pricing.discountName}: {money(pricing.unitPrice)} each,
+                          originally {money(pricing.originalUnitPrice)}
+                        </div>
+                      ) : null}
                     </span>
-                    <div className="text-muted small">
-                      {allocationSummary(item, normalizedEvents)}
-                    </div>
-                  </span>
-                  <span>
-                    {money(Number(item.price || 0) * Number(item.quantity || 0))}
-                  </span>
-                </ListGroup.Item>
-              ))}
+                    <span>{money(getLineTotal(item))}</span>
+                  </ListGroup.Item>
+                );
+              })}
             </ListGroup>
           </Card.Body>
         </Card>
@@ -1159,9 +1205,28 @@ const Cart = ({ items, setItems }) => {
 
       {(items || []).length > 0 && (
         <Card className="mb-3 border-0 shadow-sm">
-          <Card.Body className="d-flex justify-content-between align-items-center">
-            <div className="fw-semibold">Cart total</div>
-            <div className="fs-5">{money(total)}</div>
+          <Card.Body>
+            <div className="d-flex justify-content-between align-items-center">
+              <div className="fw-semibold">Cart total</div>
+              <div className="fs-5">{money(total)}</div>
+            </div>
+            {cartTotals.discountApplied > 0 ? (
+              <div className="mt-2 small">
+                <div className="d-flex justify-content-between text-muted">
+                  <span>Original subtotal</span>
+                  <span>{money(cartTotals.subtotal)}</span>
+                </div>
+                {cartTotals.discountBreakdown.map((row) => (
+                  <div
+                    className="d-flex justify-content-between text-success"
+                    key={`${row.type}-${row.name}`}
+                  >
+                    <span>{row.name}</span>
+                    <span>-{money(row.amount)}</span>
+                  </div>
+                ))}
+              </div>
+            ) : null}
           </Card.Body>
         </Card>
       )}

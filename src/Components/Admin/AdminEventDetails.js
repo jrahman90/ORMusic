@@ -46,6 +46,13 @@ import {
 } from "../../utils/formatters";
 import ContractModal from "../contracts/ContractModal";
 import InquiryItineraries from "../Itineraries/InquiryItineraries";
+import {
+  calcInquiryTotals,
+  captureItemPricing,
+  getItemPricing,
+  getLineTotal,
+  money,
+} from "../../utils/pricing";
 
 const STATUS_OPTIONS = [
   "Processing",
@@ -66,16 +73,10 @@ const EVENT_DETAIL_TABS = [
   { key: "activity", label: "Activity" },
 ];
 
-const money = (value) =>
-  new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-  }).format(Number(value || 0));
-
 const catalogOptionLabel = (item = {}) =>
   `${item.name || "Unnamed item"}${
-    item.price != null ? `, ${money(item.price)}` : ""
-  }`;
+    item.price != null ? `, ${money(getItemPricing(item).unitPrice)}` : ""
+  }${getItemPricing(item).hasDiscount ? ` (${getItemPricing(item).discountName})` : ""}`;
 
 const splitCatalogGroups = (catalog = []) => {
   const groups = {
@@ -206,52 +207,7 @@ const formatTimeRange = (event = {}) => {
 };
 
 const calcTotals = (inquiry = {}) => {
-  const items = Array.isArray(inquiry.items) ? inquiry.items : [];
-  const subtotal = items.reduce(
-    (sum, item) =>
-      sum + Number(item.price || 0) * Math.max(0, Number(item.quantity || 0)),
-    0
-  );
-  const discountType =
-    inquiry.discountType === "percent" || inquiry.discountType === "amount"
-      ? inquiry.discountType
-      : "amount";
-  const discountRaw =
-    inquiry.discountType === "percent"
-      ? Number(inquiry.discountValue || 0)
-      : inquiry.discount != null
-      ? Number(inquiry.discount || 0)
-      : Number(inquiry.discountValue || 0) || 0;
-  const discountApplied =
-    discountType === "percent"
-      ? Math.max(0, Math.min(100, discountRaw)) * 0.01 * subtotal
-      : Math.max(0, discountRaw);
-  const baseAfterDiscount = Math.max(0, subtotal - discountApplied);
-  const feeType =
-    inquiry.feeType === "percent" || inquiry.feeType === "amount"
-      ? inquiry.feeType
-      : "amount";
-  const feeRaw = Number(inquiry.feeValue || 0);
-  const feeApplied =
-    feeType === "percent"
-      ? Math.max(0, Math.min(100, feeRaw)) * 0.01 * baseAfterDiscount
-      : Math.max(0, feeRaw);
-  const travel = Math.max(0, Number(inquiry.travelAmount || 0));
-  const taxPercent = Math.max(0, Math.min(100, Number(inquiry.taxPercent || 0)));
-  const taxApplied = taxPercent * 0.01 * baseAfterDiscount;
-  const total = Math.max(
-    0,
-    baseAfterDiscount + feeApplied + travel + taxApplied
-  );
-  return {
-    subtotal,
-    discountApplied,
-    baseAfterDiscount,
-    feeApplied,
-    travel,
-    taxApplied,
-    total,
-  };
+  return calcInquiryTotals(inquiry);
 };
 
 const sumDeposits = (inquiry = {}) =>
@@ -316,6 +272,7 @@ const buildFinanceDraft = (inquiry = {}) => {
   return {
     discountType,
     discountValue,
+    discountName: inquiry.discountName || "Manual discount",
     taxPercent: Number(inquiry.taxPercent || 0),
     travelAmount: Number(inquiry.travelAmount || 0),
     feeType,
@@ -469,7 +426,7 @@ export default function AdminEventDetails() {
           ...item,
           sourceIndex: index,
           assignedQuantity,
-          lineTotal: Number(item.price || 0) * assignedQuantity,
+          lineTotal: getLineTotal(item, assignedQuantity),
         };
       })
       .filter((item) => item.assignedQuantity > 0);
@@ -479,8 +436,7 @@ export default function AdminEventDetails() {
     const totalsById = new Map(events.map((row) => [row.id, 0]));
     (Array.isArray(inquiry?.items) ? inquiry.items : []).forEach((item) => {
       normalizeAllocations(item, events).forEach((allocation) => {
-        const lineTotal =
-          Number(item.price || 0) * Math.max(0, Number(allocation.quantity || 0));
+        const lineTotal = getLineTotal(item, allocation.quantity);
         totalsById.set(
           allocation.eventId,
           (totalsById.get(allocation.eventId) || 0) + lineTotal
@@ -794,14 +750,19 @@ export default function AdminEventDetails() {
     const type =
       financeDraft.discountType === "percent" ? "percent" : "amount";
     const valueNum = Number(financeDraft.discountValue || 0);
+    const discountName =
+      String(financeDraft.discountName || "Manual discount").trim() ||
+      "Manual discount";
     const payload =
       type === "percent"
         ? {
+            discountName,
             discountType: "percent",
             discountValue: Math.max(0, Math.min(100, valueNum)),
             discount: 0,
           }
         : {
+            discountName,
             discountType: "amount",
             discountValue: Math.max(0, valueNum),
             discount: Math.max(0, valueNum),
@@ -873,17 +834,21 @@ export default function AdminEventDetails() {
     try {
       setSaving(true);
       const eventIds = new Set(events.map((row) => row.id));
-      const clean = nextItems.map((item) => ({
-        id: item.id,
-        name: item.name,
-        description: item.description || "",
-        price: Number(item.price || 0),
-        quantity: Math.max(0, Number(item.quantity || 0)),
-        categories: Array.isArray(item.categories) ? item.categories : [],
-        media: Array.isArray(item.media) ? item.media : [],
-        eventId: item.eventId && eventIds.has(item.eventId) ? item.eventId : "",
-        eventAllocations: normalizeAllocations(item, events),
-      }));
+      const clean = nextItems.map((item) => {
+        const pricingFields = captureItemPricing(item);
+        return {
+          id: item.id,
+          name: item.name,
+          description: item.description || "",
+          ...pricingFields,
+          quantity: Math.max(0, Number(item.quantity || 0)),
+          categories: Array.isArray(item.categories) ? item.categories : [],
+          media: Array.isArray(item.media) ? item.media : [],
+          eventId:
+            item.eventId && eventIds.has(item.eventId) ? item.eventId : "",
+          eventAllocations: normalizeAllocations(item, events),
+        };
+      });
       await updateDoc(doc(db, "inquiries", inquiry.id), { items: clean });
     } catch (error) {
       console.error("Items update failed:", error);
@@ -907,8 +872,8 @@ export default function AdminEventDetails() {
     const draft = itemDrafts[index] || {};
     const items = [...(Array.isArray(inquiry?.items) ? inquiry.items : [])];
     const next = { ...items[index] };
-    next.price = Number(draft.price || 0);
-    next.quantity = Math.max(0, Number(draft.quantity || 0));
+    next.price = Number(draft.price ?? next.price ?? 0);
+    next.quantity = Math.max(0, Number(draft.quantity ?? next.quantity ?? 0));
     if (draft.eventId != null) {
       next.eventId = draft.eventId;
       next.eventAllocations = draft.eventId
@@ -940,6 +905,12 @@ export default function AdminEventDetails() {
         name: "",
         description: "",
         price: "",
+        originalPrice: "",
+        discountEnabled: false,
+        discountName: "",
+        discountType: "amount",
+        discountValue: 0,
+        discountAmount: 0,
         quantity: current.quantity || 1,
         categories: [],
       }));
@@ -952,7 +923,7 @@ export default function AdminEventDetails() {
       pickId: rentalId,
       name: picked.name || "",
       description: picked.description || "",
-      price: picked.price != null ? String(picked.price) : "",
+      ...captureItemPricing(picked),
       quantity: current.quantity || 1,
       categories: Array.isArray(picked.categories) ? picked.categories : [],
     }));
@@ -972,7 +943,7 @@ export default function AdminEventDetails() {
       id: crypto.randomUUID?.() || String(Date.now()),
       name: addDraft.name,
       description: addDraft.description || "",
-      price: Number(addDraft.price || 0),
+      ...captureItemPricing(addDraft),
       quantity,
       categories: Array.isArray(addDraft.categories) ? addDraft.categories : [],
       media,
@@ -1462,25 +1433,42 @@ export default function AdminEventDetails() {
                 </div>
               ) : (
                 <div className="admin-event-services-read">
-                  {eventItems.map((item, index) => (
-                    <article key={`${item.id || item.name}-${index}`}>
-                      <div className="admin-event-service-icon">
-                        <Package size={20} />
-                      </div>
-                      <div className="admin-event-service-main">
-                        <div className="admin-event-service-topline">
-                          <h3>{item.name || "Unnamed service"}</h3>
-                          <strong>{money(item.lineTotal)}</strong>
+                  {eventItems.map((item, index) => {
+                    const pricing = getItemPricing(item);
+                    return (
+                      <article key={`${item.id || item.name}-${index}`}>
+                        <div className="admin-event-service-icon">
+                          <Package size={20} />
                         </div>
-                        {item.description ? <p>{item.description}</p> : null}
-                        <div className="admin-event-service-meta">
-                          <span>Qty {item.assignedQuantity}</span>
-                          <span>{money(item.price)} each</span>
-                          <span>{eventLabel(event)}</span>
+                        <div className="admin-event-service-main">
+                          <div className="admin-event-service-topline">
+                            <h3>{item.name || "Unnamed service"}</h3>
+                            <strong>{money(item.lineTotal)}</strong>
+                          </div>
+                          {item.description ? <p>{item.description}</p> : null}
+                          <div className="admin-event-service-meta">
+                            <span>Qty {item.assignedQuantity}</span>
+                            <span>
+                              {pricing.hasDiscount ? (
+                                <>
+                                  <span className="text-decoration-line-through">
+                                    {money(pricing.originalUnitPrice)}
+                                  </span>{" "}
+                                  {money(pricing.unitPrice)} each
+                                </>
+                              ) : (
+                                `${money(pricing.unitPrice)} each`
+                              )}
+                            </span>
+                            {pricing.hasDiscount ? (
+                              <span>{pricing.discountName}</span>
+                            ) : null}
+                            <span>{eventLabel(event)}</span>
+                          </div>
                         </div>
-                      </div>
-                    </article>
-                  ))}
+                      </article>
+                    );
+                  })}
                 </div>
               )
             ) : (
@@ -1496,9 +1484,13 @@ export default function AdminEventDetails() {
                   );
                   const allocations = normalizeAllocations(item, events);
                   const draftAllocations = draft.allocations || {};
-                  const lineTotal =
-                    Number(draft.price ?? item.price ?? 0) *
-                    Number(draft.quantity ?? item.quantity ?? 0);
+                  const draftItem = {
+                    ...item,
+                    price: draft.price ?? item.price,
+                    quantity: draft.quantity ?? item.quantity,
+                  };
+                  const pricing = getItemPricing(draftItem);
+                  const lineTotal = getLineTotal(draftItem);
 
                   return (
                     <div key={`${item.id || item.name}-${index}`} className="admin-event-item-editor">
@@ -1580,7 +1572,7 @@ export default function AdminEventDetails() {
                             </Col>
                           ) : null}
                           <Col md={4}>
-                            <Form.Label className="mb-1">Price</Form.Label>
+                            <Form.Label className="mb-1">Unit price</Form.Label>
                             <InputGroup>
                               <InputGroup.Text>$</InputGroup.Text>
                               <Form.Control
@@ -1605,7 +1597,15 @@ export default function AdminEventDetails() {
                             />
                           </Col>
                           <Col md={5} className="admin-event-item-editor-actions">
-                            <span>{money(lineTotal)}</span>
+                            <span>
+                              {money(lineTotal)}
+                              {pricing.hasDiscount ? (
+                                <small className="d-block text-success">
+                                  {pricing.discountName}: originally{" "}
+                                  {money(pricing.originalUnitPrice)}
+                                </small>
+                              ) : null}
+                            </span>
                             <Button
                               size="sm"
                               onClick={() => submitItemRow(index)}
@@ -1671,7 +1671,7 @@ export default function AdminEventDetails() {
                   />
                 </Col>
                 <Col md={3}>
-                  <Form.Label>Price</Form.Label>
+                  <Form.Label>Unit price</Form.Label>
                   <InputGroup>
                     <InputGroup.Text>$</InputGroup.Text>
                     <Form.Control
@@ -1686,6 +1686,13 @@ export default function AdminEventDetails() {
                       disabled={saving}
                     />
                   </InputGroup>
+                  {getItemPricing(addDraft).hasDiscount ? (
+                    <div className="small text-success mt-1">
+                      {getItemPricing(addDraft).discountName}:{" "}
+                      {money(getItemPricing(addDraft).unitPrice)} each,
+                      originally {money(getItemPricing(addDraft).originalUnitPrice)}
+                    </div>
+                  ) : null}
                 </Col>
                 <Col md={2}>
                   <Form.Label>Qty</Form.Label>
@@ -1752,7 +1759,20 @@ export default function AdminEventDetails() {
             </div>
 
             <Row className="g-2 align-items-end">
-              <Col md={4}>
+              <Col md={3}>
+                <Form.Label>Discount name</Form.Label>
+                <Form.Control
+                  value={financeDraft.discountName || ""}
+                  onChange={(changeEvent) =>
+                    setFinanceDraft((current) => ({
+                      ...current,
+                      discountName: changeEvent.target.value,
+                    }))
+                  }
+                  disabled={saving}
+                />
+              </Col>
+              <Col md={3}>
                 <Form.Label>Discount type</Form.Label>
                 <Form.Select
                   value={financeDraft.discountType}
@@ -1768,7 +1788,7 @@ export default function AdminEventDetails() {
                   <option value="percent">Percent, %</option>
                 </Form.Select>
               </Col>
-              <Col md={4}>
+              <Col md={3}>
                 <Form.Label>Discount value</Form.Label>
                 <Form.Control
                   inputMode="decimal"
@@ -1782,7 +1802,7 @@ export default function AdminEventDetails() {
                   disabled={saving}
                 />
               </Col>
-              <Col md={4}>
+              <Col md={3}>
                 <Button className="w-100" onClick={saveDiscount} disabled={saving}>
                   Save discount
                 </Button>
@@ -1879,6 +1899,12 @@ export default function AdminEventDetails() {
                 <span>Discount</span>
                 <strong>{money(totals.discountApplied)}</strong>
               </div>
+              {totals.discountBreakdown.map((row) => (
+                <div key={`${row.type}-${row.name}`}>
+                  <span>{row.name}</span>
+                  <strong>-{money(row.amount)}</strong>
+                </div>
+              ))}
               <div>
                 <span>Processing fee</span>
                 <strong>{money(totals.feeApplied)}</strong>

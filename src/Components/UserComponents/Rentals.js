@@ -14,11 +14,7 @@ import {
 import { collection, getDocs } from "firebase/firestore";
 import { Link } from "react-router-dom";
 import db from "../../api/firestore/firestore";
-
-const money = (v) =>
-  new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(
-    Number(v || 0)
-  );
+import { captureItemPricing, getItemPricing, money } from "../../utils/pricing";
 
 /* ---------- Media ---------- */
 const MediaCarousel = ({ media = [], itemName = "OR Music Events service" }) => {
@@ -151,52 +147,69 @@ function SectionGrid({ title, items = [], onAddToCart }) {
       </div>
 
       <Row xs={1} sm={2} md={3} xl={4} className="g-3">
-        {items.map((item) => (
-          <Col key={`${title}-${item.id}`}>
-            <Card className="h-100 shadow-sm border-0">
-              {Array.isArray(item.media) && item.media.length > 0 ? (
-                <MediaCarousel media={item.media} itemName={item.name} />
-              ) : null}
-              <Card.Body className="d-flex flex-column">
-                <div className="d-flex justify-content-between align-items-start mb-2">
-                  <div>
-                    <Card.Title className="mb-0">{item.name}</Card.Title>
-                    <div className="d-flex flex-wrap gap-1 mt-1">
-                      {(Array.isArray(item.categories) ? item.categories : [])
-                        .length > 0 ? (
-                        item.categories.map((c) => (
-                          <Badge key={c} bg="info">
-                            {c}
-                          </Badge>
-                        ))
-                      ) : (
-                        <Badge bg="secondary">uncategorized</Badge>
-                      )}
+        {items.map((item) => {
+          const pricing = getItemPricing(item);
+          return (
+            <Col key={`${title}-${item.id}`}>
+              <Card className="h-100 shadow-sm border-0">
+                {Array.isArray(item.media) && item.media.length > 0 ? (
+                  <MediaCarousel media={item.media} itemName={item.name} />
+                ) : null}
+                <Card.Body className="d-flex flex-column">
+                  <div className="d-flex justify-content-between align-items-start mb-2 gap-2">
+                    <div>
+                      <Card.Title className="mb-0">{item.name}</Card.Title>
+                      <div className="d-flex flex-wrap gap-1 mt-1">
+                        {(Array.isArray(item.categories) ? item.categories : [])
+                          .length > 0 ? (
+                          item.categories.map((c) => (
+                            <Badge key={c} bg="info">
+                              {c}
+                            </Badge>
+                          ))
+                        ) : (
+                          <Badge bg="secondary">uncategorized</Badge>
+                        )}
+                      </div>
+                    </div>
+                    <div className="text-end">
+                      {pricing.hasDiscount ? (
+                        <div className="small text-muted text-decoration-line-through">
+                          {money(pricing.originalUnitPrice)}
+                        </div>
+                      ) : null}
+                      <Badge bg={pricing.hasDiscount ? "success" : "dark"}>
+                        {money(pricing.unitPrice)}
+                      </Badge>
+                      {pricing.hasDiscount ? (
+                        <div className="small text-success mt-1">
+                          {pricing.discountName}
+                        </div>
+                      ) : null}
                     </div>
                   </div>
-                  <Badge bg="dark">{money(item.price)}</Badge>
-                </div>
 
-                {item.description ? (
-                  <Card.Text className="text-muted" style={{ minHeight: 48 }}>
-                    {item.description}
-                  </Card.Text>
-                ) : (
-                  <div style={{ minHeight: 48 }} />
-                )}
+                  {item.description ? (
+                    <Card.Text className="text-muted" style={{ minHeight: 48 }}>
+                      {item.description}
+                    </Card.Text>
+                  ) : (
+                    <div style={{ minHeight: 48 }} />
+                  )}
 
-                <div className="mt-auto d-grid">
-                  <Button variant="primary" onClick={() => onAddToCart(item)}>
-                    Add to Cart
-                  </Button>
-                </div>
-              </Card.Body>
-              <Card.Footer className="text-muted small">
-                Prices listed are not final until confirmed.
-              </Card.Footer>
-            </Card>
-          </Col>
-        ))}
+                  <div className="mt-auto d-grid">
+                    <Button variant="primary" onClick={() => onAddToCart(item)}>
+                      Add to Cart
+                    </Button>
+                  </div>
+                </Card.Body>
+                <Card.Footer className="text-muted small">
+                  Prices listed are not final until confirmed.
+                </Card.Footer>
+              </Card>
+            </Col>
+          );
+        })}
       </Row>
     </>
   );
@@ -256,10 +269,11 @@ const Rentals = ({ addToCart }) => {
       if (idx > -1) {
         arr[idx].quantity = Number(arr[idx].quantity || 0) + 1;
       } else {
+        const pricingFields = captureItemPricing(item);
         arr.push({
           id: item.id,
           name: item.name,
-          price: item.price,
+          ...pricingFields,
           description: item.description || "",
           media: Array.isArray(item.media) ? item.media : [],
           quantity: 1,

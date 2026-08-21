@@ -30,6 +30,7 @@ import AdminEventDetails from "./Components/Admin/AdminEventDetails";
 import AdminYearReport from "./Components/Admin/AdminYearReport";
 import ItineraryEditorPage from "./Components/Itineraries/ItineraryEditorPage";
 import ItineraryPrintPage from "./Components/Itineraries/ItineraryPrintPage";
+import { captureItemPricing } from "./utils/pricing";
 
 const SITE_URL = "https://ormusicevents.com";
 const DEFAULT_SHARE_IMAGE = `${SITE_URL}/og-image.jpg`;
@@ -336,6 +337,7 @@ function App() {
 
   // add to cart, merge quantities
   const addToCart = (item) => {
+    const pricingFields = captureItemPricing(item);
     setCartItems((prev) => {
       const idx = prev.findIndex((p) => p.id === item.id);
       if (idx > -1) {
@@ -348,10 +350,11 @@ function App() {
         {
           id: item.id,
           name: item.name,
-          price: item.price,
+          ...pricingFields,
           description: item.description || "",
           media: Array.isArray(item.media) ? item.media : [],
           quantity: 1,
+          categories: Array.isArray(item.categories) ? item.categories : [],
         },
       ];
     });

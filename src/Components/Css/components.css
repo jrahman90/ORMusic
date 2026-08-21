@@ -1430,6 +1430,201 @@ ul {
     padding: 1rem;
 }
 
+.admin-rentals-page .admin-dashboard-header-actions .btn,
+.admin-rental-form-actions .btn,
+.admin-rental-row-actions .btn {
+    align-items: center;
+    display: inline-flex;
+    gap: .35rem;
+    justify-content: center;
+}
+
+.admin-rental-form-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .55rem;
+}
+
+.admin-rental-list {
+    display: grid;
+    gap: .75rem;
+}
+
+.admin-rental-row {
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.admin-rental-row.is-expanded {
+    border-color: rgba(51, 63, 148, .28);
+    box-shadow: 0 12px 28px rgba(17, 24, 39, .06);
+}
+
+.admin-rental-row-main {
+    align-items: center;
+    display: grid;
+    gap: .75rem;
+    grid-template-columns: minmax(0, 1fr) auto;
+    padding-right: .85rem;
+}
+
+.admin-rental-row-toggle {
+    align-items: center;
+    background: transparent;
+    border: 0;
+    color: inherit;
+    cursor: pointer;
+    display: grid;
+    gap: .75rem;
+    grid-template-columns: 64px minmax(0, 1fr) auto auto;
+    min-width: 0;
+    padding: .85rem;
+    text-align: left;
+    width: 100%;
+}
+
+.admin-rental-row-toggle:hover {
+    background: #f8fafc;
+}
+
+.admin-rental-row-toggle:focus-visible {
+    outline: 3px solid rgba(51, 63, 148, .28);
+    outline-offset: -3px;
+}
+
+.admin-rental-thumb {
+    align-items: center;
+    background: #eef2ff;
+    border: 1px solid rgba(51, 63, 148, .12);
+    border-radius: 8px;
+    color: var(--brand-blue);
+    display: flex;
+    height: 46px;
+    justify-content: center;
+    overflow: hidden;
+    width: 64px;
+}
+
+.admin-rental-thumb img,
+.admin-rental-thumb video,
+.admin-rental-media-grid img,
+.admin-rental-media-grid video {
+    height: 100%;
+    object-fit: cover;
+    width: 100%;
+}
+
+.admin-rental-summary {
+    display: grid;
+    gap: .25rem;
+    min-width: 0;
+}
+
+.admin-rental-summary strong {
+    color: #111827;
+    font-weight: 850;
+    line-height: 1.25;
+    overflow-wrap: anywhere;
+}
+
+.admin-rental-summary > span {
+    color: #64748b;
+    font-size: .82rem;
+    font-weight: 750;
+}
+
+.admin-rental-badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .35rem;
+}
+
+.admin-rental-price {
+    min-width: 118px;
+    text-align: right;
+}
+
+.admin-rental-price span,
+.admin-rental-price small {
+    color: #64748b;
+    display: block;
+    font-size: .76rem;
+    font-weight: 750;
+}
+
+.admin-rental-price strong {
+    color: #111827;
+    display: block;
+    font-size: 1rem;
+    font-weight: 900;
+}
+
+.admin-rental-price small {
+    color: #198754;
+    overflow-wrap: anywhere;
+}
+
+.admin-rental-chevron {
+    color: #64748b;
+    transition: transform 160ms ease;
+}
+
+.admin-rental-row.is-expanded .admin-rental-chevron {
+    transform: rotate(180deg);
+}
+
+.admin-rental-row-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .45rem;
+    justify-content: flex-end;
+}
+
+.admin-rental-details {
+    background: #f8fafc;
+    border-top: 1px solid #e5e7eb;
+    display: grid;
+    gap: 1rem;
+    grid-template-columns: minmax(0, .9fr) minmax(0, 1.1fr);
+    padding: .95rem;
+}
+
+.admin-rental-details span {
+    color: #64748b;
+    display: block;
+    font-size: .76rem;
+    font-weight: 850;
+    margin-bottom: .3rem;
+    text-transform: uppercase;
+}
+
+.admin-rental-details p {
+    color: #475569;
+    line-height: 1.5;
+    margin: 0;
+    overflow-wrap: anywhere;
+}
+
+.admin-rental-media-grid {
+    display: grid;
+    gap: .65rem;
+    grid-template-columns: repeat(auto-fit, minmax(128px, 1fr));
+}
+
+.admin-rental-media-grid > div {
+    display: grid;
+    gap: .45rem;
+}
+
+.admin-rental-media-grid img,
+.admin-rental-media-grid video {
+    aspect-ratio: 16 / 9;
+    background: #e5e7eb;
+    border-radius: 8px;
+}
+
 .admin-year-report {
     color: #111827;
 }
@@ -1788,6 +1983,93 @@ ul {
 
 .admin-dashboard-empty.compact {
     min-height: 88px;
+}
+
+.admin-payment-event-list {
+    display: grid;
+    gap: .65rem;
+}
+
+.admin-payment-event-card {
+    align-items: center;
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-left: 5px solid var(--event-accent);
+    border-radius: 8px;
+    color: #111827;
+    display: grid;
+    gap: .85rem;
+    grid-template-columns: minmax(0, 1.35fr) minmax(220px, .9fr) auto;
+    padding: .85rem;
+    text-decoration: none;
+}
+
+.admin-payment-event-card:hover {
+    border-color: var(--event-accent);
+    box-shadow: 0 10px 22px rgba(17, 24, 39, .08);
+    color: #111827;
+}
+
+.admin-payment-event-main {
+    display: grid;
+    gap: .12rem;
+    min-width: 0;
+}
+
+.admin-payment-event-main strong {
+    font-weight: 850;
+    line-height: 1.3;
+    overflow-wrap: anywhere;
+}
+
+.admin-payment-event-main span:not(.admin-pending-event-date) {
+    color: #64748b;
+    font-size: .86rem;
+    line-height: 1.35;
+    overflow-wrap: anywhere;
+}
+
+.admin-payment-event-money {
+    background: #f8fafc;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    display: grid;
+    gap: .28rem .5rem;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    min-width: 0;
+    padding: .55rem .65rem;
+}
+
+.admin-payment-event-money span {
+    color: #64748b;
+    font-size: .68rem;
+    font-weight: 850;
+    line-height: 1.1;
+    text-transform: uppercase;
+}
+
+.admin-payment-event-money strong {
+    color: #111827;
+    font-size: .86rem;
+    font-weight: 850;
+    line-height: 1.2;
+    overflow-wrap: anywhere;
+}
+
+.admin-payment-event-money strong.is-due {
+    color: #b45309;
+}
+
+.admin-payment-event-badges {
+    min-width: 136px;
+}
+
+.admin-payment-more {
+    color: #64748b;
+    font-size: .82rem;
+    font-weight: 700;
+    padding: .2rem;
+    text-align: center;
 }
 
 .admin-calendar-toolbar,
@@ -3830,6 +4112,10 @@ ul {
         padding-bottom: .15rem;
     }
 
+    .admin-dashboard .admin-dashboard-toolbar {
+        display: none;
+    }
+
     .admin-calendar-scroll {
         display: none;
     }
@@ -3964,6 +4250,9 @@ ul {
     .admin-report-header {
         grid-template-columns: 1fr;
     }
+    .admin-rentals-toolbar {
+        position: static;
+    }
     .admin-dashboard-header,
     .admin-report-header {
         align-items: stretch;
@@ -4019,6 +4308,42 @@ ul {
         white-space: normal;
         width: 100%;
     }
+    .admin-rental-form-actions,
+    .admin-rental-row-actions {
+        display: grid;
+        grid-template-columns: 1fr;
+    }
+    .admin-rental-form-actions .btn,
+    .admin-rental-row-actions .btn {
+        width: 100%;
+    }
+    .admin-rental-row-main,
+    .admin-rental-details {
+        grid-template-columns: 1fr;
+    }
+    .admin-rental-row-main {
+        padding-right: 0;
+    }
+    .admin-rental-row-toggle {
+        grid-template-columns: 54px minmax(0, 1fr) auto;
+        padding: .75rem;
+    }
+    .admin-rental-thumb {
+        height: 42px;
+        width: 54px;
+    }
+    .admin-rental-price {
+        grid-column: 2 / -1;
+        min-width: 0;
+        text-align: left;
+    }
+    .admin-rental-row-actions {
+        border-top: 1px solid #e5e7eb;
+        padding: .75rem;
+    }
+    .admin-rental-details {
+        padding: .85rem;
+    }
     .admin-calendar-toolbar,
     .admin-upcoming-heading {
         align-items: stretch;
@@ -4043,6 +4368,14 @@ ul {
     .admin-upcoming-card-top {
         align-items: stretch;
         flex-direction: column;
+    }
+    .admin-payment-event-card {
+        align-items: stretch;
+        grid-template-columns: 1fr;
+    }
+    .admin-payment-event-badges {
+        justify-content: flex-start;
+        min-width: 0;
     }
     .admin-pending-event-card {
         align-items: stretch;

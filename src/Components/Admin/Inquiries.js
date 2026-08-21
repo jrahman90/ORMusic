@@ -32,16 +32,18 @@ import {
 } from "../../utils/formatters";
 import ContractModal from "../contracts/ContractModal";
 import InquiryItineraries from "../Itineraries/InquiryItineraries";
-
-const money = (v) =>
-  new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(
-    Number(v || 0)
-  );
+import {
+  calcInquiryTotals,
+  captureItemPricing,
+  getItemPricing,
+  getLineTotal,
+  money,
+} from "../../utils/pricing";
 
 const catalogOptionLabel = (item = {}) =>
   `${item.name || "Unnamed item"}${
-    item.price != null ? `, ${money(item.price)}` : ""
-  }`;
+    item.price != null ? `, ${money(getItemPricing(item).unitPrice)}` : ""
+  }${getItemPricing(item).hasDiscount ? ` (${getItemPricing(item).discountName})` : ""}`;
 
 const splitCatalogGroups = (catalog = []) => {
   const groups = {
@@ -530,7 +532,11 @@ export default function Inquiries() {
                   : inq.discount != null
                   ? Number(inq.discount || 0)
                   : Number(inq.discountValue || 0) || 0;
-              next[inq.id] = { type, value };
+              next[inq.id] = {
+                name: inq.discountName || "Manual discount",
+                type,
+                value,
+              };
             }
           });
           return next;
@@ -668,12 +674,18 @@ export default function Inquiries() {
         ...s,
         [inqId]: {
           ...(s[inqId] || {}),
-          pickId: "__custom__",
-          name: "",
-          description: "",
-          price: "",
-          quantity: s[inqId]?.quantity || 1,
-          categories: [],
+        pickId: "__custom__",
+        name: "",
+        description: "",
+        price: "",
+        originalPrice: "",
+        discountEnabled: false,
+        discountName: "",
+        discountType: "amount",
+        discountValue: 0,
+        discountAmount: 0,
+        quantity: s[inqId]?.quantity || 1,
+        categories: [],
         },
       }));
       return;
@@ -687,7 +699,7 @@ export default function Inquiries() {
         pickId: rentalId,
         name: picked.name || "",
         description: picked.description || "",
-        price: picked.price != null ? String(picked.price) : "",
+        ...captureItemPricing(picked),
         quantity: s[inqId]?.quantity || 1,
         categories: Array.isArray(picked.categories) ? picked.categories : [],
       },
@@ -696,52 +708,7 @@ export default function Inquiries() {
 
   // totals math
   const calcTotals = (inq) => {
-    const items = Array.isArray(inq.items) ? inq.items : [];
-    const subtotal = items.reduce(
-      (sum, it) =>
-        sum + Number(it.price || 0) * Math.max(0, Number(it.quantity || 0)),
-      0
-    );
-    const dType =
-      inq.discountType === "percent" || inq.discountType === "amount"
-        ? inq.discountType
-        : "amount";
-    const dRaw =
-      inq.discountType === "percent"
-        ? Number(inq.discountValue || 0)
-        : inq.discount != null
-        ? Number(inq.discount || 0)
-        : Number(inq.discountValue || 0) || 0;
-    const discountApplied =
-      dType === "percent"
-        ? Math.max(0, Math.min(100, dRaw)) * 0.01 * subtotal
-        : Math.max(0, dRaw);
-    const baseAfterDiscount = Math.max(0, subtotal - discountApplied);
-    const fType =
-      inq.feeType === "percent" || inq.feeType === "amount"
-        ? inq.feeType
-        : "amount";
-    const fRaw = Number(inq.feeValue || 0);
-    const feeApplied =
-      fType === "percent"
-        ? Math.max(0, Math.min(100, fRaw)) * 0.01 * baseAfterDiscount
-        : Math.max(0, fRaw);
-    const travel = Math.max(0, Number(inq.travelAmount || 0));
-    const taxPercent = Math.max(0, Math.min(100, Number(inq.taxPercent || 0)));
-    const taxApplied = taxPercent * 0.01 * baseAfterDiscount;
-    const total = Math.max(
-      0,
-      baseAfterDiscount + feeApplied + travel + taxApplied
-    );
-    return {
-      subtotal,
-      discountApplied,
-      baseAfterDiscount,
-      feeApplied,
-      travel,
-      taxApplied,
-      total,
-    };
+    return calcInquiryTotals(inq);
   };
 
   // deposits helpers
@@ -830,14 +797,18 @@ export default function Inquiries() {
           ? draft.type
           : "amount";
       const valueNum = Number(draft.value || 0);
+      const discountName =
+        String(draft.name || "Manual discount").trim() || "Manual discount";
       const payload =
         type === "percent"
           ? {
+              discountName,
               discountType: "percent",
               discountValue: Math.max(0, Math.min(100, valueNum)),
               discount: 0,
             }
           : {
+              discountName,
               discountType: "amount",
               discountValue: Math.max(0, valueNum),
               discount: Math.max(0, valueNum),
@@ -902,17 +873,23 @@ export default function Inquiries() {
     try {
       setSavingFlag(inq.id, true);
       const eventIds = new Set(normalizeEvents(inq.events).map((ev) => ev.id));
-      const clean = nextItems.map((it) => ({
-        id: it.id,
-        name: it.name,
-        description: it.description || "",
-        price: Number(it.price || 0),
-        quantity: Math.max(0, Number(it.quantity || 0)),
-        categories: Array.isArray(it.categories) ? it.categories : [],
-        media: Array.isArray(it.media) ? it.media : [],
-        eventId: it.eventId && eventIds.has(it.eventId) ? it.eventId : "",
-        eventAllocations: normalizeAllocations(it, normalizeEvents(inq.events)),
-      }));
+      const clean = nextItems.map((it) => {
+        const pricingFields = captureItemPricing(it);
+        return {
+          id: it.id,
+          name: it.name,
+          description: it.description || "",
+          ...pricingFields,
+          quantity: Math.max(0, Number(it.quantity || 0)),
+          categories: Array.isArray(it.categories) ? it.categories : [],
+          media: Array.isArray(it.media) ? it.media : [],
+          eventId: it.eventId && eventIds.has(it.eventId) ? it.eventId : "",
+          eventAllocations: normalizeAllocations(
+            it,
+            normalizeEvents(inq.events)
+          ),
+        };
+      });
       await updateDoc(doc(db, "inquiries", inq.id), { items: clean });
     } catch (e) {
       console.error("Items update failed:", e);
@@ -925,8 +902,8 @@ export default function Inquiries() {
     const draft = itemDrafts[inq.id]?.[idx];
     const items = [...(inq.items || [])];
     const next = { ...items[idx] };
-    next.price = Number(draft?.price || 0);
-    next.quantity = Math.max(0, Number(draft?.quantity || 0));
+    next.price = Number(draft?.price ?? next.price ?? 0);
+    next.quantity = Math.max(0, Number(draft?.quantity ?? next.quantity ?? 0));
     if (draft?.eventId != null) {
       next.eventId = draft.eventId;
       next.eventAllocations = draft.eventId
@@ -971,7 +948,7 @@ export default function Inquiries() {
       id: draft.id || crypto.randomUUID?.() || String(Date.now()),
       name: draft.name,
       description: draft.description || "",
-      price: Number(draft.price || 0),
+      ...captureItemPricing(draft),
       quantity: Math.max(1, Number(draft.quantity || 1)),
       categories: Array.isArray(draft.categories) ? draft.categories : [],
       media,
@@ -1280,6 +1257,7 @@ export default function Inquiries() {
           const {
             subtotal,
             discountApplied,
+            discountBreakdown,
             baseAfterDiscount,
             feeApplied,
             travel,
@@ -1567,9 +1545,13 @@ export default function Inquiries() {
                                 ? item.media
                                 : [];
                               const cover = media[0];
-                              const lineTotal =
-                                Number(draft.price ?? item.price ?? 0) *
-                                Number(draft.quantity ?? item.quantity ?? 0);
+                              const draftItem = {
+                                ...item,
+                                price: draft.price ?? item.price,
+                                quantity: draft.quantity ?? item.quantity,
+                              };
+                              const pricing = getItemPricing(draftItem);
+                              const lineTotal = getLineTotal(draftItem);
                               const totalQty = Math.max(
                                 0,
                                 Number(draft.quantity ?? item.quantity ?? 0)
@@ -1604,9 +1586,16 @@ export default function Inquiries() {
                                       {item.name}
                                     </div>
                                     <Badge bg="light" text="dark">
-                                      {money(item.price)} x {item.quantity}
+                                      {money(pricing.unitPrice)} x{" "}
+                                      {item.quantity}
                                     </Badge>
                                   </div>
+                                  {pricing.hasDiscount ? (
+                                    <div className="text-success small mt-1">
+                                      {pricing.discountName}: originally{" "}
+                                      {money(pricing.originalUnitPrice)} each
+                                    </div>
+                                  ) : null}
 
                                   {item.description ? (
                                     <div className="text-muted small mt-1">
@@ -1698,7 +1687,7 @@ export default function Inquiries() {
                                     ) : null}
                                     <Col xs={6}>
                                       <Form.Label className="mb-0 small">
-                                        Price
+                                        Unit price
                                       </Form.Label>
                                       <InputGroup>
                                         <InputGroup.Text>$</InputGroup.Text>
@@ -1746,6 +1735,20 @@ export default function Inquiries() {
                                     <Col xs={12} className="d-flex gap-2 mt-1">
                                       <div className="ms-auto small text-muted">
                                         Line total: {money(lineTotal)}
+                                        {pricing.hasDiscount ? (
+                                          <span className="text-success">
+                                            {" "}
+                                            saved{" "}
+                                            {money(
+                                              pricing.unitDiscount *
+                                                Number(
+                                                  draft.quantity ??
+                                                    item.quantity ??
+                                                    0
+                                                )
+                                            )}
+                                          </span>
+                                        ) : null}
                                       </div>
                                     </Col>
                                     <Col
@@ -1832,7 +1835,7 @@ export default function Inquiries() {
                                     <Form.Control
                                       type="text"
                                       inputMode="decimal"
-                                      placeholder="Price"
+                                      placeholder="Unit price"
                                       value={adding[inq.id]?.price || ""}
                                       onChange={(e) =>
                                         setAddingField(
@@ -1905,6 +1908,26 @@ export default function Inquiries() {
                           <Accordion.Body className="pt-3">
                             {/* Discount */}
                             <Row className="g-2">
+                              <Col xs={12}>
+                                <Form.Label className="fw-semibold mb-1">
+                                  Discount name
+                                </Form.Label>
+                                <Form.Control
+                                  type="text"
+                                  placeholder="Manual discount"
+                                  value={discountDraft[inq.id]?.name ?? ""}
+                                  onChange={(e) =>
+                                    setDiscountDraft((s) => ({
+                                      ...s,
+                                      [inq.id]: {
+                                        ...(s[inq.id] || {}),
+                                        name: e.target.value,
+                                      },
+                                    }))
+                                  }
+                                  disabled={busy}
+                                />
+                              </Col>
                               <Col xs={12} sm={6}>
                                 <Form.Label className="fw-semibold mb-1">
                                   Discount type
@@ -2096,6 +2119,15 @@ export default function Inquiries() {
                                   <span>{money(discountApplied)}</span>
                                 </div>
                               )}
+                              {discountBreakdown.map((row) => (
+                                <div
+                                  className="d-flex justify-content-between text-muted"
+                                  key={`${row.type}-${row.name}`}
+                                >
+                                  <span>{row.name}</span>
+                                  <span>-{money(row.amount)}</span>
+                                </div>
+                              ))}
                               {feeApplied > 0 && (
                                 <div className="d-flex justify-content-between">
                                   <span>Processing fee</span>
@@ -2137,9 +2169,13 @@ export default function Inquiries() {
                           ? item.media
                           : [];
                         const cover = media[0];
-                        const lineTotal =
-                          Number(draft.price ?? item.price ?? 0) *
-                          Number(draft.quantity ?? item.quantity ?? 0);
+                        const draftItem = {
+                          ...item,
+                          price: draft.price ?? item.price,
+                          quantity: draft.quantity ?? item.quantity,
+                        };
+                        const pricing = getItemPricing(draftItem);
+                        const lineTotal = getLineTotal(draftItem);
                         const totalQty = Math.max(
                           0,
                           Number(draft.quantity ?? item.quantity ?? 0)
@@ -2172,12 +2208,30 @@ export default function Inquiries() {
                               )}
                               <div className="fw-semibold">{item.name}</div>
                               <Badge bg="light" text="dark">
-                                {money(item.price)} x {item.quantity}
+                                {money(pricing.unitPrice)} x {item.quantity}
                               </Badge>
                               <div className="ms-auto small text-muted">
                                 Line total: {money(lineTotal)}
+                                {pricing.hasDiscount ? (
+                                  <span className="text-success">
+                                    {" "}
+                                    saved{" "}
+                                    {money(
+                                      pricing.unitDiscount *
+                                        Number(
+                                          draft.quantity ?? item.quantity ?? 0
+                                        )
+                                    )}
+                                  </span>
+                                ) : null}
                               </div>
                             </div>
+                            {pricing.hasDiscount ? (
+                              <div className="text-success small mb-2">
+                                {pricing.discountName}: originally{" "}
+                                {money(pricing.originalUnitPrice)} each
+                              </div>
+                            ) : null}
 
                             {item.description ? (
                               <div className="text-muted small mb-2">
@@ -2267,7 +2321,7 @@ export default function Inquiries() {
                               ) : null}
                               <Col lg={5}>
                                 <Form.Label className="mb-0 small">
-                                  Price
+                                  Unit price
                                 </Form.Label>
                                 <InputGroup>
                                   <InputGroup.Text>$</InputGroup.Text>
@@ -2387,7 +2441,7 @@ export default function Inquiries() {
                           </Col>
 
                           <Col lg={3}>
-                            <Form.Label className="mb-1">Price</Form.Label>
+                            <Form.Label className="mb-1">Unit price</Form.Label>
                             <InputGroup>
                               <InputGroup.Text>$</InputGroup.Text>
                               <Form.Control
@@ -2468,7 +2522,27 @@ export default function Inquiries() {
 
                       {/* Charges desktop */}
                       <Row className="g-2 align-items-end">
-                        <Col lg={4}>
+                        <Col lg={3}>
+                          <Form.Label className="fw-semibold mb-1">
+                            Discount name
+                          </Form.Label>
+                          <Form.Control
+                            type="text"
+                            placeholder="Manual discount"
+                            value={discountDraft[inq.id]?.name ?? ""}
+                            onChange={(e) =>
+                              setDiscountDraft((s) => ({
+                                ...s,
+                                [inq.id]: {
+                                  ...(s[inq.id] || {}),
+                                  name: e.target.value,
+                                },
+                              }))
+                            }
+                            disabled={busy}
+                          />
+                        </Col>
+                        <Col lg={3}>
                           <Form.Label className="fw-semibold mb-1">
                             Discount type
                           </Form.Label>
@@ -2510,7 +2584,7 @@ export default function Inquiries() {
                             disabled={busy}
                           />
                         </Col>
-                        <Col lg={2} className="d-flex justify-content-end">
+                        <Col lg={3} className="d-flex justify-content-end">
                           <Button
                             size="sm"
                             className="text-nowrap"
@@ -2520,8 +2594,6 @@ export default function Inquiries() {
                             Save
                           </Button>
                         </Col>
-
-                        <Col lg={3} />
 
                         <Col lg={4}>
                           <Form.Label className="fw-semibold mb-1">
@@ -2651,6 +2723,14 @@ export default function Inquiries() {
                             Discount: {money(discountApplied)}
                           </div>
                         )}
+                        {discountBreakdown.map((row) => (
+                          <div
+                            className="small text-muted"
+                            key={`${row.type}-${row.name}`}
+                          >
+                            {row.name}: -{money(row.amount)}
+                          </div>
+                        ))}
                         {feeApplied > 0 && (
                           <div className="small text-muted">
                             Processing fee: {money(feeApplied)}

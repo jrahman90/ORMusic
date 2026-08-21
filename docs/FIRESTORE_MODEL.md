@@ -55,6 +55,7 @@ Common fields:
   contracts: Contract[],
 
   discountType: "amount" | "percent",
+  discountName: string,
   discountValue: number,
   discount: number,
   feeType: "amount" | "percent",
@@ -112,7 +113,13 @@ Stored in `inquiries/{inquiryId}.items`. These are copies of catalog items at th
   id: string,
   name: string,
   description: string,
-  price: number,
+  price: number,          // charged unit price captured at inquiry time
+  originalPrice: number,  // catalog/base unit price before item discount
+  discountEnabled: boolean,
+  discountName: string,
+  discountType: "amount" | "percent",
+  discountValue: number,
+  discountAmount: number, // per-unit item discount captured at inquiry time
   quantity: number,
   categories: string[],
   media: Media[],
@@ -187,7 +194,11 @@ Catalog item used by customer services/rentals and admin catalog management.
 {
   name: string,
   description: string,
-  price: number,
+  price: number, // original/base unit price
+  discountEnabled: boolean,
+  discountName: string,
+  discountType: "amount" | "percent",
+  discountValue: number,
   categories: string[],
   media: Media[],
   createdAt: number
@@ -195,6 +206,11 @@ Catalog item used by customer services/rentals and admin catalog management.
 ```
 
 `categories` drives grouping in admin and customer UIs. The current UI treats package and rental separation as category-driven.
+
+When a catalog discount is active, the app computes the discounted unit price
+from `price`, `discountType`, and `discountValue`. Cart and inquiry item copies
+store `originalPrice` plus the discounted `price`, so older inquiries keep the
+quote that was shown when the inquiry was submitted.
 
 Media is uploaded to Firebase Storage:
 

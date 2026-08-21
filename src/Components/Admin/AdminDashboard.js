@@ -31,6 +31,7 @@ import {
   ListFilter,
   MapPin,
   Plus,
+  ReceiptText,
   Search,
   Trash2,
   UsersRound,
@@ -38,6 +39,7 @@ import {
 import db, { functions as firebaseFunctions } from "../../api/firestore/firestore";
 import { buildIcsCalendar, downloadIcsFile } from "../../utils/calendar";
 import { prettyDate, to12h } from "../../utils/formatters";
+import { calcInquiryTotals, money } from "../../utils/pricing";
 
 const STATUS_OPTIONS = [
   "Processing",
@@ -138,6 +140,32 @@ const statusClass = (status = "Processing") =>
     .trim()
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")}`;
+
+const statusKey = (status = "") => String(status || "").trim().toLowerCase();
+
+const isCompletedStatus = (status = "") => statusKey(status) === "completed";
+
+const isClosedNoFollowUpStatus = (status = "") =>
+  ["cancelled", "rejected"].includes(statusKey(status));
+
+const sumDeposits = (inquiry = {}) =>
+  (Array.isArray(inquiry.deposits) ? inquiry.deposits : []).reduce(
+    (sum, deposit) => {
+      const amount = Number(deposit?.amount || 0);
+      return Number.isFinite(amount) ? sum + amount : sum;
+    },
+    0
+  );
+
+const getPaymentSummary = (inquiry = {}) => {
+  const total = calcInquiryTotals(inquiry).total;
+  const collected = sumDeposits(inquiry);
+  return {
+    total,
+    collected,
+    balance: Math.max(0, total - collected),
+  };
+};
 
 const formatTimeRange = (event) => {
   const start = event.startTime ? to12h(event.startTime) : "";
@@ -284,6 +312,7 @@ export default function AdminDashboard() {
             serviceNames: serviceNamesForEvent(inquiry, event, inquiryEvents),
             createdAt,
             status,
+            inquiry,
           };
         })
         .filter(Boolean);
@@ -435,6 +464,42 @@ export default function AdminDashboard() {
         .slice(0, 10),
     [allEvents]
   );
+  const pastFollowUpEvents = useMemo(() => {
+    const paymentByInquiry = new Map();
+    const paymentSummaryFor = (event) => {
+      if (!paymentByInquiry.has(event.inquiryId)) {
+        paymentByInquiry.set(event.inquiryId, getPaymentSummary(event.inquiry));
+      }
+      return paymentByInquiry.get(event.inquiryId);
+    };
+
+    return allEvents
+      .filter((event) => event.eventDate < todayStart)
+      .map((event) => {
+        const payment = paymentSummaryFor(event);
+        const hasBalanceDue = payment.balance > 0.009;
+        const needsStatusUpdate =
+          !isCompletedStatus(event.status) &&
+          !isClosedNoFollowUpStatus(event.status);
+
+        return {
+          ...event,
+          payment,
+          hasBalanceDue,
+          needsStatusUpdate,
+        };
+      })
+      .filter(
+        (event) =>
+          !isClosedNoFollowUpStatus(event.status) &&
+          (event.hasBalanceDue || event.needsStatusUpdate)
+      )
+      .sort((a, b) => {
+        if (a.dateKey !== b.dateKey) return b.dateKey.localeCompare(a.dateKey);
+        return eventSort(a, b);
+      });
+  }, [allEvents, todayStart]);
+  const visiblePastFollowUpEvents = pastFollowUpEvents.slice(0, 10);
 
   const pendingDays = (createdAt) => {
     if (!createdAt) return null;
@@ -737,6 +802,93 @@ export default function AdminDashboard() {
       ) : (
         <Row className="g-3 align-items-start">
           <Col xl={8}>
+            <section className="admin-dashboard-panel admin-attention-panel admin-payment-panel">
+              <div className="admin-calendar-toolbar">
+                <div>
+                  <div className="admin-calendar-label">
+                    <ReceiptText size={18} />
+                    Pending payment
+                  </div>
+                  <div className="text-muted small">
+                    Past events with a remaining balance or unfinished status
+                  </div>
+                </div>
+                <Badge
+                  bg={pastFollowUpEvents.length ? "danger" : "success"}
+                >
+                  {pastFollowUpEvents.length}
+                </Badge>
+              </div>
+
+              {pastFollowUpEvents.length === 0 ? (
+                <div className="admin-dashboard-empty compact">
+                  No past events need payment or status follow-up.
+                </div>
+              ) : (
+                <div className="admin-payment-event-list">
+                  {visiblePastFollowUpEvents.map((event) => (
+                    <Link
+                      key={`payment-${event.inquiryId}-${event.id}`}
+                      to={eventDetailsPath(event)}
+                      className={`admin-payment-event-card ${statusClass(
+                        event.status
+                      )}`}
+                    >
+                      <div className="admin-payment-event-main">
+                        <span className="admin-pending-event-date">
+                          {prettyDate(event.dateKey)}
+                        </span>
+                        <strong>{event.clientName}</strong>
+                        <span>
+                          {event.type || "Event"}
+                          {event.venue ? `, ${event.venue}` : ""}
+                        </span>
+                      </div>
+
+                      <div className="admin-payment-event-money">
+                        <span>Total</span>
+                        <span>Collected</span>
+                        <span>Balance</span>
+                        <strong>{money(event.payment.total)}</strong>
+                        <strong>{money(event.payment.collected)}</strong>
+                        <strong className={event.hasBalanceDue ? "is-due" : ""}>
+                          {money(event.payment.balance)}
+                        </strong>
+                      </div>
+
+                      <div className="admin-pending-event-badges admin-payment-event-badges">
+                        <span
+                          className={`admin-status-badge ${statusClass(
+                            event.status
+                          )}`}
+                        >
+                          {event.status}
+                        </span>
+                        {event.hasBalanceDue ? (
+                          <Badge bg="warning" text="dark">
+                            Payment due
+                          </Badge>
+                        ) : (
+                          <Badge bg="success">Paid</Badge>
+                        )}
+                        {event.needsStatusUpdate ? (
+                          <Badge bg="secondary">Update status</Badge>
+                        ) : null}
+                      </div>
+                    </Link>
+                  ))}
+
+                  {pastFollowUpEvents.length > visiblePastFollowUpEvents.length ? (
+                    <div className="admin-payment-more">
+                      Showing {visiblePastFollowUpEvents.length} of{" "}
+                      {pastFollowUpEvents.length}. Open events to collect
+                      payment or mark completed.
+                    </div>
+                  ) : null}
+                </div>
+              )}
+            </section>
+
             <section className="admin-dashboard-panel admin-attention-panel">
               <div className="admin-calendar-toolbar">
                 <div>

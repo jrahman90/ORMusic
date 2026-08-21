@@ -18,11 +18,13 @@ import {
 } from "../../utils/formatters";
 import ContractModal from "../contracts/ContractModal";
 import InquiryItineraries from "../Itineraries/InquiryItineraries";
-
-const money = (v) =>
-  new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(
-    Number(v || 0)
-  );
+import {
+  calcInquiryTotals,
+  captureItemPricing,
+  getItemPricing,
+  getLineTotal,
+  money,
+} from "../../utils/pricing";
 
 const makeEventId = () =>
   crypto.randomUUID?.() || `event-${Date.now()}-${Math.random()}`;
@@ -198,69 +200,7 @@ const InquiryTimeline = ({ inquiry }) => {
 
 // math matches admin, deposits are not included in totals
 const calcTotals = (inquiry) => {
-  const items = Array.isArray(inquiry.items) ? inquiry.items : [];
-  const subtotal = items.reduce(
-    (sum, it) =>
-      sum + Number(it.price || 0) * Math.max(0, Number(it.quantity || 0)),
-    0
-  );
-
-  const dType =
-    inquiry.discountType === "percent" || inquiry.discountType === "amount"
-      ? inquiry.discountType
-      : inquiry.discount != null
-      ? "amount"
-      : "amount";
-  const dRaw =
-    inquiry.discountType === "percent"
-      ? Number(inquiry.discountValue || 0)
-      : inquiry.discount != null
-      ? Number(inquiry.discount || 0)
-      : Number(inquiry.discountValue || 0) || 0;
-  const discountApplied =
-    dType === "percent"
-      ? Math.max(0, Math.min(100, dRaw)) * 0.01 * subtotal
-      : Math.max(0, dRaw);
-
-  const baseAfterDiscount = Math.max(0, subtotal - discountApplied);
-
-  const fType =
-    inquiry.feeType === "percent" || inquiry.feeType === "amount"
-      ? inquiry.feeType
-      : "amount";
-  const fRaw = Number(inquiry.feeValue || 0);
-  const feeApplied =
-    fType === "percent"
-      ? Math.max(0, Math.min(100, fRaw)) * 0.01 * baseAfterDiscount
-      : Math.max(0, fRaw);
-
-  const travel = Math.max(0, Number(inquiry.travelAmount || 0));
-
-  const taxPercent = Math.max(
-    0,
-    Math.min(100, Number(inquiry.taxPercent || 0))
-  );
-  const taxApplied = taxPercent * 0.01 * baseAfterDiscount;
-
-  const total = Math.max(
-    0,
-    baseAfterDiscount + feeApplied + travel + taxApplied
-  );
-
-  return {
-    subtotal,
-    discountApplied,
-    baseAfterDiscount,
-    feeApplied,
-    travel,
-    taxApplied,
-    total,
-    dType,
-    dRaw,
-    fType,
-    fRaw,
-    taxPercent,
-  };
+  return calcInquiryTotals(inquiry);
 };
 
 const sumDeposits = (inquiry) =>
@@ -511,16 +451,20 @@ const PreviousInquiries = () => {
 
   const cleanServiceItems = (nextItems, nextEvents = events) => {
     const eventIds = new Set(nextEvents.map((event) => event.id));
-    return nextItems.map((item) => ({
-      id: item.id || crypto.randomUUID?.() || String(Date.now()),
-      name: item.name || "Service",
-      description: item.description || "",
-      price: Number(item.price || 0),
-      quantity: Math.max(0, Number(item.quantity || 0)),
-      media: Array.isArray(item.media) ? item.media : [],
-      eventId: item.eventId && eventIds.has(item.eventId) ? item.eventId : "",
-      eventAllocations: normalizeAllocations(item, nextEvents),
-    }));
+    return nextItems.map((item) => {
+      const pricingFields = captureItemPricing(item);
+      return {
+        id: item.id || crypto.randomUUID?.() || String(Date.now()),
+        name: item.name || "Service",
+        description: item.description || "",
+        ...pricingFields,
+        quantity: Math.max(0, Number(item.quantity || 0)),
+        categories: Array.isArray(item.categories) ? item.categories : [],
+        media: Array.isArray(item.media) ? item.media : [],
+        eventId: item.eventId && eventIds.has(item.eventId) ? item.eventId : "",
+        eventAllocations: normalizeAllocations(item, nextEvents),
+      };
+    });
   };
 
   const saveServiceItems = async (nextItems) => {
@@ -575,8 +519,9 @@ const PreviousInquiries = () => {
       pickId: rentalId,
       name: picked.name || "",
       description: picked.description || "",
-      price: picked.price != null ? String(picked.price) : "0",
+      ...captureItemPricing(picked),
       media: Array.isArray(picked.media) ? picked.media : [],
+      categories: Array.isArray(picked.categories) ? picked.categories : [],
     }));
   };
 
@@ -588,8 +533,11 @@ const PreviousInquiries = () => {
       id: crypto.randomUUID?.() || String(Date.now()),
       name: addServiceDraft.name,
       description: addServiceDraft.description || "",
-      price: Number(addServiceDraft.price || 0),
+      ...captureItemPricing(addServiceDraft),
       quantity,
+      categories: Array.isArray(addServiceDraft.categories)
+        ? addServiceDraft.categories
+        : [],
       media: Array.isArray(addServiceDraft.media) ? addServiceDraft.media : [],
       eventId,
       eventAllocations: eventId ? [{ eventId, quantity }] : [],
@@ -1128,6 +1076,7 @@ const PreviousInquiries = () => {
                   items.map((item, index) => {
                     const draft = serviceDrafts[index] || {};
                     const draftQuantity = draft.quantity ?? item.quantity ?? 0;
+                    const pricing = getItemPricing(item);
                     const allocations = normalizeAllocations(item, events);
                     const draftEventId =
                       draft.eventId ??
@@ -1140,7 +1089,23 @@ const PreviousInquiries = () => {
                         <div>
                           <strong>{item.name || "Service"}</strong>
                           {item.description ? <p>{item.description}</p> : null}
-                          <span>{money(item.price)} each</span>
+                          <span>
+                            {pricing.hasDiscount ? (
+                              <>
+                                <span className="text-decoration-line-through">
+                                  {money(pricing.originalUnitPrice)}
+                                </span>{" "}
+                                {money(pricing.unitPrice)} each
+                              </>
+                            ) : (
+                              `${money(pricing.unitPrice)} each`
+                            )}
+                          </span>
+                          {pricing.hasDiscount ? (
+                            <span className="text-success">
+                              {pricing.discountName}
+                            </span>
+                          ) : null}
                         </div>
                         <div className="customer-edit-grid compact">
                           <Form.Group>
@@ -1211,12 +1176,20 @@ const PreviousInquiries = () => {
                         disabled={saving}
                       >
                         <option value="">Choose a service</option>
-                        {catalog.map((rental) => (
-                          <option key={rental.id} value={rental.id}>
-                            {rental.name}
-                            {rental.price != null ? `, ${money(rental.price)}` : ""}
-                          </option>
-                        ))}
+                        {catalog.map((rental) => {
+                          const pricing = getItemPricing(rental);
+                          return (
+                            <option key={rental.id} value={rental.id}>
+                              {rental.name}
+                              {rental.price != null
+                                ? `, ${money(pricing.unitPrice)}`
+                                : ""}
+                              {pricing.hasDiscount
+                                ? ` (${pricing.discountName})`
+                                : ""}
+                            </option>
+                          );
+                        })}
                       </Form.Select>
                     </Form.Group>
                     <Form.Group>
@@ -1268,7 +1241,19 @@ const PreviousInquiries = () => {
                       {addServiceDraft.description ? (
                         <span>{addServiceDraft.description}</span>
                       ) : null}
-                      <span>{money(addServiceDraft.price)} each</span>
+                      {(() => {
+                        const pricing = getItemPricing(addServiceDraft);
+                        return (
+                          <span>
+                            {money(pricing.unitPrice)} each
+                            {pricing.hasDiscount
+                              ? `, originally ${money(
+                                  pricing.originalUnitPrice
+                                )} (${pricing.discountName})`
+                              : ""}
+                          </span>
+                        );
+                      })()}
                     </div>
                   ) : null}
                 </div>
@@ -1277,21 +1262,28 @@ const PreviousInquiries = () => {
               <div className="customer-empty-panel">No services are attached to this inquiry yet.</div>
             ) : (
               <div className="customer-service-list">
-                {items.map((item, index) => (
-                  <article key={`${activeInquiry.id}-service-${index}`}>
-                    <div>
-                      <strong>{item.name || "Service"}</strong>
-                      {item.description ? <p>{item.description}</p> : null}
-                      <span>{itemEventLabel(activeInquiry, item)}</span>
-                    </div>
-                    <div>
-                      <span>Qty {item.quantity || 0}</span>
-                      <strong>
-                        {money(Number(item.price || 0) * Number(item.quantity || 0))}
-                      </strong>
-                    </div>
-                  </article>
-                ))}
+                {items.map((item, index) => {
+                  const pricing = getItemPricing(item);
+                  return (
+                    <article key={`${activeInquiry.id}-service-${index}`}>
+                      <div>
+                        <strong>{item.name || "Service"}</strong>
+                        {item.description ? <p>{item.description}</p> : null}
+                        <span>{itemEventLabel(activeInquiry, item)}</span>
+                        {pricing.hasDiscount ? (
+                          <span className="text-success">
+                            {pricing.discountName}: {money(pricing.unitPrice)} each,
+                            originally {money(pricing.originalUnitPrice)}
+                          </span>
+                        ) : null}
+                      </div>
+                      <div>
+                        <span>Qty {item.quantity || 0}</span>
+                        <strong>{money(getLineTotal(item))}</strong>
+                      </div>
+                    </article>
+                  );
+                })}
               </div>
             )}
           </section>
@@ -1306,6 +1298,15 @@ const PreviousInquiries = () => {
                 <span>Discount</span>
                 <strong>{money(totals.discountApplied)}</strong>
               </article>
+              {totals.discountBreakdown.map((row) => (
+                <article
+                  className="customer-total-card"
+                  key={`${row.type}-${row.name}`}
+                >
+                  <span>{row.name}</span>
+                  <strong>-{money(row.amount)}</strong>
+                </article>
+              ))}
               <article className="customer-total-card">
                 <span>Processing fee</span>
                 <strong>{money(totals.feeApplied)}</strong>

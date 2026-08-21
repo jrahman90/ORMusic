@@ -13,6 +13,11 @@ import {
   WalletCards,
 } from "lucide-react";
 import db from "../../api/firestore/firestore";
+import {
+  calcInquiryTotals,
+  getItemPricing,
+  getLineTotal,
+} from "../../utils/pricing";
 
 const STATUS_OPTIONS = [
   "Processing",
@@ -106,52 +111,7 @@ const statusAllowed = (status, basis) => {
 };
 
 const calcTotals = (inquiry = {}) => {
-  const items = Array.isArray(inquiry.items) ? inquiry.items : [];
-  const subtotal = items.reduce(
-    (sum, item) =>
-      sum + Number(item.price || 0) * Math.max(0, Number(item.quantity || 0)),
-    0
-  );
-  const discountType =
-    inquiry.discountType === "percent" || inquiry.discountType === "amount"
-      ? inquiry.discountType
-      : "amount";
-  const discountRaw =
-    inquiry.discountType === "percent"
-      ? Number(inquiry.discountValue || 0)
-      : inquiry.discount != null
-      ? Number(inquiry.discount || 0)
-      : Number(inquiry.discountValue || 0) || 0;
-  const discountApplied =
-    discountType === "percent"
-      ? Math.max(0, Math.min(100, discountRaw)) * 0.01 * subtotal
-      : Math.max(0, discountRaw);
-  const baseAfterDiscount = Math.max(0, subtotal - discountApplied);
-  const feeType =
-    inquiry.feeType === "percent" || inquiry.feeType === "amount"
-      ? inquiry.feeType
-      : "amount";
-  const feeRaw = Number(inquiry.feeValue || 0);
-  const feeApplied =
-    feeType === "percent"
-      ? Math.max(0, Math.min(100, feeRaw)) * 0.01 * baseAfterDiscount
-      : Math.max(0, feeRaw);
-  const travel = Math.max(0, Number(inquiry.travelAmount || 0));
-  const taxPercent = Math.max(0, Math.min(100, Number(inquiry.taxPercent || 0)));
-  const taxApplied = taxPercent * 0.01 * baseAfterDiscount;
-  const total = Math.max(
-    0,
-    baseAfterDiscount + feeApplied + travel + taxApplied
-  );
-
-  return {
-    subtotal,
-    discountApplied,
-    feeApplied,
-    travel,
-    taxApplied,
-    total,
-  };
+  return calcInquiryTotals(inquiry);
 };
 
 const sumDeposits = (inquiry = {}) =>
@@ -235,22 +195,21 @@ const buildEventLineTotals = (inquiry = {}, events = []) => {
 
   (Array.isArray(inquiry.items) ? inquiry.items : []).forEach((item) => {
     const quantity = Math.max(0, Number(item.quantity || 0));
-    const price = Number(item.price || 0);
-    const lineTotal = quantity * price;
+    const lineTotal = getLineTotal(item, quantity);
     if (lineTotal <= 0) return;
 
     const allocations = normalizeAllocations(item, events);
     if (allocations.length > 0) {
       let assigned = 0;
       allocations.forEach((row) => {
-        const value = row.quantity * price;
+        const value = getLineTotal(item, row.quantity);
         eventTotals.set(row.eventId, (eventTotals.get(row.eventId) || 0) + value);
         assigned += row.quantity;
       });
 
       const remaining = Math.max(0, quantity - assigned);
       if (remaining > 0) {
-        const value = (remaining * price) / events.length;
+        const value = getLineTotal(item, remaining) / events.length;
         events.forEach((event) => {
           eventTotals.set(event.id, (eventTotals.get(event.id) || 0) + value);
         });
@@ -273,7 +232,7 @@ const addProduct = (productMap, item, quantity) => {
 
   const name = String(item.name || "Unnamed item").trim() || "Unnamed item";
   const category = categoryForItem(item);
-  const price = Number(item.price || 0);
+  const price = getItemPricing(item).unitPrice;
   const key = `${category}::${name.toLowerCase()}::${price}`;
   const current =
     productMap.get(key) || {
@@ -285,7 +244,7 @@ const addProduct = (productMap, item, quantity) => {
     };
 
   current.quantity += qty;
-  current.revenue += qty * price;
+  current.revenue += getLineTotal(item, qty);
   productMap.set(key, current);
 };
 
