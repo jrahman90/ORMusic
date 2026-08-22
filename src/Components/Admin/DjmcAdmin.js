@@ -7,9 +7,9 @@ import {
   Button,
   Image,
   Modal,
-  Card,
   Spinner,
 } from "react-bootstrap";
+import { Link } from "react-router-dom";
 
 import db from "../../api/firestore/firestore";
 import { storage } from "../../api/firestore/firestore";
@@ -46,6 +46,16 @@ import {
 } from "@dnd-kit/sortable";
 
 import { CSS } from "@dnd-kit/utilities";
+import {
+  ExternalLink,
+  GripVertical,
+  Pencil,
+  Plus,
+  Save,
+  Trash2,
+  UsersRound,
+} from "lucide-react";
+import { AdminToastOutlet, useAdminToasts } from "./useAdminToasts";
 
 const SortableArtistCard = ({
   artist,
@@ -69,52 +79,65 @@ const SortableArtistCard = ({
   };
 
   return (
-    <Col sm={12} md={6} lg={4} className="mb-4" ref={setNodeRef} style={style}>
-      <Card className="h-100 shadow-sm">
-        <Card.Header className="d-flex justify-content-between align-items-center">
-          <span className="text-muted">Order: {artist.number}</span>
-
+    <Col sm={12} md={6} xl={4} className="mb-3" ref={setNodeRef} style={style}>
+      <article className={`admin-team-card ${isDragging ? "is-dragging" : ""}`}>
+        <div className="admin-team-card-toolbar">
+          <span>{artist.title || artist.role || artist.position || "Event specialist"}</span>
           <Button
-            variant="light"
+            variant="outline-secondary"
             size="sm"
             {...attributes}
             {...listeners}
-            style={{ cursor: "grab" }}
+            aria-label={`Reorder ${artist.name || "team member"}`}
           >
-            ☰ Drag
+            <GripVertical size={15} />
           </Button>
-        </Card.Header>
-
-        <div className="text-center pt-3">
-          <Image
-            src={artist.imageUrl}
-            roundedCircle
-            style={{
-              width: "160px",
-              height: "160px",
-              objectFit: "cover",
-            }}
-          />
         </div>
 
-        <Card.Body className="text-center">
-          <Card.Title>{artist.name}</Card.Title>
+        <div className="admin-team-photo">
+          {artist.imageUrl ? (
+            <img
+              src={artist.imageUrl}
+              alt={`${artist.name || "Team member"} portrait`}
+            />
+          ) : (
+            <UsersRound size={34} />
+          )}
+        </div>
 
-          <Card.Text style={{ whiteSpace: "pre-line" }}>
-            {artist.description}
-          </Card.Text>
+        <div className="admin-team-card-body">
+          <h2>{artist.name || "Unnamed team member"}</h2>
+          <p>{artist.description || "No description has been added yet."}</p>
+        </div>
 
-          <div className="d-flex justify-content-center gap-2">
-            <Button variant="info" onClick={() => handleOpenEditModal(artist)}>
-              Edit
-            </Button>
-
-            <Button variant="danger" onClick={() => handleDeleteArtist(artist)}>
-              Delete
-            </Button>
-          </div>
-        </Card.Body>
-      </Card>
+        <div className="admin-team-card-actions">
+          <Button
+            variant="outline-primary"
+            size="sm"
+            onClick={() => handleOpenEditModal(artist)}
+          >
+            <Pencil size={15} />
+            Edit
+          </Button>
+          <Button
+            as={Link}
+            to={`/DJMC/${artist.id}`}
+            variant="outline-secondary"
+            size="sm"
+          >
+            <ExternalLink size={15} />
+            View
+          </Button>
+          <Button
+            variant="outline-danger"
+            size="sm"
+            onClick={() => handleDeleteArtist(artist)}
+          >
+            <Trash2 size={15} />
+            Delete
+          </Button>
+        </div>
+      </article>
     </Col>
   );
 };
@@ -124,12 +147,14 @@ const DjmcAdmin = () => {
 
   const [showAddModal, setShowAddModal] = useState(false);
   const [name, setName] = useState("");
+  const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [image, setImage] = useState(null);
 
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingArtist, setEditingArtist] = useState(null);
   const [editName, setEditName] = useState("");
+  const [editTitle, setEditTitle] = useState("");
   const [editNumber, setEditNumber] = useState("");
   const [editDescription, setEditDescription] = useState("");
   const [editImage, setEditImage] = useState(null);
@@ -141,6 +166,7 @@ const DjmcAdmin = () => {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [orderChanged, setOrderChanged] = useState(false);
+  const { removeToast, showToast, toasts } = useAdminToasts();
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -190,6 +216,7 @@ const DjmcAdmin = () => {
 
   const resetAddForm = () => {
     setName("");
+    setTitle("");
     setDescription("");
     setImage(null);
 
@@ -232,7 +259,10 @@ const DjmcAdmin = () => {
     e.preventDefault();
 
     if (!name || !description || !image) {
-      alert("Please add name, description, and image.");
+      showToast("Please add name, description, and image.", {
+        title: "Missing profile details",
+        variant: "warning",
+      });
       return;
     }
 
@@ -243,6 +273,7 @@ const DjmcAdmin = () => {
 
       const newArtist = {
         name,
+        title: title.trim(),
         description,
         imageUrl,
         number: getNextOrderNumber(),
@@ -257,9 +288,13 @@ const DjmcAdmin = () => {
       );
 
       handleCloseAddModal();
+      showToast("Team member profile created.");
     } catch (error) {
       console.error("Error adding artist:", error);
-      alert("Something went wrong while adding the artist.");
+      showToast("Something went wrong while adding the team member.", {
+        title: "Profile not created",
+        variant: "danger",
+      });
     } finally {
       setSaving(false);
     }
@@ -268,6 +303,7 @@ const DjmcAdmin = () => {
   const handleOpenEditModal = (artist) => {
     setEditingArtist(artist);
     setEditName(artist.name || "");
+    setEditTitle(artist.title || artist.role || artist.position || "");
     setEditNumber(artist.number || "");
     setEditDescription(artist.description || "");
     setEditImage(null);
@@ -279,6 +315,7 @@ const DjmcAdmin = () => {
     setShowEditModal(false);
     setEditingArtist(null);
     setEditName("");
+    setEditTitle("");
     setEditNumber("");
     setEditDescription("");
     setEditImage(null);
@@ -291,7 +328,10 @@ const DjmcAdmin = () => {
     if (!editingArtist) return;
 
     if (!editName || !editDescription || !editNumber) {
-      alert("Please fill out name, number, and description.");
+      showToast("Please fill out name, display order, and description.", {
+        title: "Missing profile details",
+        variant: "warning",
+      });
       return;
     }
 
@@ -306,6 +346,7 @@ const DjmcAdmin = () => {
 
       const updatedArtist = {
         name: editName,
+        title: editTitle.trim(),
         description: editDescription,
         number: Number(editNumber),
         imageUrl: updatedImageUrl,
@@ -324,9 +365,13 @@ const DjmcAdmin = () => {
       );
 
       handleCloseEditModal();
+      showToast("Team member profile updated.");
     } catch (error) {
       console.error("Error updating artist:", error);
-      alert("Something went wrong while updating the artist.");
+      showToast("Something went wrong while updating the team member.", {
+        title: "Profile not updated",
+        variant: "danger",
+      });
     } finally {
       setSaving(false);
     }
@@ -377,10 +422,13 @@ const DjmcAdmin = () => {
       );
 
       setOrderChanged(false);
-      alert("Artist order saved.");
+      showToast("Team order saved.");
     } catch (error) {
       console.error("Error saving artist order:", error);
-      alert("Something went wrong while saving the order.");
+      showToast("Something went wrong while saving the order.", {
+        title: "Order not saved",
+        variant: "danger",
+      });
     } finally {
       setSaving(false);
     }
@@ -420,9 +468,13 @@ const DjmcAdmin = () => {
       setArtists(remainingArtists);
       setShowDeleteModal(false);
       setArtistToDelete(null);
+      showToast("Team member deleted.");
     } catch (error) {
       console.error("Error deleting artist:", error);
-      alert("Something went wrong while deleting the artist.");
+      showToast("Something went wrong while deleting the team member.", {
+        title: "Profile not deleted",
+        variant: "danger",
+      });
     } finally {
       setSaving(false);
     }
@@ -434,29 +486,56 @@ const DjmcAdmin = () => {
   };
 
   return (
-    <Container className="my-3">
-      <div className="d-flex justify-content-between align-items-center mb-4">
-        <h1 className="heading-text mb-0">Meet The Team Admin</h1>
+    <Container fluid="xl" className="admin-team-page py-3">
+      <div className="admin-dashboard-header">
+        <div>
+          <div className="admin-dashboard-kicker">
+            <UsersRound size={16} />
+            Team admin
+          </div>
+          <h1>Team roster</h1>
+          <p>Manage team profiles, public bios, photos, and roster order.</p>
+          <div className="admin-dashboard-header-actions">
+            <Button variant="primary" onClick={handleOpenAddModal}>
+              <Plus size={16} />
+              Add team member
+            </Button>
+            {orderChanged ? (
+              <Button
+                variant="success"
+                onClick={handleSaveOrder}
+                disabled={saving}
+              >
+                <Save size={16} />
+                {saving ? "Saving..." : "Save order"}
+              </Button>
+            ) : null}
+          </div>
+        </div>
 
-        <Button variant="primary" onClick={handleOpenAddModal}>
-          Add New Artist
-        </Button>
-      </div>
-
-      <div className="d-flex justify-content-between align-items-center mb-3">
-        <h3 className="mb-0">Current Artists</h3>
-
-        {orderChanged && (
-          <Button variant="success" onClick={handleSaveOrder} disabled={saving}>
-            {saving ? "Saving Order..." : "Save New Order"}
-          </Button>
-        )}
+        <div className="admin-dashboard-summary" aria-label="Team summary">
+          <div>
+            <span>Profiles</span>
+            <strong>{artists.length}</strong>
+          </div>
+          <div>
+            <span>Photos</span>
+            <strong>{artists.filter((artist) => artist.imageUrl).length}</strong>
+          </div>
+          <div>
+            <span>Order</span>
+            <strong>{orderChanged ? "!" : "OK"}</strong>
+          </div>
+        </div>
       </div>
 
       {loading ? (
-        <div className="text-center my-5">
-          <Spinner animation="border" />
+        <div className="admin-dashboard-empty">
+          <Spinner animation="border" size="sm" />
+          Loading team
         </div>
+      ) : artists.length === 0 ? (
+        <div className="admin-dashboard-empty">No team members yet.</div>
       ) : (
         <DndContext
           sensors={sensors}
@@ -467,7 +546,7 @@ const DjmcAdmin = () => {
             items={artists.map((artist) => artist.id)}
             strategy={rectSortingStrategy}
           >
-            <Row>
+            <Row className="admin-team-grid">
               {artists.map((artist) => (
                 <SortableArtistCard
                   key={artist.id}
@@ -489,16 +568,11 @@ const DjmcAdmin = () => {
         centered
       >
         <Modal.Header closeButton>
-          <Modal.Title>Add New Artist</Modal.Title>
+          <Modal.Title>Add team member</Modal.Title>
         </Modal.Header>
 
         <Form onSubmit={handleAddArtist}>
           <Modal.Body>
-            <p className="text-muted">
-              This artist will automatically be added as order number{" "}
-              <strong>{getNextOrderNumber()}</strong>.
-            </p>
-
             <Form.Group className="mb-3">
               <Form.Label>Name</Form.Label>
               <Form.Control
@@ -506,6 +580,16 @@ const DjmcAdmin = () => {
                 placeholder="Example: DJ Opu"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
+              />
+            </Form.Group>
+
+            <Form.Group className="mb-3">
+              <Form.Label>Public role</Form.Label>
+              <Form.Control
+                type="text"
+                placeholder="DJ / MC / Host"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
               />
             </Form.Group>
 
@@ -537,7 +621,7 @@ const DjmcAdmin = () => {
             </Button>
 
             <Button variant="primary" type="submit" disabled={saving}>
-              {saving ? "Saving..." : "Create Artist"}
+              {saving ? "Saving..." : "Create profile"}
             </Button>
           </Modal.Footer>
         </Form>
@@ -551,7 +635,7 @@ const DjmcAdmin = () => {
         centered
       >
         <Modal.Header closeButton>
-          <Modal.Title>Edit Artist</Modal.Title>
+          <Modal.Title>Edit team member</Modal.Title>
         </Modal.Header>
 
         <Form onSubmit={handleUpdateArtist}>
@@ -561,13 +645,8 @@ const DjmcAdmin = () => {
                 {editImagePreview && (
                   <Image
                     src={editImagePreview}
-                    roundedCircle
                     fluid
-                    style={{
-                      width: "180px",
-                      height: "180px",
-                      objectFit: "cover",
-                    }}
+                    className="admin-team-modal-image"
                   />
                 )}
               </Col>
@@ -583,15 +662,21 @@ const DjmcAdmin = () => {
                 </Form.Group>
 
                 <Form.Group className="mb-3">
-                  <Form.Label>Order Number</Form.Label>
+                  <Form.Label>Public role</Form.Label>
+                  <Form.Control
+                    type="text"
+                    value={editTitle}
+                    onChange={(e) => setEditTitle(e.target.value)}
+                  />
+                </Form.Group>
+
+                <Form.Group className="mb-3">
+                  <Form.Label>Display order</Form.Label>
                   <Form.Control
                     type="number"
                     value={editNumber}
                     onChange={(e) => setEditNumber(e.target.value)}
                   />
-                  <Form.Text className="text-muted">
-                    You can also rearrange artists by dragging the cards.
-                  </Form.Text>
                 </Form.Group>
 
                 <Form.Group className="mb-3">
@@ -625,7 +710,7 @@ const DjmcAdmin = () => {
             </Button>
 
             <Button variant="primary" type="submit" disabled={saving}>
-              {saving ? "Updating..." : "Save Changes"}
+              {saving ? "Updating..." : "Save profile"}
             </Button>
           </Modal.Footer>
         </Form>
@@ -656,6 +741,8 @@ const DjmcAdmin = () => {
           </Button>
         </Modal.Footer>
       </Modal>
+
+      <AdminToastOutlet toasts={toasts} onClose={removeToast} />
     </Container>
   );
 };

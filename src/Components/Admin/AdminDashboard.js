@@ -40,6 +40,7 @@ import db, { functions as firebaseFunctions } from "../../api/firestore/firestor
 import { buildIcsCalendar, downloadIcsFile } from "../../utils/calendar";
 import { prettyDate, to12h } from "../../utils/formatters";
 import { calcInquiryTotals, money } from "../../utils/pricing";
+import { AdminToastOutlet, useAdminToasts } from "./useAdminToasts";
 
 const STATUS_OPTIONS = [
   "Processing",
@@ -252,6 +253,7 @@ export default function AdminDashboard() {
   const [subscriptionsLoading, setSubscriptionsLoading] = useState(false);
   const [creatingSubscription, setCreatingSubscription] = useState(false);
   const [deletingSubscriptionId, setDeletingSubscriptionId] = useState("");
+  const [subscriptionToDelete, setSubscriptionToDelete] = useState(null);
   const [subscriptionDraft, setSubscriptionDraft] = useState({
     label: "",
     assignedUserName: "",
@@ -261,6 +263,7 @@ export default function AdminDashboard() {
     feedUrl: "",
     webcalUrl: "",
   });
+  const { removeToast, showToast, toasts } = useAdminToasts();
 
   const todayKey = useMemo(() => dateKey(new Date()), []);
   const todayStart = useMemo(() => coerceEventDate(todayKey), [todayKey]);
@@ -546,9 +549,14 @@ export default function AdminDashboard() {
     try {
       await navigator.clipboard?.writeText(url);
       setSubscriptionMessage("Subscription link copied.");
+      showToast("Subscription link copied.");
       return true;
     } catch {
       setSubscriptionMessage("Copy the subscription link from the dialog.");
+      showToast("Copy the subscription link from the dialog.", {
+        title: "Could not copy automatically",
+        variant: "warning",
+      });
       return false;
     }
   };
@@ -565,6 +573,10 @@ export default function AdminDashboard() {
     } catch (error) {
       console.error("Calendar subscriptions load failed:", error);
       setSubscriptionMessage("Could not load calendar subscriptions.");
+      showToast("Could not load calendar subscriptions.", {
+        title: "Subscriptions unavailable",
+        variant: "danger",
+      });
     } finally {
       setSubscriptionsLoading(false);
     }
@@ -604,20 +616,21 @@ export default function AdminDashboard() {
     } catch (error) {
       console.error("Calendar subscription create failed:", error);
       setSubscriptionMessage("Could not create subscription link.");
-      alert("Could not create the calendar subscription. Check the console for details.");
+      showToast(
+        "Could not create the calendar subscription. Check the console for details.",
+        {
+          title: "Subscription not created",
+          variant: "danger",
+        }
+      );
     } finally {
       setCreatingSubscription(false);
     }
   };
 
-  const deleteCalendarSubscription = async (subscriptionId) => {
+  const deleteCalendarSubscription = async () => {
+    const subscriptionId = subscriptionToDelete?.id;
     if (!subscriptionId) return;
-    if (
-      typeof window !== "undefined" &&
-      !window.confirm("Delete this calendar subscription? This cannot be undone.")
-    ) {
-      return;
-    }
 
     try {
       setDeletingSubscriptionId(subscriptionId);
@@ -630,10 +643,18 @@ export default function AdminDashboard() {
         current.filter((subscription) => subscription.id !== subscriptionId)
       );
       setSubscriptionMessage("Subscription deleted.");
+      setSubscriptionToDelete(null);
+      showToast("Calendar subscription deleted.");
     } catch (error) {
       console.error("Calendar subscription delete failed:", error);
       setSubscriptionMessage("Could not delete subscription.");
-      alert("Could not delete the calendar subscription. Check the console for details.");
+      showToast(
+        "Could not delete the calendar subscription. Check the console for details.",
+        {
+          title: "Subscription not deleted",
+          variant: "danger",
+        }
+      );
     } finally {
       setDeletingSubscriptionId("");
     }
@@ -648,7 +669,13 @@ export default function AdminDashboard() {
     } catch (error) {
       console.error("Calendar subscription failed:", error);
       setSubscriptionMessage("Could not open calendar subscriptions.");
-      alert("Could not open calendar subscriptions. Check the console for details.");
+      showToast(
+        "Could not open calendar subscriptions. Check the console for details.",
+        {
+          title: "Subscriptions unavailable",
+          variant: "danger",
+        }
+      );
     } finally {
       setSubscriptionLoading(false);
     }
@@ -697,9 +724,13 @@ export default function AdminDashboard() {
       });
       setShowCreateInquiry(false);
       setNewInquiryDraft(emptyInquiryDraft);
+      showToast("Inquiry created.");
     } catch (error) {
       console.error("Create inquiry failed:", error);
-      alert("Failed to create inquiry. Check the console for details.");
+      showToast("Failed to create inquiry. Check the console for details.", {
+        title: "Inquiry not created",
+        variant: "danger",
+      });
     } finally {
       setCreatingInquiry(false);
     }
@@ -1617,7 +1648,7 @@ export default function AdminDashboard() {
                       type="button"
                       variant="outline-danger"
                       size="sm"
-                      onClick={() => deleteCalendarSubscription(subscription.id)}
+                      onClick={() => setSubscriptionToDelete(subscription)}
                       disabled={deletingSubscriptionId === subscription.id}
                     >
                       <Trash2 size={14} />
@@ -1641,6 +1672,41 @@ export default function AdminDashboard() {
           </Button>
         </Modal.Footer>
       </Modal>
+
+      <Modal
+        show={Boolean(subscriptionToDelete)}
+        onHide={() => setSubscriptionToDelete(null)}
+        centered
+      >
+        <Modal.Header closeButton>
+          <Modal.Title>Delete calendar subscription</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          Delete{" "}
+          <strong>{subscriptionToDelete?.label || "this calendar link"}</strong>?
+          This cannot be undone.
+        </Modal.Body>
+        <Modal.Footer>
+          <Button
+            type="button"
+            variant="outline-secondary"
+            onClick={() => setSubscriptionToDelete(null)}
+            disabled={Boolean(deletingSubscriptionId)}
+          >
+            Cancel
+          </Button>
+          <Button
+            type="button"
+            variant="danger"
+            onClick={deleteCalendarSubscription}
+            disabled={Boolean(deletingSubscriptionId)}
+          >
+            {deletingSubscriptionId ? "Deleting..." : "Delete"}
+          </Button>
+        </Modal.Footer>
+      </Modal>
+
+      <AdminToastOutlet toasts={toasts} onClose={removeToast} />
     </Container>
   );
 }

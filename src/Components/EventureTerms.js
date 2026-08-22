@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { firestore } from "../api/firestore/firestore";
 import { collection, addDoc, Timestamp } from "firebase/firestore";
 
@@ -10,6 +10,13 @@ const EventureTermsAndConditions = () => {
     type: "bug", // Default selection
     details: "",
   });
+  const [toastMessage, setToastMessage] = useState("");
+
+  useEffect(() => {
+    if (!toastMessage) return undefined;
+    const timer = window.setTimeout(() => setToastMessage(""), 4500);
+    return () => window.clearTimeout(timer);
+  }, [toastMessage]);
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -26,11 +33,12 @@ const EventureTermsAndConditions = () => {
         status: false,
         createdAt: Timestamp.now(),
       });
-      alert("Thank you for your feedback!");
+      setToastMessage("Thank you for your feedback!");
       setFormData({ name: "", email: "", type: "bug", details: "" });
       setIsModalOpen(false);
     } catch (error) {
       console.error("Error submitting form: ", error);
+      setToastMessage("Could not submit feedback. Please try again.");
     }
   };
 
@@ -65,6 +73,12 @@ const EventureTermsAndConditions = () => {
         </a>
         .
       </div>
+
+      {toastMessage ? (
+        <div style={styles.toast} role="status" aria-live="polite">
+          {toastMessage}
+        </div>
+      ) : null}
 
       {isModalOpen && (
         <div style={styles.modalOverlay}>
@@ -353,6 +367,22 @@ const styles = {
     fontSize: "14px",
     textAlign: "center",
     color: "#555",
+  },
+  toast: {
+    position: "fixed",
+    top: "16px",
+    right: "16px",
+    zIndex: 2000,
+    background: "white",
+    border: "1px solid #e5e7eb",
+    borderLeft: "4px solid #007bff",
+    borderRadius: "8px",
+    boxShadow: "0 18px 40px rgba(17, 24, 39, 0.18)",
+    color: "#111827",
+    maxWidth: "calc(100vw - 32px)",
+    padding: "12px 14px",
+    textAlign: "left",
+    width: "320px",
   },
 };
 

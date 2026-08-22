@@ -43,6 +43,7 @@ import {
   getItemPricing,
   money,
 } from "../../utils/pricing";
+import { AdminToastOutlet, useAdminToasts } from "./useAdminToasts";
 
 const CATEGORIES = ["packages", "addons"];
 
@@ -211,6 +212,7 @@ const RentalsAdmin = () => {
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [expandedItems, setExpandedItems] = useState({});
   const [showCreateForm, setShowCreateForm] = useState(false);
+  const [deleteRentalTarget, setDeleteRentalTarget] = useState(null);
 
   // create new item state
   const [newRental, setNewRental] = useState(blankRental);
@@ -237,6 +239,7 @@ const RentalsAdmin = () => {
   const [editProgress, setEditProgress] = useState(0);
   const editFileRef = useRef(null);
   const [editSaving, setEditSaving] = useState(false);
+  const { removeToast, showToast, toasts } = useAdminToasts();
 
   useEffect(() => {
     const fetchRentals = async () => {
@@ -250,10 +253,14 @@ const RentalsAdmin = () => {
         setRentals(rentalsData);
       } catch (error) {
         console.error("Error fetching rentals:", error);
+        showToast("Could not load rental items. Check the console for details.", {
+          title: "Catalog unavailable",
+          variant: "danger",
+        });
       }
     };
     fetchRentals();
-  }, []);
+  }, [showToast]);
 
   const onFilesSelected = (e) => {
     const files = Array.from(e.target.files || []);
@@ -300,8 +307,13 @@ const RentalsAdmin = () => {
         )
       );
       setBulkDiscount(source);
+      showToast("Discount settings updated.");
     } catch (error) {
       console.error("Bulk discount update failed:", error);
+      showToast("Could not update discount settings. Check the console for details.", {
+        title: "Discount not saved",
+        variant: "danger",
+      });
     } finally {
       setIsSaving(false);
     }
@@ -375,20 +387,24 @@ const RentalsAdmin = () => {
       const newItem = { id: newRentalDocRef.id, ...base, media };
       setRentals((prev) => [...prev, newItem]);
       resetForm();
+      showToast("Rental item created.");
     } catch (error) {
       console.error("Error adding rental:", error);
+      showToast("Could not add this rental item. Check the console for details.", {
+        title: "Item not created",
+        variant: "danger",
+      });
     } finally {
       setIsSaving(false);
     }
   };
 
-  const handleDeleteRental = async (id) => {
-    const target = rentals.find((r) => r.id === id);
-    const ok = window.confirm(
-      `Delete ${target?.name || "this rental item"} permanently?`
-    );
-    if (!ok) return;
+  const handleDeleteRental = async () => {
+    const target = deleteRentalTarget;
+    if (!target?.id || isSaving) return;
+
     try {
+      setIsSaving(true);
       if (target?.media?.length) {
         const storage = getStorage();
         await Promise.all(
@@ -403,10 +419,18 @@ const RentalsAdmin = () => {
           })
         );
       }
-      await deleteDoc(doc(db, "rentals", id));
-      setRentals((prev) => prev.filter((r) => r.id !== id));
+      await deleteDoc(doc(db, "rentals", target.id));
+      setRentals((prev) => prev.filter((r) => r.id !== target.id));
+      setDeleteRentalTarget(null);
+      showToast("Rental item deleted.");
     } catch (error) {
       console.error("Error deleting rental:", error);
+      showToast("Could not delete this rental item. Check the console for details.", {
+        title: "Item not deleted",
+        variant: "danger",
+      });
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -431,8 +455,13 @@ const RentalsAdmin = () => {
       setRentals((prev) =>
         prev.map((r) => (r.id === rentalId ? { ...r, media: nextMedia } : r))
       );
+      showToast("Media removed.");
     } catch (error) {
       console.error("Error removing media:", error);
+      showToast("Could not remove this media. Check the console for details.", {
+        title: "Media not removed",
+        variant: "danger",
+      });
     }
   };
 
@@ -513,8 +542,13 @@ const RentalsAdmin = () => {
 
       setShowEdit(false);
       setEditingId(null);
+      showToast("Rental item updated.");
     } catch (error) {
       console.error("Error saving changes:", error);
+      showToast("Could not save this rental item. Check the console for details.", {
+        title: "Item not saved",
+        variant: "danger",
+      });
     } finally {
       setEditSaving(false);
     }
@@ -873,7 +907,7 @@ const RentalsAdmin = () => {
                       <Button
                         size="sm"
                         variant="outline-danger"
-                        onClick={() => handleDeleteRental(item.id)}
+                        onClick={() => setDeleteRentalTarget(item)}
                       >
                         <Trash2 size={15} />
                         Delete
@@ -1066,6 +1100,34 @@ const RentalsAdmin = () => {
           </Modal.Footer>
         </Form>
       </Modal>
+
+      <Modal
+        show={Boolean(deleteRentalTarget)}
+        onHide={() => setDeleteRentalTarget(null)}
+        centered
+      >
+        <Modal.Header closeButton>
+          <Modal.Title>Delete rental item</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          Delete <strong>{deleteRentalTarget?.name || "this rental item"}</strong>{" "}
+          permanently?
+        </Modal.Body>
+        <Modal.Footer>
+          <Button
+            variant="outline-secondary"
+            onClick={() => setDeleteRentalTarget(null)}
+            disabled={isSaving}
+          >
+            Cancel
+          </Button>
+          <Button variant="danger" onClick={handleDeleteRental} disabled={isSaving}>
+            {isSaving ? "Deleting..." : "Delete"}
+          </Button>
+        </Modal.Footer>
+      </Modal>
+
+      <AdminToastOutlet toasts={toasts} onClose={removeToast} />
     </Container>
   );
 };

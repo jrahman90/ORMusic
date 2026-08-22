@@ -2,6 +2,7 @@ import {
   calcInquiryTotals,
   captureItemPricing,
   getItemPricing,
+  removeItemDiscount,
 } from "./pricing";
 
 test("computes active catalog discounts from original price", () => {
@@ -57,4 +58,22 @@ test("shows item discounts in inquiry discount totals", () => {
     { name: "Off season pricing", amount: 300, type: "item" },
     { name: "Manual discount", amount: 50, type: "manual" },
   ]);
+});
+
+test("removes an item discount by restoring the original unit price", () => {
+  const item = removeItemDiscount({
+    originalPrice: 1600,
+    price: 1300,
+    discountEnabled: true,
+    discountName: "Off season pricing",
+    discountType: "amount",
+    discountValue: 300,
+  });
+  const pricing = getItemPricing(item);
+
+  expect(item.price).toBe(1600);
+  expect(item.originalPrice).toBe(1600);
+  expect(item.discountEnabled).toBe(false);
+  expect(pricing.hasDiscount).toBe(false);
+  expect(pricing.unitPrice).toBe(1600);
 });

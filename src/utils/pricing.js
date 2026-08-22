@@ -92,6 +92,21 @@ export const captureItemPricing = (item = {}) => {
   };
 };
 
+export const removeItemDiscount = (item = {}) => {
+  const pricing = getItemPricing(item);
+  const unitPrice = pricing.originalUnitPrice;
+  return {
+    ...item,
+    price: unitPrice,
+    originalPrice: unitPrice,
+    discountEnabled: false,
+    discountName: "",
+    discountType: "amount",
+    discountValue: 0,
+    discountAmount: 0,
+  };
+};
+
 export const getLineTotal = (item = {}, quantityOverride) => {
   const quantity = Math.max(
     0,

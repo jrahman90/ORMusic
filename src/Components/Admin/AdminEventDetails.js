@@ -52,7 +52,9 @@ import {
   getItemPricing,
   getLineTotal,
   money,
+  removeItemDiscount,
 } from "../../utils/pricing";
+import { AdminToastOutlet, useAdminToasts } from "./useAdminToasts";
 
 const STATUS_OPTIONS = [
   "Processing",
@@ -312,6 +314,7 @@ export default function AdminEventDetails() {
   const [showContract, setShowContract] = useState(false);
   const [activeContract, setActiveContract] = useState(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const { removeToast, showToast, toasts } = useAdminToasts();
 
   useEffect(() => {
     if (!inquiryId) return undefined;
@@ -697,12 +700,16 @@ export default function AdminEventDetails() {
         status: statusDraft,
       });
       setIsEditingSchedule(false);
+      showToast("Schedule saved.");
       if (event && !eventIds.has(event.id)) {
         navigate("/dashboard-admin");
       }
     } catch (error) {
       console.error("Schedule update failed:", error);
-      alert("Failed to update the schedule. Check the console for details.");
+      showToast("Failed to update the schedule. Check the console for details.", {
+        title: "Schedule not saved",
+        variant: "danger",
+      });
     } finally {
       setSaving(false);
     }
@@ -719,9 +726,13 @@ export default function AdminEventDetails() {
         eventDetails: contactDraft.eventDetails.trim(),
       });
       setIsEditingContact(false);
+      showToast("Contact details saved.");
     } catch (error) {
       console.error("Contact update failed:", error);
-      alert("Failed to update contact details. Check the console for details.");
+      showToast("Failed to update contact details. Check the console for details.", {
+        title: "Contact not saved",
+        variant: "danger",
+      });
     } finally {
       setSaving(false);
     }
@@ -737,9 +748,13 @@ export default function AdminEventDetails() {
         userEmail: assignSelectedUser?.email || "",
       });
       setAssignSearch("");
+      showToast("User assignment saved.");
     } catch (error) {
       console.error("User assignment failed:", error);
-      alert("Failed to update user assignment. Check the console for details.");
+      showToast("Failed to update user assignment. Check the console for details.", {
+        title: "Assignment not saved",
+        variant: "danger",
+      });
     } finally {
       setSaving(false);
     }
@@ -850,9 +865,13 @@ export default function AdminEventDetails() {
         };
       });
       await updateDoc(doc(db, "inquiries", inquiry.id), { items: clean });
+      showToast("Items updated.");
     } catch (error) {
       console.error("Items update failed:", error);
-      alert("Failed to update items. Check the console for details.");
+      showToast("Failed to update items. Check the console for details.", {
+        title: "Items not saved",
+        variant: "danger",
+      });
     } finally {
       setSaving(false);
     }
@@ -895,6 +914,24 @@ export default function AdminEventDetails() {
   const removeItem = async (index) => {
     const items = [...(Array.isArray(inquiry?.items) ? inquiry.items : [])];
     await saveItems(items.filter((_, itemIndex) => itemIndex !== index));
+  };
+
+  const removeDiscountFromItem = async (index) => {
+    const items = [...(Array.isArray(inquiry?.items) ? inquiry.items : [])];
+    if (!items[index]) return;
+    items[index] = removeItemDiscount(items[index]);
+    await saveItems(items);
+    setItemDrafts((drafts) => ({
+      ...drafts,
+      [index]: {
+        ...(drafts[index] || {}),
+        price: items[index].price,
+      },
+    }));
+  };
+
+  const removeDiscountFromAddDraft = () => {
+    setAddDraft((current) => removeItemDiscount(current));
   };
 
   const handlePickCatalog = (rentalId) => {
@@ -1030,7 +1067,10 @@ export default function AdminEventDetails() {
       navigate("/dashboard-admin");
     } catch (error) {
       console.error("Delete inquiry failed:", error);
-      alert("Failed to delete this inquiry. Check the console for details.");
+      showToast("Failed to delete this inquiry. Check the console for details.", {
+        title: "Inquiry not deleted",
+        variant: "danger",
+      });
       setSaving(false);
     }
   };
@@ -1465,6 +1505,19 @@ export default function AdminEventDetails() {
                             ) : null}
                             <span>{eventLabel(event)}</span>
                           </div>
+                          {pricing.hasDiscount ? (
+                            <div className="admin-event-service-actions">
+                              <Button
+                                size="sm"
+                                variant="outline-secondary"
+                                onClick={() => removeDiscountFromItem(item.sourceIndex)}
+                                disabled={saving}
+                              >
+                                <X size={14} />
+                                Remove discount
+                              </Button>
+                            </div>
+                          ) : null}
                         </div>
                       </article>
                     );
@@ -1606,6 +1659,16 @@ export default function AdminEventDetails() {
                                 </small>
                               ) : null}
                             </span>
+                            {pricing.hasDiscount ? (
+                              <Button
+                                size="sm"
+                                variant="outline-secondary"
+                                onClick={() => removeDiscountFromItem(index)}
+                                disabled={saving}
+                              >
+                                Remove discount
+                              </Button>
+                            ) : null}
                             <Button
                               size="sm"
                               onClick={() => submitItemRow(index)}
@@ -1687,10 +1750,20 @@ export default function AdminEventDetails() {
                     />
                   </InputGroup>
                   {getItemPricing(addDraft).hasDiscount ? (
-                    <div className="small text-success mt-1">
-                      {getItemPricing(addDraft).discountName}:{" "}
-                      {money(getItemPricing(addDraft).unitPrice)} each,
-                      originally {money(getItemPricing(addDraft).originalUnitPrice)}
+                    <div className="small text-success mt-1 d-flex align-items-center gap-2 flex-wrap">
+                      <span>
+                        {getItemPricing(addDraft).discountName}:{" "}
+                        {money(getItemPricing(addDraft).unitPrice)} each,
+                        originally {money(getItemPricing(addDraft).originalUnitPrice)}
+                      </span>
+                      <Button
+                        size="sm"
+                        variant="outline-secondary"
+                        onClick={removeDiscountFromAddDraft}
+                        disabled={saving}
+                      >
+                        Remove discount
+                      </Button>
                     </div>
                   ) : null}
                 </Col>
@@ -2362,6 +2435,8 @@ export default function AdminEventDetails() {
           </Button>
         </Modal.Footer>
       </Modal>
+
+      <AdminToastOutlet toasts={toasts} onClose={removeToast} />
     </Container>
   );
 }

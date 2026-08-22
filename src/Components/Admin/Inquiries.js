@@ -38,7 +38,9 @@ import {
   getItemPricing,
   getLineTotal,
   money,
+  removeItemDiscount,
 } from "../../utils/pricing";
+import { AdminToastOutlet, useAdminToasts } from "./useAdminToasts";
 
 const catalogOptionLabel = (item = {}) =>
   `${item.name || "Unnamed item"}${
@@ -489,6 +491,7 @@ export default function Inquiries() {
   const [creatingInquiry, setCreatingInquiry] = useState(false);
   const [showAssignUser, setShowAssignUser] = useState(false);
   const [assigningInquiry, setAssigningInquiry] = useState(null); // { id, ...data }
+  const [deleteInquiryTarget, setDeleteInquiryTarget] = useState(null);
   const [assignUserSearch, setAssignUserSearch] = useState("");
   const [assignSelectedUser, setAssignSelectedUser] = useState(null);
   const [savingUserAssign, setSavingUserAssign] = useState(false);
@@ -505,6 +508,7 @@ export default function Inquiries() {
   const [selectedUser, setSelectedUser] = useState(null);
   const [adminStatusFilter, setAdminStatusFilter] = useState("Active");
   const [adminSearch, setAdminSearch] = useState("");
+  const { removeToast, showToast, toasts } = useAdminToasts();
 
   // load inquiries realtime
   useEffect(() => {
@@ -668,6 +672,13 @@ export default function Inquiries() {
       },
     }));
 
+  const removeDiscountFromAddDraft = (inqId) => {
+    setAdding((s) => ({
+      ...s,
+      [inqId]: removeItemDiscount(s[inqId] || {}),
+    }));
+  };
+
   const handlePickCatalog = (inqId, rentalId) => {
     if (rentalId === "__custom__") {
       setAdding((s) => ({
@@ -774,16 +785,21 @@ export default function Inquiries() {
     }
   };
 
-  const deleteInquiry = async (inq) => {
-    const ok = window.confirm(
-      "Delete this inquiry permanently? This cannot be undone."
-    );
-    if (!ok) return;
+  const deleteInquiry = async () => {
+    const inq = deleteInquiryTarget;
+    if (!inq?.id) return;
+
     try {
       setSavingFlag(inq.id, true);
       await deleteDoc(doc(db, "inquiries", inq.id));
+      setDeleteInquiryTarget(null);
+      showToast("Inquiry deleted.");
     } catch (e) {
       console.error("Delete failed:", e);
+      showToast("Failed to delete inquiry. Check console for details.", {
+        title: "Inquiry not deleted",
+        variant: "danger",
+      });
       setSavingFlag(inq.id, false);
     }
   };
@@ -930,6 +946,23 @@ export default function Inquiries() {
       delete copy[index];
       return { ...d, [inq.id]: copy };
     });
+  };
+
+  const removeDiscountFromItem = async (inq, index) => {
+    const items = [...(inq.items || [])];
+    if (!items[index]) return;
+    items[index] = removeItemDiscount(items[index]);
+    await saveItems(inq, items);
+    setItemDrafts((d) => ({
+      ...d,
+      [inq.id]: {
+        ...(d[inq.id] || {}),
+        [index]: {
+          ...(d[inq.id]?.[index] || {}),
+          price: items[index].price,
+        },
+      },
+    }));
   };
 
   const addItem = async (inq) => {
@@ -1130,9 +1163,13 @@ export default function Inquiries() {
       setCreatingInquiry(true);
       await addDoc(collection(db, "inquiries"), payload);
       setShowNewInquiry(false);
+      showToast("Inquiry created.");
     } catch (e) {
       console.error("Create inquiry failed:", e);
-      alert("Failed to create inquiry. Check console for details.");
+      showToast("Failed to create inquiry. Check console for details.", {
+        title: "Inquiry not created",
+        variant: "danger",
+      });
     } finally {
       setCreatingInquiry(false);
     }
@@ -1172,6 +1209,7 @@ export default function Inquiries() {
           userEmail: "",
         });
         setShowAssignUser(false);
+        showToast("User assignment removed.");
         return;
       }
 
@@ -1183,9 +1221,13 @@ export default function Inquiries() {
       });
 
       setShowAssignUser(false);
+      showToast("User assignment saved.");
     } catch (e) {
       console.error("User assignment failed:", e);
-      alert("Failed to update user assignment. Check console for details.");
+      showToast("Failed to update user assignment. Check console for details.", {
+        title: "Assignment not saved",
+        variant: "danger",
+      });
     } finally {
       setSavingUserAssign(false);
     }
@@ -1317,7 +1359,7 @@ export default function Inquiries() {
                       <Button
                         size="sm"
                         variant="outline-danger"
-                        onClick={() => deleteInquiry(inq)}
+                        onClick={() => setDeleteInquiryTarget(inq)}
                         disabled={busy}
                       >
                         Delete
@@ -1591,9 +1633,21 @@ export default function Inquiries() {
                                     </Badge>
                                   </div>
                                   {pricing.hasDiscount ? (
-                                    <div className="text-success small mt-1">
-                                      {pricing.discountName}: originally{" "}
-                                      {money(pricing.originalUnitPrice)} each
+                                    <div className="d-flex align-items-center gap-2 flex-wrap mt-1">
+                                      <span className="text-success small">
+                                        {pricing.discountName}: originally{" "}
+                                        {money(pricing.originalUnitPrice)} each
+                                      </span>
+                                      <Button
+                                        size="sm"
+                                        variant="outline-secondary"
+                                        onClick={() =>
+                                          removeDiscountFromItem(inq, idx)
+                                        }
+                                        disabled={busy}
+                                      >
+                                        Remove discount
+                                      </Button>
                                     </div>
                                   ) : null}
 
@@ -1864,6 +1918,31 @@ export default function Inquiries() {
                                     disabled={busy}
                                   />
                                 </Col>
+                                {getItemPricing(adding[inq.id] || {}).hasDiscount ? (
+                                  <Col xs={12}>
+                                    <div className="small text-success d-flex align-items-center gap-2 flex-wrap">
+                                      <span>
+                                        {getItemPricing(adding[inq.id] || {}).discountName}:{" "}
+                                        {money(getItemPricing(adding[inq.id] || {}).unitPrice)} each,
+                                        originally{" "}
+                                        {money(
+                                          getItemPricing(adding[inq.id] || {})
+                                            .originalUnitPrice
+                                        )}
+                                      </span>
+                                      <Button
+                                        size="sm"
+                                        variant="outline-secondary"
+                                        onClick={() =>
+                                          removeDiscountFromAddDraft(inq.id)
+                                        }
+                                        disabled={busy}
+                                      >
+                                        Remove discount
+                                      </Button>
+                                    </div>
+                                  </Col>
+                                ) : null}
                                 {normalizeEvents(inq.events).length > 0 ? (
                                   <Col xs={12}>
                                     <Form.Select
@@ -2227,9 +2306,19 @@ export default function Inquiries() {
                               </div>
                             </div>
                             {pricing.hasDiscount ? (
-                              <div className="text-success small mb-2">
-                                {pricing.discountName}: originally{" "}
-                                {money(pricing.originalUnitPrice)} each
+                              <div className="d-flex align-items-center gap-2 flex-wrap mb-2">
+                                <span className="text-success small">
+                                  {pricing.discountName}: originally{" "}
+                                  {money(pricing.originalUnitPrice)} each
+                                </span>
+                                <Button
+                                  size="sm"
+                                  variant="outline-secondary"
+                                  onClick={() => removeDiscountFromItem(inq, idx)}
+                                  disabled={busy}
+                                >
+                                  Remove discount
+                                </Button>
                               </div>
                             ) : null}
 
@@ -2478,6 +2567,32 @@ export default function Inquiries() {
                               disabled={busy}
                             />
                           </Col>
+
+                          {getItemPricing(adding[inq.id] || {}).hasDiscount ? (
+                            <Col lg={12}>
+                              <div className="small text-success d-flex align-items-center gap-2 flex-wrap">
+                                <span>
+                                  {getItemPricing(adding[inq.id] || {}).discountName}:{" "}
+                                  {money(getItemPricing(adding[inq.id] || {}).unitPrice)} each,
+                                  originally{" "}
+                                  {money(
+                                    getItemPricing(adding[inq.id] || {})
+                                      .originalUnitPrice
+                                  )}
+                                </span>
+                                <Button
+                                  size="sm"
+                                  variant="outline-secondary"
+                                  onClick={() =>
+                                    removeDiscountFromAddDraft(inq.id)
+                                  }
+                                  disabled={busy}
+                                >
+                                  Remove discount
+                                </Button>
+                              </div>
+                            </Col>
+                          ) : null}
 
                           {normalizeEvents(inq.events).length > 0 ? (
                             <Col lg={11}>
@@ -3166,6 +3281,36 @@ export default function Inquiries() {
           </Button>
         </div>
       </FormModal>
+
+      <FormModal
+        show={Boolean(deleteInquiryTarget)}
+        onHide={() => setDeleteInquiryTarget(null)}
+        title="Delete inquiry"
+      >
+        <p className="mb-3">
+          Delete{" "}
+          <strong>{deleteInquiryTarget?.name || "this inquiry"}</strong>{" "}
+          permanently? This cannot be undone.
+        </p>
+        <div className="d-flex justify-content-end gap-2">
+          <Button
+            variant="outline-secondary"
+            onClick={() => setDeleteInquiryTarget(null)}
+            disabled={Boolean(saving[deleteInquiryTarget?.id])}
+          >
+            Cancel
+          </Button>
+          <Button
+            variant="danger"
+            onClick={deleteInquiry}
+            disabled={Boolean(saving[deleteInquiryTarget?.id])}
+          >
+            {saving[deleteInquiryTarget?.id] ? "Deleting..." : "Delete"}
+          </Button>
+        </div>
+      </FormModal>
+
+      <AdminToastOutlet toasts={toasts} onClose={removeToast} />
     </Container>
   );
 }

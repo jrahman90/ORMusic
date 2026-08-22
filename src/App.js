@@ -8,6 +8,7 @@ import { Routes, Route, useLocation, matchPath } from "react-router-dom";
 import Home from "./Components/Home";
 import ContactUs from "./Components/ContactUs";
 import Djmc from "./Components/Djmc";
+import TeamMemberDetails from "./Components/TeamMemberDetails";
 import Downloads from "./Components/Downloads";
 import MusicVideos from "./Components/MusicVideos";
 import Music from "./Components/Music";
@@ -48,9 +49,9 @@ const SEO_CONFIG = {
     path: "/",
   },
   "/contact": {
-    title: "Contact OR Music Events | Book Your DJ and Event Production",
+    title: "Contact OR Music Events | Questions, Support and Partnerships",
     description:
-      "Get in touch with OR Music Events to book professional DJ, MC, lighting and event production services for your wedding, corporate event or private party.",
+      "Contact OR Music Events for general questions, support and partnerships. For event pricing and availability, start with the Services page.",
     path: "/contact",
   },
   "/DJMC": {
@@ -58,6 +59,11 @@ const SEO_CONFIG = {
     description:
       "Meet the OR Music Events team behind weddings, corporate events and private parties in New York City and surrounding states.",
     path: "/DJMC",
+  },
+  "/DJMC/:artistId": {
+    title: "Team Profile | OR Music Events",
+    description:
+      "Learn more about an OR Music Events team member, then explore DJ, MC, hosting and event production services.",
   },
   "/RentalItems": {
     title: "Event Rentals | Sound, Lighting and Screens | OR Music Events",
@@ -395,6 +401,7 @@ function App() {
         <Route path="/" element={<Home />} />
         <Route path="/contact" element={<ContactUs />} />
         <Route path="/DJMC" element={<Djmc />} />
+        <Route path="/DJMC/:artistId" element={<TeamMemberDetails />} />
         <Route path="/Downloads" element={<Downloads />} />
         <Route path="/MusicVideos" element={<MusicVideos />} />
         <Route path="/Music" element={<Music />} />

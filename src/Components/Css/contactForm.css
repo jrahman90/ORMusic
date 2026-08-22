@@ -1,12 +1,336 @@
-.color-overlay {
-    position: absolute;
-    background-color: #67094333;
-    height: 100%;
-    width: 100%;
-    mix-blend-mode: normal;
+.contact-page {
+    background: #f8fafc;
+    color: #111827;
 }
 
-form {
-    background-color: white;
-    box-shadow: 5px 5px 5px #3a032533;
+.contact-hero {
+    background:
+        linear-gradient(90deg, rgba(25, 37, 119, .9), rgba(139, 17, 64, .78)),
+        var(--contact-hero-image) center / cover;
+    color: #fff;
+    min-height: 52vh;
+    position: relative;
+}
+
+.contact-hero-inner {
+    align-items: end;
+    display: grid;
+    min-height: 52vh;
+    padding-bottom: 4.5rem;
+    padding-top: 5rem;
+}
+
+.contact-hero-copy {
+    max-width: 820px;
+}
+
+.contact-hero-copy > span,
+.contact-kicker {
+    align-items: center;
+    display: inline-flex;
+    gap: .45rem;
+    font-size: .82rem;
+    font-weight: 850;
+    letter-spacing: 0;
+    text-transform: uppercase;
+}
+
+.contact-hero-copy h1 {
+    font-size: clamp(3.2rem, 8vw, 6.5rem);
+    font-weight: 900;
+    letter-spacing: 0;
+    line-height: .92;
+    margin: .6rem 0 .8rem;
+    max-width: 900px;
+}
+
+.contact-hero-copy p {
+    color: rgba(255, 255, 255, .86);
+    font-size: 1.2rem;
+    line-height: 1.55;
+    margin: 0;
+    max-width: 670px;
+}
+
+.contact-hero-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .75rem;
+    margin-top: 1.4rem;
+}
+
+.contact-hero-actions .btn,
+.contact-routing-panel .btn,
+.contact-form-footer .btn,
+.contact-service-inner .btn {
+    align-items: center;
+    display: inline-flex;
+    gap: .45rem;
+    justify-content: center;
+}
+
+.contact-content {
+    padding-bottom: 4rem;
+    padding-top: 1.5rem;
+}
+
+.contact-routing-panel,
+.contact-note-panel,
+.contact-form-panel {
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    box-shadow: 0 14px 36px rgba(17, 24, 39, .08);
+}
+
+.contact-routing-panel {
+    display: grid;
+    gap: .9rem;
+    padding: 1.1rem;
+}
+
+.contact-kicker {
+    color: var(--brand-blue);
+}
+
+.contact-routing-panel h2,
+.contact-form-heading h2,
+.contact-service-inner h2 {
+    color: #111827;
+    font-weight: 900;
+    letter-spacing: 0;
+    line-height: 1;
+    margin: 0;
+}
+
+.contact-routing-panel h2 {
+    font-size: 2.15rem;
+}
+
+.contact-routing-panel p,
+.contact-note-panel p,
+.contact-form-heading p,
+.contact-form-footer span {
+    color: #64748b;
+    line-height: 1.55;
+    margin: 0;
+}
+
+.contact-info-list {
+    border-top: 1px solid #e5e7eb;
+    display: grid;
+    gap: .7rem;
+    margin-top: .25rem;
+    padding-top: .9rem;
+}
+
+.contact-info-list a {
+    align-items: center;
+    background: #f8fafc;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    color: #111827;
+    display: flex;
+    gap: .75rem;
+    padding: .8rem;
+    text-decoration: none;
+}
+
+.contact-info-list a:hover {
+    border-color: rgba(48, 62, 149, .4);
+}
+
+.contact-info-list svg {
+    color: var(--brand-blue);
+    flex: 0 0 auto;
+}
+
+.contact-info-list span,
+.contact-info-list strong {
+    display: block;
+}
+
+.contact-info-list strong {
+    font-size: .78rem;
+    text-transform: uppercase;
+}
+
+.contact-note-panel {
+    display: grid;
+    gap: .65rem;
+    margin-top: 1rem;
+    padding: 1rem;
+}
+
+.contact-note-panel > div {
+    align-items: center;
+    color: #111827;
+    display: flex;
+    font-weight: 850;
+    gap: .5rem;
+}
+
+.contact-note-panel svg {
+    color: var(--brand-blue);
+}
+
+.contact-form-panel {
+    padding: 1.1rem;
+}
+
+.contact-form-heading {
+    margin-bottom: 1rem;
+}
+
+.contact-form-heading h2 {
+    font-size: 2.4rem;
+    margin-top: .2rem;
+}
+
+.contact-form {
+    display: grid;
+    gap: 1rem;
+}
+
+.contact-form .form-label {
+    color: #111827;
+    font-weight: 800;
+}
+
+.contact-form .form-control,
+.contact-form .form-select {
+    border-color: #cbd5e1;
+    border-radius: 8px;
+    min-height: 46px;
+}
+
+.contact-form textarea.form-control {
+    min-height: 160px;
+}
+
+.contact-form .form-control:focus,
+.contact-form .form-select:focus {
+    border-color: var(--brand-blue);
+    box-shadow: 0 0 0 .2rem rgba(48, 62, 149, .16);
+}
+
+.contact-form-footer {
+    align-items: center;
+    display: flex;
+    gap: 1rem;
+    justify-content: space-between;
+}
+
+.contact-form-footer > div {
+    align-items: center;
+    display: flex;
+    gap: .45rem;
+}
+
+.contact-form-footer svg {
+    color: var(--brand-blue);
+    flex: 0 0 auto;
+}
+
+.contact-service-band {
+    background: var(--brand-blue);
+    color: #fff;
+    padding: 2rem 0;
+}
+
+.contact-service-inner {
+    align-items: center;
+    display: flex;
+    gap: 1rem;
+    justify-content: space-between;
+}
+
+.contact-service-inner .contact-kicker,
+.contact-service-inner h2 {
+    color: #fff;
+}
+
+.contact-service-inner h2 {
+    font-size: clamp(1.75rem, 3vw, 2.7rem);
+    max-width: 780px;
+}
+
+.contact-toast-container {
+    max-width: min(360px, calc(100vw - 2rem));
+    position: fixed;
+    right: 1rem;
+    top: 1rem;
+    width: 360px;
+    z-index: 2100;
+}
+
+.contact-toast {
+    --contact-toast-accent: #16a34a;
+    border: 1px solid #e5e7eb;
+    border-left: 4px solid var(--contact-toast-accent);
+    border-radius: 8px;
+    box-shadow: 0 18px 40px rgba(17, 24, 39, .18);
+    overflow: hidden;
+}
+
+.contact-toast-danger {
+    --contact-toast-accent: #dc2626;
+}
+
+.contact-toast .toast-header strong {
+    color: #111827;
+    font-weight: 850;
+}
+
+.contact-toast .toast-body {
+    color: #475569;
+    line-height: 1.45;
+}
+
+@media (max-width: 991.98px) {
+    .contact-hero,
+    .contact-hero-inner {
+        min-height: auto;
+    }
+    .contact-hero-inner {
+        padding-bottom: 3rem;
+        padding-top: 4rem;
+    }
+    .contact-service-inner {
+        align-items: stretch;
+        flex-direction: column;
+    }
+    .contact-service-inner .btn {
+        align-self: flex-start;
+    }
+}
+
+@media (max-width: 576px) {
+    .contact-hero-copy h1 {
+        font-size: 3rem;
+    }
+    .contact-hero-copy p {
+        font-size: 1.05rem;
+    }
+    .contact-hero-actions,
+    .contact-form-footer {
+        align-items: stretch;
+        flex-direction: column;
+    }
+    .contact-hero-actions .btn,
+    .contact-routing-panel .btn,
+    .contact-form-footer .btn,
+    .contact-service-inner .btn {
+        width: 100%;
+    }
+    .contact-form-footer > div {
+        align-items: flex-start;
+    }
+    .contact-toast-container {
+        left: .75rem;
+        max-width: calc(100vw - 1.5rem);
+        right: .75rem;
+        top: .75rem;
+        width: auto;
+    }
 }
