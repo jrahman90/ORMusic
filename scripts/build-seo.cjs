@@ -30,7 +30,7 @@ for (const [route, seo] of routes) {
     ].map(([file, media]) => `<link rel="preload" as="image" type="image/webp" href="${assets['static/media/' + file]}" media="${media}" fetchpriority="high" />`).join('');
     pageTemplate = pageTemplate.replace('<head>', '<head>' + heroPreloads);
   }
-  const html = metadata(pageTemplate,route,seo).replace('<div id="root"></div>',`<div id="root">${markup}</div>`);
+  const html = metadata(pageTemplate,route,seo).replace('<div id="root"></div>',`<div id="root" data-prerendered="true">${markup}</div>`);
   const destination = route === '/' ? 'build/index.html' : `build${route}.html`;
   fs.mkdirSync(path.dirname(destination),{recursive:true}); fs.writeFileSync(destination,html);
   // Git dates represent content changes; a dirty checkout must use its current source mtime.

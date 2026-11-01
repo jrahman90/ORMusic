@@ -8,14 +8,22 @@ import "bootstrap/dist/css/bootstrap.min.css";
 
 import { BrowserRouter } from "react-router-dom";
 
-const root = ReactDOM.createRoot(document.getElementById("root"));
-root.render(
+const container = document.getElementById("root");
+const application = (
   <React.StrictMode>
     <BrowserRouter>
       <App />
     </BrowserRouter>
   </React.StrictMode>
 );
+
+// Retain the server-rendered public content instead of rebuilding it on startup.
+// Dynamic and private shells still mount normally because their initial data differs.
+if (container.dataset.prerendered === "true") {
+  ReactDOM.hydrateRoot(container, application);
+} else {
+  ReactDOM.createRoot(container).render(application);
+}
 
 // If you want your app to work offline and load faster, you can change
 // unregister() to register() below. Note this comes with some pitfalls.

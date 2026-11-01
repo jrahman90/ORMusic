@@ -11,7 +11,7 @@ import { clientsClaim } from 'workbox-core';
 import { ExpirationPlugin } from 'workbox-expiration';
 import { precacheAndRoute, createHandlerBoundToURL } from 'workbox-precaching';
 import { registerRoute } from 'workbox-routing';
-import { StaleWhileRevalidate } from 'workbox-strategies';
+import { NetworkFirst, StaleWhileRevalidate } from 'workbox-strategies';
 
 clientsClaim();
 
@@ -19,10 +19,16 @@ clientsClaim();
 // Their URLs are injected into the manifest variable below.
 // This variable must be present somewhere in your service worker file,
 // even if you decide not to use precaching. See https://cra.link/PWA
-precacheAndRoute(self.__WB_MANIFEST);
+// Navigation must take precedence over the precached app-shell match for `/`.
+// Prefer route-specific server HTML and keep an offline fallback.
+const navigationStrategy = new NetworkFirst({
+  cacheName: 'page-navigations-v1',
+  networkTimeoutSeconds: 3,
+  plugins: [new ExpirationPlugin({ maxEntries: 30, maxAgeSeconds: 86400 })],
+});
 
-// Set up App Shell-style routing, so that all navigation requests
-// are fulfilled with your index.html shell. Learn more at
+// Keep navigation responses fresh, with the precached shell available offline.
+// Learn more at
 // https://developers.google.com/web/fundamentals/architecture/app-shell
 const fileExtensionRegexp = new RegExp('/[^/?]+\\.[^/]+$');
 registerRoute(
@@ -43,8 +49,17 @@ registerRoute(
 
     return true;
   },
-  createHandlerBoundToURL(process.env.PUBLIC_URL + '/index.html')
+  async ({ event, request }) => {
+    try {
+      return await navigationStrategy.handle({ event, request });
+    } catch {
+      return createHandlerBoundToURL(process.env.PUBLIC_URL + '/index.html')({ event, request });
+    }
+  }
 );
+
+// Register precached asset matching after online-first navigation.
+precacheAndRoute(self.__WB_MANIFEST);
 
 // An example runtime caching route for requests that aren't handled by the
 // precache, in this case same-origin .png requests like those from in public/
