@@ -75,7 +75,7 @@ Admin routes are only registered when `users/{uid}.isAdmin` is truthy:
 - Admin access is controlled by Firestore user documents, not by a hardcoded email list.
 - Admins can toggle the navigation into customer view. This hides admin navigation but does not remove the underlying admin permission.
 - Customer inquiry editing is allowed only before a contract exists and only while the inquiry is not completed.
-- The service worker is registered in `src/index.js`; production builds may cache aggressively until open tabs are closed.
+- The service worker is registered in `src/index.js`; navigations prefer fresh server HTML with an offline fallback. Updated workers activate after existing site tabs close, preserving active editing sessions.
 
 ## Deeper Docs
 

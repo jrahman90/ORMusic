@@ -1,0 +1,106 @@
+{
+  "checkedAt": "2026-11-01T16:26:06.312Z",
+  "pages": [
+    {
+      "path": "/",
+      "status": 200,
+      "title": "NYC DJ, MC & Event Production | OR Music Events",
+      "h1": "New York City DJ & Event Production"
+    },
+    {
+      "path": "/team",
+      "status": 200,
+      "title": "New York City DJs & MCs | OR Music Events",
+      "h1": "Meet Our New York City DJs and MCs"
+    },
+    {
+      "path": "/services",
+      "status": 200,
+      "title": "NYC Event Rentals, Sound & Lighting | OR Music Events",
+      "h1": "Event Rentals and Production Services"
+    },
+    {
+      "path": "/music-videos",
+      "status": 200,
+      "title": "Music Videos | OR Music Events",
+      "h1": "OR Music Events Music Videos"
+    },
+    {
+      "path": "/contact",
+      "status": 200,
+      "title": "Contact OR Music Events | NYC Event Services",
+      "h1": "Contact OR Music Events"
+    },
+    {
+      "path": "/team/3sU2bU1FBBBKmgrruvQS",
+      "status": 200,
+      "title": "DJ SQ | OR Music Events"
+    },
+    {
+      "path": "/team/XZsOVYGln88xiVRnWd40",
+      "status": 200,
+      "title": "Opu Rahman | OR Music Events"
+    },
+    {
+      "path": "/team/o08gczOGi0sOjlDCeCt0",
+      "status": 200,
+      "title": "DJ Dizzi | OR Music Events"
+    },
+    {
+      "path": "/team/rGoT084n90c6OOlMkAqX",
+      "status": 200,
+      "title": "DJ Bangy | OR Music Events"
+    }
+  ],
+  "redirects": [
+    {
+      "from": "/DJMC",
+      "to": "/team",
+      "status": 301
+    },
+    {
+      "from": "/RentalItems",
+      "to": "/services",
+      "status": 301
+    },
+    {
+      "from": "/MusicVideos",
+      "to": "/music-videos",
+      "status": 301
+    },
+    {
+      "from": "/Cart",
+      "to": "/cart",
+      "status": 301
+    },
+    {
+      "from": "/Downloads",
+      "to": "/downloads",
+      "status": 301
+    },
+    {
+      "from": "/Music",
+      "to": "/music",
+      "status": 301
+    },
+    {
+      "from": "http://ormusicevents.com/",
+      "to": "https://ormusicevents.com/",
+      "status": 301
+    },
+    {
+      "from": "http://ormusicevents.com/services",
+      "to": "https://ormusicevents.com/services",
+      "status": 301
+    },
+    {
+      "from": "https://www.ormusicevents.com/",
+      "to": "https://ormusicevents.com/",
+      "status": 301
+    }
+  ],
+  "sitemap": {
+    "status": 200,
+    "urls": 9
+  }
+}
