@@ -5875,3 +5875,7 @@ ul {
 @media (prefers-reduced-motion: reduce) {
   .carousel-item, .fade { transition: none !important; animation: none !important; }
 }
+
+@media (max-width: 575px) {
+  .home-hero { background-image: linear-gradient(90deg, rgba(10, 14, 34, .82), rgba(10, 14, 34, .36)), url('../../../public/djimg-mobile.webp'); }
+}

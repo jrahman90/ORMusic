@@ -7,8 +7,13 @@ const publicRoutes = Object.entries(pages).filter(([path,seo])=>!path.includes('
 test('public HTML has unique metadata, one H1, sequential headings, valid images and internal links',()=>{
   const titles=new Set();const descriptions=new Set();
   for(const [path,seo] of publicRoutes){
-    const file=path==='/'?'build/index.html':`build${path}/index.html`;
+    const file=path==='/'?'build/index.html':`build${path}.html`;
     const doc=new JSDOM(fs.readFileSync(file,'utf8')).window.document;
+    if(path === '/') {
+      const preloads = [...doc.querySelectorAll('link[rel="preload"][as="image"]')];
+      assert.equal(preloads.length, 2);
+      for(const link of preloads) assert.ok(fs.existsSync('build'+link.getAttribute('href')));
+    }
     assert.equal(doc.title,seo.title);assert.ok(doc.title.length<60);assert.ok(!titles.has(doc.title));titles.add(doc.title);
     const description=doc.querySelector('meta[name="description"]').content;
     assert.ok(description.length<160);assert.ok(!descriptions.has(description));descriptions.add(description);

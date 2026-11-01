@@ -16,6 +16,16 @@ Strict-Transport-Security = "max-age=31536000"
 X-Content-Type-Options = "nosniff"
 Referrer-Policy = "strict-origin-when-cross-origin"
 
+[[headers]]
+for = "/static/*"
+[headers.values]
+Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+for = "/*.webp"
+[headers.values]
+Cache-Control = "public, max-age=86400"
+
 [[redirects]]
 from = "http://ormusicevents.com/*"
 to = "https://ormusicevents.com/:splat"

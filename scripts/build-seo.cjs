@@ -15,14 +15,23 @@ const {renderToString} = require('react-dom/server');
 const {StaticRouter} = require('react-router-dom/server');
 const App = require('../src/App').default;
 const template = fs.readFileSync('build/index.html','utf8');
+const assets = require('../build/asset-manifest.json').files;
 fs.mkdirSync('.seo', {recursive:true});
 fs.writeFileSync('.seo/template.html',template);
 const routes = Object.entries(pages).filter(([route,seo])=>!route.includes(':') && !seo.robots);
 const modified = {};
 for (const [route, seo] of routes) {
   const markup = renderToString(React.createElement(StaticRouter,{location:route},React.createElement(App)));
-  const html = metadata(template,route,seo).replace('<div id="root"></div>',`<div id="root">${markup}</div>`);
-  const destination = route === '/' ? 'build/index.html' : `build${route}/index.html`;
+  let pageTemplate = template;
+  if (route === '/') {
+    const heroPreloads = [
+      ['djimg.webp', '(min-width: 576px)'],
+      ['djimg-mobile.webp', '(max-width: 575px)']
+    ].map(([file, media]) => `<link rel="preload" as="image" type="image/webp" href="${assets['static/media/' + file]}" media="${media}" fetchpriority="high" />`).join('');
+    pageTemplate = pageTemplate.replace('<head>', '<head>' + heroPreloads);
+  }
+  const html = metadata(pageTemplate,route,seo).replace('<div id="root"></div>',`<div id="root">${markup}</div>`);
+  const destination = route === '/' ? 'build/index.html' : `build${route}.html`;
   fs.mkdirSync(path.dirname(destination),{recursive:true}); fs.writeFileSync(destination,html);
   // Git dates represent content changes; a dirty checkout must use its current source mtime.
   let date;

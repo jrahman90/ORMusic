@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, lazy, Suspense } from "react";
 import Container from "react-bootstrap/Container";
 import Nav from "react-bootstrap/Nav";
 import Navbar from "react-bootstrap/Navbar";
@@ -31,7 +31,7 @@ import {
   UsersRound,
 } from "lucide-react";
 import firestore from "../api/firestore/firestore";
-import AccountModal from "./AccountModal";
+const AccountModal = lazy(() => import("./AccountModal"));
 
 function AppNavbar() {
   const [isAdmin, setIsAdmin] = useState(null);
@@ -614,11 +614,13 @@ function AppNavbar() {
         </>
       ) : null}
 
+      {showAccountModal && <Suspense fallback={<div role="status" className="position-fixed top-50 start-50 translate-middle bg-white p-3 rounded shadow" style={{zIndex: 1100}}>Loading sign in…</div>}>
       <AccountModal
         show={showAccountModal}
         initialMode={accountMode}
         onHide={() => setShowAccountModal(false)}
       />
+      </Suspense>}
     </>
   );
 }
