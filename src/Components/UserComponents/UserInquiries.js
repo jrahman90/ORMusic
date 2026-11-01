@@ -9,6 +9,7 @@ export default function UserInquiries() {
 
   return (
     <Container fluid="xl" className="customer-inquiries-page py-3">
+      <h1>Your Event Inquiries</h1>
       {inquirySubmitted ? (
         <Alert variant="success">
           Your inquiry was submitted successfully. You can track its status

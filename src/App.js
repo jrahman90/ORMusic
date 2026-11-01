@@ -1,10 +1,10 @@
 // App.js
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, lazy, Suspense } from "react";
 import "bootstrap/dist/css/bootstrap.min.css";
 import "./App.css";
 import "./Components/Css/components.css";
 import AppNavbar from "./Components/Navbar";
-import { Routes, Route, useLocation, matchPath } from "react-router-dom";
+import { Routes, Route, useLocation, matchPath, Navigate, useParams } from "react-router-dom";
 import Home from "./Components/Home";
 import ContactUs from "./Components/ContactUs";
 import Djmc from "./Components/Djmc";
@@ -13,25 +13,26 @@ import Downloads from "./Components/Downloads";
 import MusicVideos from "./Components/MusicVideos";
 import Music from "./Components/Music";
 import Footer from "./Components/Footer";
-import MusicVideoAdmin from "./Components/Admin/MusicVideoAdmin";
-import Cart from "./Components/UserComponents/Cart";
-import UserInquiries from "./Components/UserComponents/UserInquiries";
-import RentalsAdmin from "./Components/Admin/RentalsAdmin";
 import Rentals from "./Components/UserComponents/Rentals";
-import DjmcAdmin from "./Components/Admin/DjmcAdmin";
 import PageNotFound from "./Components/404";
 import { getAuth, onAuthStateChanged } from "@firebase/auth";
 import { getDoc, doc } from "@firebase/firestore";
 import firestore from "./api/firestore/firestore";
-import Inquiries from "./Components/Admin/Inquiries";
 import EventureTermsAndConditions from "./Components/EventureTerms";
-import EventureAdmin from "./Components/Admin/EventureAdmin";
-import AdminDashboard from "./Components/Admin/AdminDashboard";
-import AdminEventDetails from "./Components/Admin/AdminEventDetails";
-import AdminYearReport from "./Components/Admin/AdminYearReport";
-import ItineraryEditorPage from "./Components/Itineraries/ItineraryEditorPage";
-import ItineraryPrintPage from "./Components/Itineraries/ItineraryPrintPage";
 import { captureItemPricing } from "./utils/pricing";
+
+const MusicVideoAdmin = lazy(() => import("./Components/Admin/MusicVideoAdmin"));
+const Cart = lazy(() => import("./Components/UserComponents/Cart"));
+const UserInquiries = lazy(() => import("./Components/UserComponents/UserInquiries"));
+const RentalsAdmin = lazy(() => import("./Components/Admin/RentalsAdmin"));
+const DjmcAdmin = lazy(() => import("./Components/Admin/DjmcAdmin"));
+const Inquiries = lazy(() => import("./Components/Admin/Inquiries"));
+const EventureAdmin = lazy(() => import("./Components/Admin/EventureAdmin"));
+const AdminDashboard = lazy(() => import("./Components/Admin/AdminDashboard"));
+const AdminEventDetails = lazy(() => import("./Components/Admin/AdminEventDetails"));
+const AdminYearReport = lazy(() => import("./Components/Admin/AdminYearReport"));
+const ItineraryEditorPage = lazy(() => import("./Components/Itineraries/ItineraryEditorPage"));
+const ItineraryPrintPage = lazy(() => import("./Components/Itineraries/ItineraryPrintPage"));
 
 const SITE_URL = "https://ormusicevents.com";
 const DEFAULT_SHARE_IMAGE = `${SITE_URL}/og-image.jpg`;
@@ -40,148 +41,7 @@ const DEFAULT_SHARE_IMAGE_ALT =
 const PUBLIC_ROBOTS = "index, follow, max-image-preview:large";
 const PRIVATE_ROBOTS = "noindex, nofollow";
 
-const SEO_CONFIG = {
-  "/": {
-    title:
-      "OR Music Events | DJ, MC, Lighting and Event Production in New York City",
-    description:
-      "OR Music Events provides professional DJ, MC, lighting, stage design and event production services for weddings, corporate events and private parties in New York City.",
-    path: "/",
-  },
-  "/contact": {
-    title: "Contact OR Music Events | Questions, Support and Partnerships",
-    description:
-      "Contact OR Music Events for general questions, support and partnerships. For event pricing and availability, start with the Services page.",
-    path: "/contact",
-  },
-  "/DJMC": {
-    title: "Team | OR Music Events New York City",
-    description:
-      "Meet the OR Music Events team behind weddings, corporate events and private parties in New York City and surrounding states.",
-    path: "/DJMC",
-  },
-  "/DJMC/:artistId": {
-    title: "Team Profile | OR Music Events",
-    description:
-      "Learn more about an OR Music Events team member, then explore DJ, MC, hosting and event production services.",
-  },
-  "/RentalItems": {
-    title: "Event Rentals | Sound, Lighting and Screens | OR Music Events",
-    description:
-      "Rent speakers, microphones, projectors, screens, lighting and more from OR Music Events for your next event.",
-    path: "/RentalItems",
-  },
-  "/MusicVideos": {
-    title: "Music Videos | OR Music Events",
-    description:
-      "Watch music videos and creative projects produced by OR Music Events.",
-    path: "/MusicVideos",
-  },
-  "/Music": {
-    title: "Music by OR Music Events",
-    description:
-      "Listen to music and mixes by OR Music Events and discover the sounds behind our events.",
-    path: "/Music",
-    robots: PRIVATE_ROBOTS,
-  },
-  "/Downloads": {
-    title: "Downloads | OR Music Events",
-    description:
-      "Download available OR Music Events resources and event planning materials.",
-    path: "/Downloads",
-    robots: PRIVATE_ROBOTS,
-  },
-  "/Cart": {
-    title: "Your Cart | OR Music Events Rentals",
-    description:
-      "Review and update your rental cart for event equipment from OR Music Events.",
-    path: "/Cart",
-    robots: PRIVATE_ROBOTS,
-  },
-  "/inquiries": {
-    title: "Your Inquiries | OR Music Events",
-    description:
-      "Review your OR Music Events inquiries, contracts, deposits, and status updates.",
-    path: "/inquiries",
-    robots: PRIVATE_ROBOTS,
-  },
-  "/inquiries/:inquiryId/events/:eventId/itinerary": {
-    title: "Event Itinerary | OR Music Events",
-    description:
-      "Create and edit your OR Music Events itinerary for a confirmed event.",
-    path: "/inquiries",
-    robots: PRIVATE_ROBOTS,
-  },
-  "/inquiries/:inquiryId/events/:eventId/itinerary/print": {
-    title: "Printable Event Itinerary | OR Music Events",
-    description:
-      "View, print, or save a PDF copy of your OR Music Events itinerary.",
-    path: "/inquiries",
-    robots: PRIVATE_ROBOTS,
-  },
-  "/itinerary/public/:inquiryId/:eventId/:token": {
-    title: "Live Event Itinerary | OR Music Events",
-    description:
-      "View the current public itinerary for an OR Music Events event.",
-    path: "/itinerary/public",
-    robots: PRIVATE_ROBOTS,
-  },
-  "/dashboard-admin": {
-    title: "Admin Dashboard | OR Music Events",
-    description: "Admin dashboard for OR Music Events.",
-    path: "/dashboard-admin",
-    robots: PRIVATE_ROBOTS,
-  },
-  "/dashboard-admin/events/:inquiryId/:eventId": {
-    title: "Admin Event Details | OR Music Events",
-    description: "Admin event details for OR Music Events.",
-    path: "/dashboard-admin",
-    robots: PRIVATE_ROBOTS,
-  },
-  "/reports-admin": {
-    title: "Admin Reports | OR Music Events",
-    description: "Admin yearly revenue and product reports for OR Music Events.",
-    path: "/reports-admin",
-    robots: PRIVATE_ROBOTS,
-  },
-  "/inquiries-admin": {
-    title: "Admin Inquiries | OR Music Events",
-    description: "Admin inquiry management for OR Music Events.",
-    path: "/inquiries-admin",
-    robots: PRIVATE_ROBOTS,
-  },
-  "/rental-items-admin": {
-    title: "Rental Items Admin | OR Music Events",
-    description: "Admin rental and service catalog editor for OR Music Events.",
-    path: "/rental-items-admin",
-    robots: PRIVATE_ROBOTS,
-  },
-  "/music-video-admin": {
-    title: "Music Video Admin | OR Music Events",
-    description: "Admin music video editor for OR Music Events.",
-    path: "/music-video-admin",
-    robots: PRIVATE_ROBOTS,
-  },
-  "/dj-mc-admin": {
-    title: "Team Admin | OR Music Events",
-    description: "Admin team editor for OR Music Events.",
-    path: "/dj-mc-admin",
-    robots: PRIVATE_ROBOTS,
-  },
-  "/eventure-admin": {
-    title: "Eventure Admin | OR Music Events",
-    description: "Admin Eventure contact management for OR Music Events.",
-    path: "/eventure-admin",
-    robots: PRIVATE_ROBOTS,
-  },
-  "/eventure-terms-conditions": {
-    title: "Eventure Terms and Conditions | OR Music Events",
-    description:
-      "Read the Eventure terms and conditions for using the platform and working with OR Music Events.",
-    path: "/eventure-terms-conditions",
-    robots: PRIVATE_ROBOTS,
-  },
-};
+const SEO_CONFIG = require("./seo-pages.json");
 
 const SEO_ROUTES = Object.entries(SEO_CONFIG).map(([pattern, config]) => ({
   pattern,
@@ -228,6 +88,12 @@ const routeSeoForPath = (pathname) => {
   };
 };
 
+const LEGACY_ROUTES = { "/DJMC": "/team", "/RentalItems": "/services", "/MusicVideos": "/music-videos", "/Music": "/music", "/Downloads": "/downloads", "/Cart": "/cart" };
+function LegacyTeamRedirect() {
+  const { artistId } = useParams();
+  return <Navigate to={`/team/${encodeURIComponent(artistId)}`} replace />;
+}
+
 function App() {
   const [isAdmin, setIsAdmin] = useState(null);
   const [, setUserData] = useState(null);
@@ -241,10 +107,29 @@ function App() {
 
     if (seo) {
       document.title = seo.title;
-      const canonicalUrl = canonicalUrlForPath(seo.path || location.pathname);
+      const canonicalUrl = canonicalUrlForPath(location.pathname);
       const shareImage = seo.image || DEFAULT_SHARE_IMAGE;
       const shareImageAlt = seo.imageAlt || DEFAULT_SHARE_IMAGE_ALT;
       upsertCanonical(canonicalUrl);
+      let schema = document.getElementById("page-schema");
+      if (!schema) {
+        schema = document.createElement("script");
+        schema.id = "page-schema";
+        schema.type = "application/ld+json";
+        document.head.appendChild(schema);
+      }
+      schema.textContent = JSON.stringify({
+        "@context": "https://schema.org", "@type": "WebPage",
+        "@id": `${canonicalUrl}#webpage`, url: canonicalUrl,
+        name: seo.title, description: seo.description,
+        isPartOf: { "@id": `${SITE_URL}/#website` },
+        ...(location.pathname !== "/" && !seo.robots ? { breadcrumb: {
+          "@type": "BreadcrumbList", itemListElement: [
+            { "@type": "ListItem", position: 1, name: "Home", item: `${SITE_URL}/` },
+            { "@type": "ListItem", position: 2, name: seo.title.split("|")[0].trim(), item: canonicalUrl }
+          ]
+        }} : {})
+      });
       upsertMeta({
         selector: 'meta[name="description"]',
         attrs: { name: "description", content: seo.description },
@@ -397,16 +282,21 @@ function App() {
   return (
     <div>
       {!hideSiteChrome && <AppNavbar />}
+      <Suspense fallback={<main className="container py-5" role="status">Loading page…</main>}>
       <Routes>
+        {Object.entries(LEGACY_ROUTES).map(([from, to]) => (
+          <Route key={from} caseSensitive path={from} element={<Navigate to={to} replace />} />
+        ))}
+        <Route caseSensitive path="/DJMC/:artistId" element={<LegacyTeamRedirect />} />
         <Route path="/" element={<Home />} />
         <Route path="/contact" element={<ContactUs />} />
-        <Route path="/DJMC" element={<Djmc />} />
-        <Route path="/DJMC/:artistId" element={<TeamMemberDetails />} />
-        <Route path="/Downloads" element={<Downloads />} />
-        <Route path="/MusicVideos" element={<MusicVideos />} />
-        <Route path="/Music" element={<Music />} />
+        <Route path="/team" element={<Djmc />} />
+        <Route path="/team/:artistId" element={<TeamMemberDetails />} />
+        <Route path="/downloads" element={<Downloads />} />
+        <Route path="/music-videos" element={<MusicVideos />} />
+        <Route path="/music" element={<Music />} />
         <Route
-          path="/Cart"
+          path="/cart"
           element={<Cart items={cartItems} setItems={setCartItems} />}
         />
         <Route path="/inquiries" element={<UserInquiries />} />
@@ -423,7 +313,7 @@ function App() {
           element={<ItineraryPrintPage publicView />}
         />
         <Route
-          path="/RentalItems"
+          path="/services"
           element={<Rentals addToCart={addToCart} />}
         />
         {isAdmin && (
@@ -453,6 +343,7 @@ function App() {
         />
         <Route path="/*" element={<PageNotFound />} />
       </Routes>
+      </Suspense>
       {!hideSiteChrome && (
         <div>
           <div className="line"></div>

@@ -21,7 +21,7 @@ The app is built with Create React App, React Router, React Bootstrap, Firebase 
 ## Source Map
 
 ```text
-public/                         Static images, manifest, sitemap, robots.txt
+public/                         Static images, manifest, robots.txt
 src/App.js                      Top-level routing, SEO meta handling, cart state, admin route gate
 src/index.js                    React entry point and service worker registration
 src/api/firestore/              Firebase app, Firestore, Storage, and Auth exports
@@ -45,15 +45,15 @@ Public/customer routes are available to everyone unless the page itself requires
 | --- | --- | --- |
 | `/` | `Home` | Public landing page |
 | `/contact` | `ContactUs` | Contact page and rental/service prompt |
-| `/DJMC` | `Djmc` | Public team page |
-| `/RentalItems` | `Rentals` | Browse services/rentals and add to cart |
-| `/Cart` | `Cart` | Review services and submit an inquiry |
+| `/team` | `Djmc` | Public team page |
+| `/services` | `Rentals` | Browse services/rentals and add to cart |
+| `/cart` | `Cart` | Review services and submit an inquiry |
 | `/inquiries` | `UserInquiries` | Customer inquiry portal |
 | `/inquiries/:inquiryId/events/:eventId/itinerary` | `ItineraryEditorPage` | Event itinerary editor |
 | `/inquiries/:inquiryId/events/:eventId/itinerary/print` | `ItineraryPrintPage` | Printable itinerary |
 | `/itinerary/public/:inquiryId/:eventId/:token` | `ItineraryPrintPage publicView` | Public itinerary view |
-| `/MusicVideos` | `MusicVideos` | Public video gallery |
-| `/Music` | `Music` | Public music page |
+| `/music-videos` | `MusicVideos` | Public video gallery |
+| `/music` | `Music` | Public music page |
 | `/eventure-terms-conditions` | `EventureTermsAndConditions` | Eventure terms/contact form |
 
 Admin routes are only registered when `users/{uid}.isAdmin` is truthy:
@@ -87,6 +87,6 @@ Admin routes are only registered when `users/{uid}.isAdmin` is truthy:
 
 ## Deployment
 
-`netlify.toml` rewrites all routes to `index.html`, which lets React Router handle deep links such as `/dashboard-admin/events/...`.
+`netlify.toml` configures HTTPS and legacy URL redirects, generated public HTML, a live sitemap and team-profile function, and a metadata-aware SPA fallback. Run the configured Netlify build; deploying only the static `build/` folder omits the required server functions. See [SEO Notes](docs/SEO.md) for validation results and deployment checks.
 
 Run `npm run build` before shipping changes. The current build may warn that Browserslist `caniuse-lite` is outdated; that warning does not block compilation.

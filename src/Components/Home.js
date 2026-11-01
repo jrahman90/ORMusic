@@ -41,14 +41,14 @@ export default function Home() {
 
       <section className="home-hero">
         <Container className="home-hero-inner">
-          <img className="home-logo" src="ormusiclogo.png" alt="OR Music Events" />
-          <h1>OR Music Events</h1>
+          <img className="home-logo" src="/ormusiclogo.webp" alt="OR Music Events" width="2066" height="629" fetchpriority="high" />
+          <h1>New York City DJ &amp; Event Production</h1>
           <p>
             DJ, MC, lighting, staging, and event production for celebrations
             that need to feel alive from the first song to the last toast.
           </p>
           <div className="home-hero-actions">
-            <Button as={Link} to="/RentalItems" size="lg">
+            <Button as={Link} to="/services" size="lg">
               Build Your Event Package
             </Button>
             <Button as={Link} to="/contact" variant="outline-light" size="lg">
@@ -65,7 +65,7 @@ export default function Home() {
               <h2>Celebrate With Us</h2>
               <p>
                 We produce weddings, corporate gatherings, private parties, and
-                concerts across the tristate area with DJ/MC talent, lighting,
+                concerts across the tristate area with <Link to="/team">DJ and MC talent</Link>, lighting,
                 decor, staging, photography, and video support.
               </p>
             </Col>
@@ -93,7 +93,7 @@ export default function Home() {
         <Container>
           <div className="section-heading">
             <h2>Services That Set the Room</h2>
-            <Button as={Link} to="/RentalItems" variant="outline-primary">
+            <Button as={Link} to="/services" variant="outline-primary">
               Browse Services
             </Button>
           </div>

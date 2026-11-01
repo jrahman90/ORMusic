@@ -154,7 +154,7 @@
     min-height: calc(100vh - 120px);
     background:
         linear-gradient(90deg, rgba(10, 14, 34, .82), rgba(10, 14, 34, .36)),
-        url('../../../public/djimg.jpg');
+        url('../../../public/djimg.webp');
     background-size: cover;
     background-position: center bottom;
     color: #fff;
@@ -280,7 +280,7 @@
     text-align: center;
 }
 .djmc-container {
-    background-image: url('../../../public/djimg.jpg');
+    background-image: url('../../../public/djimg.webp');
     background-position: bottom;
     background-size: cover;
     background-repeat: repeat-y;
@@ -312,7 +312,7 @@
 .team-hero {
     background:
         linear-gradient(90deg, rgba(12, 18, 46, .88), rgba(51, 63, 148, .62), rgba(167, 22, 52, .72)),
-        url('../../../public/djimg.jpg');
+        url('../../../public/djimg.webp');
     background-position: center bottom;
     background-size: cover;
     color: #fff;
@@ -726,7 +726,7 @@
     align-items: center;
     background:
         linear-gradient(90deg, rgba(51, 63, 148, .96), rgba(167, 22, 52, .92)),
-        url('../../../public/djbooth.jpg');
+        url('../../../public/djbooth.webp');
     background-position: center;
     background-size: cover;
     border-radius: 8px;
@@ -765,7 +765,7 @@
 .music-videos-hero {
     background:
         linear-gradient(90deg, rgba(10, 14, 34, .86), rgba(51, 63, 148, .62), rgba(167, 22, 52, .7)),
-        url('../../../public/djbooth2.jpg');
+        url('../../../public/djbooth2.webp');
     background-position: center;
     background-size: cover;
     color: #fff;
@@ -984,7 +984,7 @@
 .header {
     width: 100vw;
     height: 50vh;
-    background-image: url('../../../public/djimg.jpg');
+    background-image: url('../../../public/djimg.webp');
     background-position: bottom;
     background-size: cover;
     background-repeat: repeat-y;
@@ -1007,7 +1007,7 @@
     margin-bottom: 100px;
 }
 .home-card{
-    background-image: url('../../../public/djimg.jpg');
+    background-image: url('../../../public/djimg.webp');
     background-size: cover;
     background-position: bottom;
     background-repeat: repeat-y;
@@ -1252,7 +1252,7 @@ ul {
     align-items: end;
     background:
         linear-gradient(135deg, rgba(51, 63, 148, .95), rgba(167, 22, 52, .84)),
-        url('../../../public/djimg.jpg');
+        url('../../../public/djimg.webp');
     background-position: center bottom;
     background-size: cover;
     border-radius: 8px;
@@ -3524,7 +3524,7 @@ ul {
     align-items: end;
     background:
         linear-gradient(135deg, rgba(51, 63, 148, .96), rgba(167, 22, 52, .88)),
-        url('../../../public/djimg.jpg');
+        url('../../../public/djimg.webp');
     background-position: center bottom;
     background-size: cover;
     border-radius: 8px;
@@ -5859,4 +5859,19 @@ ul {
         page-break-inside: avoid;
         page-break-after: auto;
     }
+}
+
+/* Reserve image space and keep public content usable on narrow screens. */
+.home-logo { height: auto; }
+.home-services .carousel-item img { aspect-ratio: 2 / 1; height: auto; object-fit: cover; }
+.footer-links { flex-wrap: wrap; }
+.footer-links a { display: inline-flex; align-items: center; min-height: 44px; padding: 8px; }
+.team-profile-copy, .team-member-body, .contact-hero-copy { min-width: 0; overflow-wrap: anywhere; }
+@media (max-width: 575px) {
+  .home-hero h1, .team-hero h1, .contact-hero h1 { font-size: clamp(1.8rem, 8vw, 2.8rem); }
+  .home-hero-actions, .team-hero-actions { flex-wrap: wrap; }
+  .home-services .carousel-caption { position: static; padding: 1rem; background: #101827; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .carousel-item, .fade { transition: none !important; animation: none !important; }
 }

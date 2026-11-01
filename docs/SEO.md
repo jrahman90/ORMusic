@@ -1,68 +1,50 @@
-# SEO Notes
+# SEO implementation and audit — November 1, 2026
 
-This app is a client-rendered React single-page app. Google can render JavaScript, but the initial HTML response still matters for social scrapers, non-Google crawlers, and fast indexing.
+## Public pages and rendering
 
-Reference guidance:
+The canonical origin is `https://ormusicevents.com`. Indexable routes are `/`, `/services`, `/team`, `/team/:artistId`, `/music-videos`, and `/contact`.
 
-- Google JavaScript SEO basics: https://developers.google.com/search/docs/crawling-indexing/javascript/javascript-seo-basics
-- Google title link guidance: https://developers.google.com/search/docs/appearance/title-link
-- Google snippet/meta description guidance: https://developers.google.com/search/docs/appearance/snippet
-- Google canonical guidance: https://developers.google.com/search/docs/crawling-indexing/consolidate-duplicate-urls
-- Google structured data intro: https://developers.google.com/search/docs/appearance/structured-data/intro-structured-data
-- Google robots meta guidance: https://developers.google.com/search/docs/crawling-indexing/robots-meta-tag
+`src/seo-pages.json` is the route metadata registry. `npm run build` compiles React and runs `scripts/build-seo.cjs`, which server-renders the five static public pages and generates their initial titles, descriptions, canonical URLs, social metadata, and page/breadcrumb JSON-LD. React maintains metadata on client navigation. Public team profiles receive live Firestore content and metadata through the `team-profile` Netlify function. Artist IDs remain case-sensitive stable database keys; changing their spelling would break existing profiles.
 
-## Current SEO Setup
+Netlify permanently redirects the original mixed-case marketing routes to their lowercase replacements, including old profile links. All source links now use canonical routes. Canonicals exclude tracking parameters without removing application query parameters needed for user workflows. The `page` function supplies route-specific initial metadata for private/utility routes and real HTTP 404 responses for unknown pages. Private responses have an `X-Robots-Tag` header in addition to client metadata.
 
-- `public/index.html` provides the default home page title, description, canonical URL, Open Graph/Twitter tags, and business JSON-LD.
-- `src/App.js` updates titles, descriptions, canonical URLs, robots meta, and social metadata when React Router changes routes.
-- `public/sitemap.xml` lists the core indexable public routes.
-- `public/robots.txt` allows crawling and points to the sitemap.
-- Private/customer/admin screens use `noindex, nofollow`.
+Music and Downloads remain thin placeholder pages and intentionally are not indexed. Cart, inquiries, admin, terms, and tokenized event itinerary pages retain their existing noindex policy. Customer information and bearer-token itinerary URLs never enter the sitemap. Robots.txt permits crawling so crawlers can see noindex directives.
 
-## Indexable Public Routes
+## Sitemap and hosting
 
-These routes are intended to be discoverable:
+`/sitemap.xml` is rewritten to the `sitemap` function. It includes all five static public pages plus all current artist profiles, paginates Firestore results, and emits XML-escaped URLs and W3C `lastmod` timestamps. Static page timestamps derive from source changes/Git history; profile timestamps use Firestore update times. The shared sitemap is cached for five minutes. Upstream failures return 503 with Retry-After rather than serving a deceptively complete sitemap.
 
-- `/`
-- `/contact`
-- `/DJMC`
-- `/RentalItems`
-- `/MusicVideos`
+Netlify uses the public Firestore REST API, with exactly the same unauthenticated artist visibility as the existing public team page. No administrative credential or new public database permission is needed. Function templates and modification dates are generated under ignored `.seo/` during the build. The deploy must include both the configured Netlify functions and static build output; uploading only `build/` is insufficient.
 
-Thin or private routes are intentionally noindexed until they have enough public content:
+`netlify.toml` includes explicit primary-domain HTTP → HTTPS and www → apex 301 redirects and a one-year HSTS header. Existing production HTTPS and HSTS were already working at audit time. Firebase configuration remains for the existing backend functions; the new frontend hosting rules target the repository's existing Netlify deployment model.
 
-- `/Music`
-- `/Downloads`
-- `/Cart`
-- `/inquiries`
-- admin routes
-- itinerary routes
-- unknown/404 routes
+## Content, assets, and performance
 
-## Important Rules
+Public pages have unique titles under 60 characters, descriptions under 160, one keyword-relevant H1, sequential heading levels, and contextual service/team/media/contact links. The footer copyright is a paragraph, avoiding a skipped heading level. Nested-route asset paths are root-relative. Meaningful images have descriptive alt text; social icon links now have accessible names.
 
-- Every new public route should have a unique title and description in `SEO_CONFIG` inside `src/App.js`.
-- Every private, account, admin, cart, contract, or customer-specific route should use `noindex, nofollow`.
-- Keep sitemap URLs aligned with canonical URLs.
-- Do not add a route to `sitemap.xml` unless it is indexable and has meaningful public content.
-- Keep structured data accurate and consistent with visible site content.
+Eight served image variants were converted to WebP, with large background photographs resized to 1920px wide. Combined source payload fell from 7,843,453 to 884,394 bytes (89%). Originals remain available to preserve existing external references; the existing 1200 × 630 social JPEG remains compatible with social scrapers. The logo's intrinsic aspect ratio, carousel dimensions, and existing profile/media containers reserve image space. Below-fold images load lazily and videos do not preload media. Private/admin screens load in separate JavaScript chunks. Mobile typography, wrapping, footer touch targets, and reduced-motion behavior were improved.
 
-## Best Next SEO Upgrade
+## Verification performed
 
-The biggest technical upgrade would be prerendering or server-side rendering for public routes. Right now, Netlify serves the same `index.html` for every path and React updates metadata after JavaScript runs. Google can handle that, but prerendered public route HTML would help social sharing, non-Google crawlers, and indexing consistency.
+- Production build compiles successfully. Existing toolchain notices remain: stale Browserslist data and Node's punycode deprecation.
+- `CI=true npm test -- --watchAll=false --watchman=false`: 3 suites, 7 tests pass. Watchman is disabled because the local sandbox cannot access its socket.
+- `npm run test:seo`: 5 checks pass, covering static rendered metadata/headings/assets/links/schema, escaping, paginated dynamic sitemap/failure behavior, private noindex and HTTP 404s, and profile metadata/404s.
+- Live public Firestore integration returns 9 sitemap URLs (5 public pages plus 4 team profiles).
+- Existing production HTTP redirects with 301 to HTTPS; HTTPS sends `Strict-Transport-Security: max-age=31536000`.
+- Existing production robots.txt, sitemap.xml, and social JPEG return HTTP 200 with appropriate content types.
+- Facebook, Instagram, YouTube, and TikTok destination links returned HTTP 200. Database-managed remote media URLs can change independently and are not exhaustively certified by the static source audit.
+- Chrome production-preview smoke checks cover public page headings and horizontal layout at desktop and narrow mobile sizes. No form, booking, payment, or inquiry was submitted during testing.
 
-Reasonable options:
+## Google Search Console
 
-- Move public pages to a static framework such as Next.js or Astro.
-- Add a prerender step for known public routes.
-- Keep the admin/customer app client-rendered and prerender only public marketing pages.
+The `https://ormusicevents.com/` URL-prefix property was successfully auto-verified in the signed-in Google account using the existing domain-name-provider record. No new DNS record or HTML token was necessary. Keep the existing DNS-CNAME verification record intact.
 
-## Content Opportunities
+`sitemap.xml` was submitted and Google displayed “Sitemap submitted successfully.” The report subsequently showed “Success,” with a last-read date of November 1, 2026 and 5 discovered pages from the currently deployed sitemap. The new live generator will expose 9 URLs after deployment. Search Console overview reports were still processing, with no field performance data available.
 
-Technical metadata is only part of SEO. The public pages would benefit from more crawlable, specific content:
+## Deployment and remaining validation
 
-- Add service detail sections on `/RentalItems` for DJ/MC, lighting, staging, screens, sound, photography/video, and event packages.
-- Add location/service-area copy for NYC, New Jersey, Connecticut, Massachusetts, and Pennsylvania if those are accurate service areas.
-- Add real testimonials, venue/event examples, and FAQs.
-- Build out `/Music` and `/Downloads` before indexing them.
-- Give every important image descriptive alt text.
+The changes are local and have not been deployed. Deploy using the configured Netlify build so functions, generated HTML, redirects, and headers ship together. Then verify the new canonical routes, profile route, sitemap XML, old-route 301s, and unknown-route 404s on the actual host. Recheck Search Console sitemap fetch status and run mobile PageSpeed Insights against the deployed version.
+
+Field LCP, INP, and CLS cannot be certified from source or local smoke tests; assess real-user data after deployment. No claim of zero regressions or guaranteed Core Web Vitals compliance is made without that production evidence.
+
+References: [Google JavaScript SEO](https://developers.google.com/search/docs/crawling-indexing/javascript/javascript-seo-basics), [Google sitemap guidance](https://developers.google.com/search/docs/crawling-indexing/sitemaps/build-sitemap), [canonical URLs](https://developers.google.com/search/docs/crawling-indexing/consolidate-duplicate-urls).

@@ -246,8 +246,8 @@ function AppNavbar() {
         <Container>
           <Navbar.Brand as={Link} to="/" onClick={handleNavItemClick}>
             <img
-              src="/ormusiclogo.png"
-              alt=""
+              src="/ormusiclogo.webp"
+              alt="OR Music Events home"
               width="100"
               height="30"
               className="d-inline-block align-top"
@@ -269,7 +269,7 @@ function AppNavbar() {
               <Nav.Link
                 className="nav-items"
                 as={Link}
-                to="/DJMC"
+                to="/team"
                 onClick={handleNavItemClick}
               >
                 Team
@@ -277,7 +277,7 @@ function AppNavbar() {
               <Nav.Link
                 className="nav-items"
                 as={Link}
-                to="/RentalItems"
+                to="/services"
                 onClick={handleNavItemClick}
               >
                 Services
@@ -302,7 +302,7 @@ function AppNavbar() {
                 <NavDropdown.Item
                   className="nav-items-dropdown"
                   as={Link}
-                  to="/MusicVideos"
+                  to="/music-videos"
                   onClick={handleNavItemClick}
                 >
                   Music Videos
@@ -380,7 +380,7 @@ function AppNavbar() {
               <Nav.Link
                 className="mx-3 position-relative"
                 as={Link}
-                to="/Cart"
+                to="/cart"
                 onClick={handleNavItemClick}
               >
                 <PiShoppingCartBold style={{ fontSize: "225%" }} />
@@ -449,7 +449,7 @@ function AppNavbar() {
                   rel="noreferrer"
                   onClick={handleNavItemClick}
                 >
-                  <img style={{ opacity: ".5" }} alt="" src={s.imageSrc} />
+                  <img style={{ opacity: ".5" }} alt={`OR Music Events on ${new URL(s.linkToSocial).hostname}`} src={s.imageSrc} />
                 </a>
               ))}
             </Nav>
@@ -467,9 +467,9 @@ function AppNavbar() {
           <span>Home</span>
         </Link>
         <Link
-          to="/RentalItems"
+          to="/services"
           className={`mobile-tab ${
-            isActivePath("/RentalItems") ? "is-active" : ""
+            isActivePath("/services") ? "is-active" : ""
           }`}
           onClick={handleNavItemClick}
         >
@@ -477,17 +477,17 @@ function AppNavbar() {
           <span>Services</span>
         </Link>
         <Link
-          to="/DJMC"
-          className={`mobile-tab ${isActivePath("/DJMC") ? "is-active" : ""}`}
+          to="/team"
+          className={`mobile-tab ${isActivePath("/team") ? "is-active" : ""}`}
           onClick={handleNavItemClick}
         >
           <UsersRound size={22} />
           <span>Team</span>
         </Link>
         <Link
-          to="/Cart"
+          to="/cart"
           className={`mobile-tab mobile-tab-cart ${
-            isActivePath("/Cart") ? "is-active" : ""
+            isActivePath("/cart") ? "is-active" : ""
           }`}
           onClick={handleNavItemClick}
         >

@@ -3,12 +3,12 @@ import "../Css/pictures.css";
 import { Carousel } from "react-bootstrap";
 export default function Pictures() {
   return (
-    <Carousel fade slide={false}>
+    <Carousel fade slide={false} interval={null}>
       <Carousel.Item>
-        <img
+        <img width="800" height="400" loading="lazy" decoding="async"
           className="d-block w-100"
-          src="carousel/dancefloor800x400.png"
-          alt="First slide"
+          src="/carousel/dancefloor800x400.webp"
+          alt="MC entertainment and dance floor at an OR Music Events celebration"
         />
         <Carousel.Caption>
           <h3>MC</h3>
@@ -16,10 +16,10 @@ export default function Pictures() {
         </Carousel.Caption>
       </Carousel.Item>
       <Carousel.Item>
-        <img
+        <img width="800" height="400" loading="lazy" decoding="async"
           className="d-block w-100"
-          src="carousel/dj800x400.png"
-          alt="Second slide"
+          src="/carousel/dj800x400.webp"
+          alt="OR Music Events DJ setup for a celebration"
         />
         <Carousel.Caption>
           <h3>DJ</h3>
@@ -27,10 +27,10 @@ export default function Pictures() {
         </Carousel.Caption>
       </Carousel.Item>
       <Carousel.Item>
-        <img
+        <img width="800" height="400" loading="lazy" decoding="async"
           className="d-block w-100"
-          src="carousel/wstage1.8x4.png"
-          alt="Third slide"
+          src="/carousel/wstage1.8x4.webp"
+          alt="Event stage and decor by OR Music Events"
         />
         <Carousel.Caption>
           <h3>Stage & Decor</h3>

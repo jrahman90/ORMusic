@@ -5,6 +5,8 @@ import { ArrowLeft, Headphones, Music2, Sparkles } from "lucide-react";
 import { doc, getDoc } from "firebase/firestore";
 import db from "../api/firestore/firestore";
 
+import ProfileSeo from "./ProfileSeo";
+
 const splitBio = (value = "") =>
   String(value || "")
     .split(/\n+/)
@@ -56,10 +58,11 @@ export default function TeamMemberDetails() {
 
   return (
     <main className="team-profile-page">
+      <ProfileSeo artist={artist} missing={!loading && !!loadError} />
       <Container className="team-profile-container">
         <Button
           as={Link}
-          to="/DJMC"
+          to="/team"
           variant="link"
           className="team-profile-back"
         >
@@ -69,11 +72,12 @@ export default function TeamMemberDetails() {
 
         {loading ? (
           <div className="team-loading">
+            <h1>OR Music Events Team Profile</h1>
             <Spinner animation="border" role="status" />
             <span>Loading profile</span>
           </div>
         ) : loadError ? (
-          <div className="team-empty">{loadError}</div>
+          <div className="team-empty"><h1>Team profile unavailable</h1><p>{loadError}</p></div>
         ) : (
           <>
             <section className="team-profile-hero">
@@ -96,10 +100,10 @@ export default function TeamMemberDetails() {
                   behind this OR Music Events team member.
                 </p>
                 <div className="team-profile-actions">
-                  <Button as={Link} to="/RentalItems">
+                  <Button as={Link} to="/services">
                     Explore services
                   </Button>
-                  <Button as={Link} to="/DJMC" variant="outline-primary">
+                  <Button as={Link} to="/team" variant="outline-primary">
                     View full team
                   </Button>
                 </div>
@@ -132,7 +136,7 @@ export default function TeamMemberDetails() {
                   sending your inquiry.
                 </span>
               </div>
-              <Button as={Link} to="/RentalItems">
+              <Button as={Link} to="/services">
                 Choose services
                 <Sparkles size={16} />
               </Button>

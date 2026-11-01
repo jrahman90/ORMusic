@@ -82,7 +82,7 @@ export default function MusicVideos() {
               <Film size={17} />
               Music videos
             </span>
-            <h1>Watch the sound in motion</h1>
+            <h1>OR Music Events Music Videos</h1>
             <p>
               Performance clips, event recaps, and creative projects from OR
               Music Events.

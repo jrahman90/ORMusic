@@ -1,4 +1,93 @@
+[build]
+command = "npm run build"
+publish = "build"
+functions = "netlify/functions"
+
+[build.environment]
+NODE_VERSION = "22"
+
+[functions]
+included_files = [".seo/**", "src/seo-pages.json"]
+
+[[headers]]
+for = "/*"
+[headers.values]
+Strict-Transport-Security = "max-age=31536000"
+X-Content-Type-Options = "nosniff"
+Referrer-Policy = "strict-origin-when-cross-origin"
+
+[[redirects]]
+from = "http://ormusicevents.com/*"
+to = "https://ormusicevents.com/:splat"
+status = 301
+force = true
+
+[[redirects]]
+from = "https://www.ormusicevents.com/*"
+to = "https://ormusicevents.com/:splat"
+status = 301
+force = true
+
+[[redirects]]
+from = "http://www.ormusicevents.com/*"
+to = "https://ormusicevents.com/:splat"
+status = 301
+force = true
+
+[[redirects]]
+from = "/DJMC"
+to = "/team"
+status = 301
+force = true
+
+[[redirects]]
+from = "/DJMC/:artistId"
+to = "/team/:artistId"
+status = 301
+force = true
+
+[[redirects]]
+from = "/RentalItems"
+to = "/services"
+status = 301
+force = true
+
+[[redirects]]
+from = "/MusicVideos"
+to = "/music-videos"
+status = 301
+force = true
+
+[[redirects]]
+from = "/Music"
+to = "/music"
+status = 301
+force = true
+
+[[redirects]]
+from = "/Downloads"
+to = "/downloads"
+status = 301
+force = true
+
+[[redirects]]
+from = "/Cart"
+to = "/cart"
+status = 301
+force = true
+
+[[redirects]]
+from = "/sitemap.xml"
+to = "/.netlify/functions/sitemap"
+status = 200
+force = true
+
+[[redirects]]
+from = "/team/:artistId"
+to = "/.netlify/functions/team-profile?artistId=:artistId"
+status = 200
+
 [[redirects]]
 from = "/*"
-to = "/index.html"
+to = "/.netlify/functions/page?path=/:splat"
 status = 200

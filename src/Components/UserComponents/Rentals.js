@@ -26,7 +26,7 @@ const MediaCarousel = ({ media = [], itemName = "OR Music Events service" }) => 
         <Carousel.Item key={`${m.url}-${idx}`}>
           {m.type === "video" ? (
             <Ratio aspectRatio="16x9">
-              <video src={m.url} controls playsInline />
+              <video src={m.url} controls playsInline preload="none" />
             </Ratio>
           ) : (
             <div
@@ -37,7 +37,7 @@ const MediaCarousel = ({ media = [], itemName = "OR Music Events service" }) => 
                 backgroundColor: "#f8f9fa",
               }}
             >
-              <img
+              <img loading="lazy" decoding="async"
                 src={m.url}
                 alt={`${itemName} media ${idx + 1}`}
                 style={{
@@ -140,7 +140,7 @@ function SectionGrid({ title, items = [], onAddToCart }) {
   return (
     <>
       <div className="d-flex align-items-center justify-content-between mt-4 mb-2">
-        <h3 className="m-0">{title}</h3>
+        <h2 className="m-0">{title}</h2>
         <Badge bg="secondary" pill>
           {items.length} items
         </Badge>
@@ -158,7 +158,7 @@ function SectionGrid({ title, items = [], onAddToCart }) {
                 <Card.Body className="d-flex flex-column">
                   <div className="d-flex justify-content-between align-items-start mb-2 gap-2">
                     <div>
-                      <Card.Title className="mb-0">{item.name}</Card.Title>
+                      <Card.Title as="h3" className="mb-0">{item.name}</Card.Title>
                       <div className="d-flex flex-wrap gap-1 mt-1">
                         {(Array.isArray(item.categories) ? item.categories : [])
                           .length > 0 ? (
@@ -333,7 +333,7 @@ const Rentals = ({ addToCart }) => {
         <p>
           Build your event package with DJ/MC services, sound, lighting,
           staging, screens, decor support, and add-ons for weddings, corporate
-          events, concerts, and private parties.
+          events, concerts, and private parties. Meet our <Link to="/team">DJs and MCs</Link>, see our <Link to="/music-videos">music videos</Link>, or <Link to="/contact">ask about event production</Link>.
         </p>
       </header>
 
@@ -375,7 +375,7 @@ const Rentals = ({ addToCart }) => {
         </ButtonGroup>
         <Button
           as={Link}
-          to="/Cart"
+          to="/cart"
           variant={cartCount > 0 ? "success" : "outline-secondary"}
           className="mini-cart-button"
         >
@@ -388,7 +388,7 @@ const Rentals = ({ addToCart }) => {
       ) : nothingToShow ? (
         <Card className="shadow-sm">
           <Card.Body>
-            <Card.Title>Coming soon</Card.Title>
+            <Card.Title as="h2">Coming soon</Card.Title>
             <Card.Text>
               We are curating items that elevate your event. Please check back
               for updates.

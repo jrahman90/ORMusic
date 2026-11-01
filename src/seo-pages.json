@@ -1,0 +1,127 @@
+{
+  "/": {
+    "title": "NYC DJ, MC & Event Production | OR Music Events",
+    "description": "Book NYC DJs, MCs, lighting, staging and event production for weddings, corporate events and private parties. Explore OR Music Events services.",
+    "path": "/"
+  },
+  "/contact": {
+    "title": "Contact OR Music Events | NYC Event Services",
+    "description": "Contact OR Music Events for general questions, support and partnerships. For event pricing and availability, start with the Services page.",
+    "path": "/contact"
+  },
+  "/team": {
+    "title": "New York City DJs & MCs | OR Music Events",
+    "description": "Meet the OR Music Events team behind weddings, corporate events and private parties in New York City and surrounding states.",
+    "path": "/team"
+  },
+  "/team/:artistId": {
+    "title": "Team Profile | OR Music Events",
+    "description": "Learn more about an OR Music Events team member, then explore DJ, MC, hosting and event production services."
+  },
+  "/services": {
+    "title": "NYC Event Rentals, Sound & Lighting | OR Music Events",
+    "description": "Rent speakers, microphones, projectors, screens, lighting and more from OR Music Events for your next event.",
+    "path": "/services"
+  },
+  "/music-videos": {
+    "title": "Music Videos | OR Music Events",
+    "description": "Watch music videos and creative projects produced by OR Music Events.",
+    "path": "/music-videos"
+  },
+  "/music": {
+    "title": "Music by OR Music Events",
+    "description": "Listen to music and mixes by OR Music Events and discover the sounds behind our events.",
+    "path": "/music",
+    "robots": "noindex, nofollow"
+  },
+  "/downloads": {
+    "title": "Downloads | OR Music Events",
+    "description": "Download available OR Music Events resources and event planning materials.",
+    "path": "/downloads",
+    "robots": "noindex, nofollow"
+  },
+  "/cart": {
+    "title": "Your Cart | OR Music Events Rentals",
+    "description": "Review and update your rental cart for event equipment from OR Music Events.",
+    "path": "/cart",
+    "robots": "noindex, nofollow"
+  },
+  "/inquiries": {
+    "title": "Your Inquiries | OR Music Events",
+    "description": "Review your OR Music Events inquiries, contracts, deposits, and status updates.",
+    "path": "/inquiries",
+    "robots": "noindex, nofollow"
+  },
+  "/inquiries/:inquiryId/events/:eventId/itinerary": {
+    "title": "Event Itinerary | OR Music Events",
+    "description": "Create and edit your OR Music Events itinerary for a confirmed event.",
+    "path": "/inquiries",
+    "robots": "noindex, nofollow"
+  },
+  "/inquiries/:inquiryId/events/:eventId/itinerary/print": {
+    "title": "Printable Event Itinerary | OR Music Events",
+    "description": "View, print, or save a PDF copy of your OR Music Events itinerary.",
+    "path": "/inquiries",
+    "robots": "noindex, nofollow"
+  },
+  "/itinerary/public/:inquiryId/:eventId/:token": {
+    "title": "Live Event Itinerary | OR Music Events",
+    "description": "View the current public itinerary for an OR Music Events event.",
+    "path": "/itinerary/public",
+    "robots": "noindex, nofollow"
+  },
+  "/dashboard-admin": {
+    "title": "Admin Dashboard | OR Music Events",
+    "description": "Admin dashboard for OR Music Events.",
+    "path": "/dashboard-admin",
+    "robots": "noindex, nofollow"
+  },
+  "/dashboard-admin/events/:inquiryId/:eventId": {
+    "title": "Admin Event Details | OR Music Events",
+    "description": "Admin event details for OR Music Events.",
+    "path": "/dashboard-admin",
+    "robots": "noindex, nofollow"
+  },
+  "/reports-admin": {
+    "title": "Admin Reports | OR Music Events",
+    "description": "Admin yearly revenue and product reports for OR Music Events.",
+    "path": "/reports-admin",
+    "robots": "noindex, nofollow"
+  },
+  "/inquiries-admin": {
+    "title": "Admin Inquiries | OR Music Events",
+    "description": "Admin inquiry management for OR Music Events.",
+    "path": "/inquiries-admin",
+    "robots": "noindex, nofollow"
+  },
+  "/rental-items-admin": {
+    "title": "Rental Items Admin | OR Music Events",
+    "description": "Admin rental and service catalog editor for OR Music Events.",
+    "path": "/rental-items-admin",
+    "robots": "noindex, nofollow"
+  },
+  "/music-video-admin": {
+    "title": "Music Video Admin | OR Music Events",
+    "description": "Admin music video editor for OR Music Events.",
+    "path": "/music-video-admin",
+    "robots": "noindex, nofollow"
+  },
+  "/dj-mc-admin": {
+    "title": "Team Admin | OR Music Events",
+    "description": "Admin team editor for OR Music Events.",
+    "path": "/dj-mc-admin",
+    "robots": "noindex, nofollow"
+  },
+  "/eventure-admin": {
+    "title": "Eventure Admin | OR Music Events",
+    "description": "Admin Eventure contact management for OR Music Events.",
+    "path": "/eventure-admin",
+    "robots": "noindex, nofollow"
+  },
+  "/eventure-terms-conditions": {
+    "title": "Eventure Terms and Conditions | OR Music Events",
+    "description": "Read the Eventure terms and conditions for using the platform and working with OR Music Events.",
+    "path": "/eventure-terms-conditions",
+    "robots": "noindex, nofollow"
+  }
+}

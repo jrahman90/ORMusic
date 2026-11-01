@@ -669,7 +669,7 @@ const Cart = ({ items, setItems }) => {
   return (
     <Container className="py-3">
       <div className="d-flex align-items-center justify-content-between mb-2">
-        <h2 className="m-0">Cart</h2>
+        <h1 className="m-0">Event Rental Cart</h1>
         <Badge bg="secondary" pill>
           {(items || []).reduce((sum, it) => sum + Number(it.quantity || 0), 0)}{" "}
           items

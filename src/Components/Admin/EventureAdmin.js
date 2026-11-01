@@ -85,6 +85,8 @@ export default function EventureAdmin() {
   });
 
   return (
+    <div>
+      <h1>Eventure Contact Management</h1>
     <div style={styles.container}>
       <div style={styles.column}>
         <h2 style={styles.columnTitle}>Bugs (Oldest First)</h2>
@@ -179,6 +181,7 @@ export default function EventureAdmin() {
           })}
         </div>
       </div>
+    </div>
     </div>
   );
 }

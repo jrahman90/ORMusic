@@ -351,7 +351,7 @@ export default function ItineraryPrintPage({ publicView = false }) {
       <main className="itinerary-print-page">
         <img
           className="itinerary-print-watermark"
-          src="/ormusiclogo.png"
+          src="/ormusiclogo.webp"
           alt=""
           aria-hidden="true"
         />

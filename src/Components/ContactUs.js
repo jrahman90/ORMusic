@@ -86,7 +86,7 @@ export default function ContactUs() {
     <main className="contact-page">
       <section
         className="contact-hero"
-        style={{ "--contact-hero-image": "url('/djbooth3.jpg')" }}
+        style={{ "--contact-hero-image": "url('/djbooth3.webp')" }}
       >
         <Container className="contact-hero-inner">
           <div className="contact-hero-copy">
@@ -94,17 +94,17 @@ export default function ContactUs() {
               <MessageSquareText size={17} />
               Contact OR Music Events
             </span>
-            <h1>Questions, support, and collaboration</h1>
+            <h1>Contact OR Music Events</h1>
             <p>
               For event pricing and availability, start with Services so your
               inquiry includes the package, rentals, and details we need.
             </p>
             <div className="contact-hero-actions">
-              <Button as={Link} to="/RentalItems" size="lg">
+              <Button as={Link} to="/services" size="lg">
                 Explore services
                 <ArrowRight size={18} />
               </Button>
-              <Button as={Link} to="/Cart" variant="outline-light" size="lg">
+              <Button as={Link} to="/cart" variant="outline-light" size="lg">
                 View cart
               </Button>
             </div>
@@ -123,7 +123,7 @@ export default function ContactUs() {
                 add-ons, pricing, discounts, and event details connected to the
                 inquiry.
               </p>
-              <Button as={Link} to="/RentalItems">
+              <Button as={Link} to="/services">
                 Start with services
                 <ArrowRight size={16} />
               </Button>
@@ -270,7 +270,7 @@ export default function ContactUs() {
             </span>
             <h2>Packages, add-ons, and event production live in Services.</h2>
           </div>
-          <Button as={Link} to="/RentalItems" variant="light">
+          <Button as={Link} to="/services" variant="light">
             Browse services
             <ArrowRight size={16} />
           </Button>

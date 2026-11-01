@@ -1,5 +1,5 @@
 import React from "react";
 
 export default function Music() {
-  return <div>Music</div>;
+  return <main className="container py-5"><h1>Music</h1><p>New resources are coming soon.</p></main>;
 }

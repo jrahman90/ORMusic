@@ -121,7 +121,7 @@ const SortableArtistCard = ({
           </Button>
           <Button
             as={Link}
-            to={`/DJMC/${artist.id}`}
+            to={`/team/${encodeURIComponent(artist.id)}`}
             variant="outline-secondary"
             size="sm"
           >

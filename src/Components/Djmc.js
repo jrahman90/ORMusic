@@ -71,16 +71,16 @@ const Djmc = () => {
         <Container className="team-hero-inner">
           <div className="team-hero-copy">
             <span className="team-kicker">OR Music Events Team</span>
-            <h1>Meet the people behind the music</h1>
+            <h1>Meet Our New York City DJs and MCs</h1>
             <p>
               DJs, MCs, hosts, and production-minded event pros who keep the
               room moving, the schedule calm, and the celebration personal.
             </p>
             <div className="team-hero-actions">
-              <Button as={Link} to="/RentalItems">
+              <Button as={Link} to="/services">
                 Explore services
               </Button>
-              <Button as={Link} to="/RentalItems" variant="outline-light">
+              <Button as={Link} to="/services" variant="outline-light">
                 View packages
               </Button>
             </div>
@@ -130,12 +130,12 @@ const Djmc = () => {
                 <article key={artist.id} className="team-member-card">
                   <div className="team-member-photo">
                     {artist.imageUrl ? (
-                      <img
+                      <img loading="lazy" decoding="async"
                         src={artist.imageUrl}
                         alt={`${artist.name || "OR Music Events team member"} portrait`}
                       />
                     ) : featuredArtist?.imageUrl ? (
-                      <img
+                      <img loading="lazy" decoding="async"
                         src={featuredArtist.imageUrl}
                         alt="OR Music Events team"
                       />
@@ -151,7 +151,7 @@ const Djmc = () => {
                     <div className="team-member-actions">
                       <Button
                         as={Link}
-                        to={`/DJMC/${artist.id}`}
+                        to={`/team/${encodeURIComponent(artist.id)}`}
                         variant="outline-primary"
                         size="sm"
                       >
@@ -160,7 +160,7 @@ const Djmc = () => {
                       </Button>
                       <Button
                         as={Link}
-                        to="/RentalItems"
+                        to="/services"
                         variant="link"
                         size="sm"
                       >
@@ -181,7 +181,7 @@ const Djmc = () => {
             <span className="team-kicker">Plan the feel</span>
             <h2>Match the right sound, host, and setup to your event.</h2>
           </div>
-          <Button as={Link} to="/RentalItems">
+          <Button as={Link} to="/services">
             Explore services
           </Button>
         </Container>

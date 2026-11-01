@@ -1248,7 +1248,7 @@ export default function Inquiries() {
 
       {/* Inquiries, compact accordion cards */}
       <div className="admin-inquiries-titlebar d-flex align-items-center justify-content-between mb-2">
-        <h4 className="mb-0">Inquiries</h4>
+        <h1 className="mb-0">Inquiries</h1>
         <Button size="sm" onClick={openNewInquiry}>
           Add inquiry
         </Button>
@@ -2880,7 +2880,7 @@ export default function Inquiries() {
 
       {/* Completed section */}
       <div className="mt-4">
-        <h4 className="mb-2">Completed</h4>
+        <h2 className="mb-2">Completed</h2>
         <Row xs={1} sm={1} md={1} lg={2} xl={3} className="g-3">
           {completedList.map((inq) => {
             const { total } = calcTotals(inq);
